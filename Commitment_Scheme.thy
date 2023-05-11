@@ -1,6 +1,6 @@
 theory Commitment_Scheme
 
-imports "CRYSTALS-Kyber.Kyber_spec"
+imports "CRYSTALS-Kyber.Kyber_spec" "CryptHOL.Cyclic_Group" 
 
 begin
 section \<open>Type Class for Factorial Ring $\mathbb{Z}_p[x]/(x^d-1)$.\<close>
@@ -30,18 +30,6 @@ text \<open>Defining the conversion functions.
  of_qr :: "'a qr \<Rightarrow> 'a :: qr_spec mod_ring poly" 
 \<close>
 
-locale commit_scheme_spec = 
-fixes "type_a" :: "('a :: qr_spec) itself" 
-  and d p::int
-assumes
-p_gr_two: "p > 2" and
-p_prime : "prime p" and
-d_pos: "d > 0" and
-CARD_a: "int (CARD('a :: qr_spec)) = p" and
-qr_poly'_eq: "qr_poly' TYPE('a) = Polynomial.monom 1 (nat d) - 1"
-
-begin
-
 (*
 Vorsicht! der Einfachkeit halber, sind alle Polynome bis Grad einschließlich d-1 im Typen qr!
 
@@ -57,6 +45,31 @@ CryptHOL.cyclic_group
 - kompatibilität mit Berlekamp-Zassenhaus?
 
  *)
+
+section \<open>commitment scheme spec\<close>
+
+locale commit_scheme_spec = 
+fixes "type_a" :: "('a :: qr_spec) itself" 
+  and d p::int
+  and G\<^sub>p :: "'grp cyclic_group"
+  and G\<^sub>T :: "'tgrp cyclic_group"
+  and e :: "'grp \<Rightarrow> 'grp \<Rightarrow> 'tgrp"
+assumes
+p_gr_two: "p > 2" and
+p_prime : "prime p" and
+
+(* Bilinear Group Assumptions *)
+CARD_grp: "int (order G\<^sub>p) = p" and
+gen_G: "g = generator G\<^sub>p" and
+bilinearity: "\<forall>a b::'a mod_ring . \<forall>P Q ::'grp.  e (P [^]\<^bsub>G\<^sub>p\<^esub> a) (Q [^]\<^bsub>G\<^sub>p\<^esub> b) = (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (a*b)" and 
+(*$(\mathbb{Z}_p[x])^{<d}$ Assumptions*)
+d_pos: "d > 0" and
+CARD_a: "int (CARD('a :: qr_spec)) = p" and
+qr_poly'_eq: "qr_poly' TYPE('a) = Polynomial.monom 1 (nat d) - 1"
+
+begin
+
+section \<open>q extractor : f(x)-f(u)=(x-u)q(x)\<close>
 
 (*  Ein extractor für das Polynom q (extract_q) und der Beweis der Korrektheit 
     (f_eq_xu_extrqx). 
@@ -381,6 +394,9 @@ proof
       by (simp add: poly_altdef)
   qed
 qed
+
+
+
 end
 
 end
