@@ -34,50 +34,355 @@ text \<open>Defining the conversion functions.
 Vorsicht! der Einfachkeit halber, sind alle Polynome bis Grad einschließlich d-1 im Typen qr!
 
 ein Element k aus (Z_p)[x]^{<d} : "k :: 'a qr"
-
-
 *)
-
-(* 
-
-mögliche Gruppen für bilinear pairing:
-CryptHOL.cyclic_group
-- kompatibilität mit Berlekamp-Zassenhaus?
-
- *)
 
 section \<open>commitment scheme spec\<close>
 
-locale commit_scheme_spec = 
-fixes "type_a" :: "('a :: qr_spec) itself" 
+locale commit_scheme_spec =
+G\<^sub>p : cyclic_group G\<^sub>p + G\<^sub>T : cyclic_group G\<^sub>T 
+for G\<^sub>p and G\<^sub>T +
+fixes "type_a" :: "('q :: qr_spec) itself" 
   and d p::int
-  and G\<^sub>p :: "'grp cyclic_group"
-  and G\<^sub>T :: "'tgrp cyclic_group"
-  and e :: "'grp \<Rightarrow> 'grp \<Rightarrow> 'tgrp"
+  and e
 assumes
 p_gr_two: "p > 2" and
 p_prime : "prime p" and
-
 (* Bilinear Group Assumptions *)
-CARD_grp: "int (order G\<^sub>p) = p" and
-gen_G: "g = generator G\<^sub>p" and
-bilinearity: "\<forall>a b::'a mod_ring . \<forall>P Q ::'grp.  e (P [^]\<^bsub>G\<^sub>p\<^esub> a) (Q [^]\<^bsub>G\<^sub>p\<^esub> b) = (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (a*b)" and 
+CARD_G\<^sub>p: "int (order G\<^sub>p) = p" and
+CARD_G\<^sub>T: "int (order G\<^sub>T) = p" and
+e_symmetric: "e \<in> carrier G\<^sub>p \<rightarrow> carrier G\<^sub>p \<rightarrow> carrier G\<^sub>T" and 
+e_bilinear: "\<forall>a b::'q mod_ring . \<forall>P Q. P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p \<longrightarrow> 
+   e (P [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring a)) (Q [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring b)) 
+= (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring (a*b))" and 
 (*$(\mathbb{Z}_p[x])^{<d}$ Assumptions*)
 d_pos: "d > 0" and
-CARD_a: "int (CARD('a :: qr_spec)) = p" and
-qr_poly'_eq: "qr_poly' TYPE('a) = Polynomial.monom 1 (nat d) - 1"
+CARD_q: "int (CARD('q)) = p" and
+qr_poly'_eq: "qr_poly' TYPE('q) = Polynomial.monom 1 (nat d) - 1"
 
 begin
 
-section \<open>q extractor : f(x)-f(u)=(x-u)q(x)\<close>
+subsection \<open>Additional group lemmas\<close>
 
-(*  Ein extractor für das Polynom q (extract_q) und der Beweis der Korrektheit 
-    (f_eq_xu_extrqx). 
-    Dokumentation folgt.
+lemma e_linear_in_fst: 
+  assumes "P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p"
+  shows "e (P [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a::'q mod_ring))) (Q) = (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring a)"
+proof -
+  have "e (P [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a) Q = e (P [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a) (Q [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring (1::'q mod_ring))" using assms by simp
+  also have "... = (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring (a*(1::'q mod_ring)))" using assms e_bilinear by fast
+  also have "\<dots>=(e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring a)" by simp
+  ultimately show "e (P [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring a)) Q = (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring a)" by argo
+qed
+
+lemma e_linear_in_snd: 
+assumes "P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p"
+shows "e (P) (Q [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a::'q mod_ring))) = (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring a)"
+proof -
+have "e P (Q [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a) = e (P [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring (1::'q mod_ring)) (Q [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a)" using assms by simp
+  also have "... = (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring ((1::'q mod_ring)*a))" using assms e_bilinear by fast
+  also have "\<dots>=(e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring a)" by simp
+  ultimately show "e P (Q [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a) = e P Q [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring a" by argo
+qed  
+  
+
+subsubsection\<open>mod_ring operations on pow for Gp\<close>
+
+lemma pow_mod_order_G\<^sub>p: "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod p)" 
+proof -
+  have "p=order G\<^sub>p" by (simp add: CARD_G\<^sub>p)
+  also have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod order G\<^sub>p)"
+  proof -
+    have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x \<in> carrier G\<^sub>p" by simp
+    let ?d = "x div (order G\<^sub>p)"
+    have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (?d * order G\<^sub>p + x mod order G\<^sub>p)" 
+      using div_mult_mod_eq by presburger
+    also have "\<dots>= \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (?d * order G\<^sub>p) \<otimes>\<^bsub>G\<^sub>p\<^esub>  \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod order G\<^sub>p)"
+      using G\<^sub>p.int_pow_mult by blast
+    also have "\<dots>=\<one>\<^bsub>G\<^sub>p\<^esub> \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod order G\<^sub>p)"
+      by (metis G\<^sub>p.generator_closed G\<^sub>p.int_pow_closed G\<^sub>p.int_pow_pow G\<^sub>p.pow_order_eq_1 int_pow_int)
+    ultimately show "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod order G\<^sub>p)" by fastforce
+  qed
+  ultimately show "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod p)" 
+    by auto
+qed
+
+lemma mod_ring_pow_mult_G\<^sub>p[symmetric]:" (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a::'q mod_ring))) \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring b)) 
+  =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a+b))"
+proof -
+  have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring b =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring a + to_int_mod_ring b)"
+    by (simp add: G\<^sub>p.int_pow_mult)
+  also have "\<dots>=  \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> ((to_int_mod_ring a + to_int_mod_ring b) mod (CARD ('q)))" 
+    using pow_mod_order_G\<^sub>p CARD_q by blast
+  also have "\<dots>=  \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring (a + b)"
+    by (simp add: plus_mod_ring.rep_eq to_int_mod_ring.rep_eq)
+  finally show "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring b = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring (a + b)"
+    by blast
+qed
+
+lemma mod_ring_pow_pow_G\<^sub>p[symmetric]: "(\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a::'q mod_ring))) [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (b::'q mod_ring)) 
+                       = \<^bold>g\<^bsub>G\<^sub>p\<^esub>[^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a*b::'q mod_ring))"
+proof -
+  have "(\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a) [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring b = (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring a * to_int_mod_ring b))"
+    using G\<^sub>p.int_pow_pow by auto
+  also have "\<dots> = (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> ((to_int_mod_ring a * to_int_mod_ring b) mod CARD ('q)))"
+    using CARD_q pow_mod_order_G\<^sub>p by blast
+  also have "\<dots>=  \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring (a * b)"
+    by (simp add: times_mod_ring.rep_eq to_int_mod_ring.rep_eq)
+  finally show "(\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a) [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring b 
+               = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring (a * b)"
+    by blast
+qed
+
+lemma mod_ring_pow_mult_inv_G\<^sub>p[symmetric]:" (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a::'q mod_ring))) \<otimes>\<^bsub>G\<^sub>p\<^esub> inv\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring b)) 
+  =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a-b))"
+proof -
+  have "(\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a::'q mod_ring))) \<otimes>\<^bsub>G\<^sub>p\<^esub> inv\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring b)) 
+        = (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a::'q mod_ring))) \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (- to_int_mod_ring b))"
+    by (simp add: G\<^sub>p.int_pow_neg)
+  also have "\<dots>=(\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> ((to_int_mod_ring a + -to_int_mod_ring b) mod CARD ('q)))"
+    using pow_mod_order_G\<^sub>p CARD_q G\<^sub>p.generator_closed G\<^sub>p.int_pow_mult by presburger
+  also have "\<dots>=(\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> ((to_int_mod_ring a - to_int_mod_ring b) mod CARD ('q)))"
+    by fastforce
+  also have "\<dots>=  \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring (a - b)"
+    by (simp add: minus_mod_ring.rep_eq to_int_mod_ring.rep_eq)
+  finally show "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a \<otimes>\<^bsub>G\<^sub>p\<^esub> inv\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring b) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring (a - b)"
+    by blast
+qed
+
+subsubsection\<open>mod_ring operations on pow for GT\<close>
+
+lemma pow_mod_order_G\<^sub>T: "g \<in> carrier G\<^sub>T \<Longrightarrow> g [^]\<^bsub>G\<^sub>T\<^esub> x = g [^]\<^bsub>G\<^sub>T\<^esub> (x mod p)" 
+proof -
+  assume asmpt: "g \<in> carrier G\<^sub>T"
+  have "p=order G\<^sub>T" by (simp add: CARD_G\<^sub>T)
+  also have "g[^]\<^bsub>G\<^sub>T\<^esub> x = g [^]\<^bsub>G\<^sub>T\<^esub> (x mod order G\<^sub>T)"
+  proof -
+    have "g [^]\<^bsub>G\<^sub>T\<^esub> x \<in> carrier G\<^sub>T" using asmpt by simp
+    let ?d = "x div (order G\<^sub>T)"
+    have "g [^]\<^bsub>G\<^sub>T\<^esub> x = g [^]\<^bsub>G\<^sub>T\<^esub> (?d * order G\<^sub>T + x mod order G\<^sub>T)" 
+      using div_mult_mod_eq by presburger
+    also have "\<dots>=g [^]\<^bsub>G\<^sub>T\<^esub> (?d * order G\<^sub>T) \<otimes>\<^bsub>G\<^sub>T\<^esub>  g [^]\<^bsub>G\<^sub>T\<^esub> (x mod order G\<^sub>T)"
+      using G\<^sub>T.int_pow_mult asmpt by fast
+    also have "\<dots>=\<one>\<^bsub>G\<^sub>T\<^esub> \<otimes>\<^bsub>G\<^sub>T\<^esub> g [^]\<^bsub>G\<^sub>T\<^esub> (x mod order G\<^sub>T)"
+      by (metis G\<^sub>T.int_pow_one G\<^sub>T.int_pow_pow G\<^sub>T.pow_order_eq_1 int_pow_int mult.commute asmpt)
+    ultimately show "g [^]\<^bsub>G\<^sub>T\<^esub> x = g [^]\<^bsub>G\<^sub>T\<^esub> (x mod order G\<^sub>T)"
+      using asmpt by fastforce
+  qed
+  ultimately show "g [^]\<^bsub>G\<^sub>T\<^esub> x = g [^]\<^bsub>G\<^sub>T\<^esub> (x mod p)" 
+    by auto
+qed
+
+lemma mod_ring_pow_mult_G\<^sub>T[symmetric]:" x \<in> carrier G\<^sub>T \<Longrightarrow> (x [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring (a::'q mod_ring))) \<otimes>\<^bsub>G\<^sub>T\<^esub> (x [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring b)) 
+  =  x [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring (a+b))"
+proof -
+  assume asmpt: "x \<in> carrier G\<^sub>T"
+  have "x [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring a \<otimes>\<^bsub>G\<^sub>T\<^esub> x [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring b =  x [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring a + to_int_mod_ring b)"
+    by (simp add: G\<^sub>T.int_pow_mult asmpt)
+  also have "\<dots>=  x [^]\<^bsub>G\<^sub>T\<^esub> ((to_int_mod_ring a + to_int_mod_ring b) mod (CARD ('q)))" 
+    using pow_mod_order_G\<^sub>T CARD_q asmpt by blast
+  also have "\<dots>=  x [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring (a + b)"
+    by (simp add: plus_mod_ring.rep_eq to_int_mod_ring.rep_eq)
+  finally show "x [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring a \<otimes>\<^bsub>G\<^sub>T\<^esub> x [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring b = x [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring (a + b)"
+    by blast
+qed
+
+subsection \<open>other locale derived lemmas\<close>
+
+lemma [simp]: "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> p = \<one>\<^bsub>G\<^sub>p\<^esub>"
+  using CARD_G\<^sub>p G\<^sub>p.pow_order_eq_1 by (metis G\<^sub>p.generator_closed int_pow_int)
+
+lemma [simp]: "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x*p) =  \<one>\<^bsub>G\<^sub>p\<^esub>"
+  by (metis CARD_G\<^sub>p G\<^sub>p.generator_closed G\<^sub>p.int_pow_one G\<^sub>p.int_pow_pow G\<^sub>p.pow_order_eq_1 int_pow_int mult.commute)
+
+(*  TODO dirty  *)
+abbreviation pow_mod_ring_G\<^sub>p :: "'a \<Rightarrow>'q mod_ring \<Rightarrow> 'a" (infixr "^\<^bsub>G\<^sub>p\<^esub>" 75)
+  where "x ^\<^bsub>G\<^sub>p\<^esub> q \<equiv> x [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring q)"
+
+
+section \<open>KZG functions\<close>
+text \<open>for reference see section 3.2 Construction: PolyCommitDL in the 
+extended Paper "Constant-Size Commitments to Polynomials and
+Their Applications" 
+(https://www.iacr.org/archive/asiacrypt2010/6477178/6477178.pdf)\<close>
+
+subsection \<open>Setup(1^k,t) ==> PK = (g,g^\<alpha>,g^(\<alpha>^2),...,g^(\<alpha>^t)) group G is globally fixed\<close>
+
+fun Setup :: "'q mod_ring \<Rightarrow> nat \<Rightarrow> 'a list" where 
+  "Setup \<alpha> t = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<t+1]"
+
+lemma Setup_append[symmetric, simp]:"Setup \<alpha> t @ [\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^(Suc t))] = Setup \<alpha> (Suc t)"
+  by force
+
+lemma Setup_i: "i\<le>t \<Longrightarrow> Setup \<alpha> t ! i =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^i)"
+proof (induction t)
+  case 0
+  then show ?case by force
+next
+  case (Suc t)
+  then show ?case 
+  proof (cases "i\<le>t")
+    case True
+    then show ?thesis 
+      by (metis Setup.simps Suc.prems Suc_eq_plus1 less_Suc_eq_le minus_nat.diff_0 nth_map_upt plus_nat.add_0)
+  next
+    case False
+    then show ?thesis
+      by (metis Setup.simps Suc.prems Suc_eq_plus1 linorder_not_less minus_nat.diff_0 not_less_eq nth_map_upt plus_nat.add_0)
+  qed
+qed
+
+corollary Setup_i_lengthSetup: "i<length (Setup \<alpha> t) \<Longrightarrow> Setup \<alpha> t ! i = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^i)"
+proof (rule Setup_i)
+  show "i < length (Setup \<alpha> t) \<Longrightarrow> i \<le> t"
+    by force
+qed
+
+subsection \<open>Commit(PK, \<phi>) ==> C = g^\<phi>(\<alpha>)\<close>
+
+(*  this abstraction allows reuse for the CreateWitness function  *)
+fun g_pow_PK_Prod :: "'a list \<Rightarrow>'q mod_ring poly \<Rightarrow> 'a" where
+  "g_pow_PK_Prod PK \<phi> = fold (\<lambda>pk g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!pk ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> pk)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>"
+
+fun Commit :: "'a list \<Rightarrow>'q qr \<Rightarrow> 'a" where 
+  "Commit PK \<phi> = g_pow_PK_Prod PK (of_qr \<phi>)"
+
+lemma g_pow_PK_Prod_inserted[simp]: "degree \<phi> \<le> t \<Longrightarrow> g_pow_PK_Prod (Setup \<alpha> t) \<phi> = fold (\<lambda>pk g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^pk)) ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> pk)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>"
+proof -
+  assume asmpt: "degree \<phi> \<le> t"
+  have "g_pow_PK_Prod (Setup \<alpha> t) \<phi> = fold (\<lambda>pk g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (Setup \<alpha> t)!pk ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> pk)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>" 
+    by auto
+  also have "fold (\<lambda>pk g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (Setup \<alpha> t)!pk ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> pk)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>
+           = fold (\<lambda>pk g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^pk)) ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> pk)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>" 
+  proof(rule List.fold_cong)
+    show "\<one>\<^bsub>G\<^sub>p\<^esub> = \<one>\<^bsub>G\<^sub>p\<^esub>" by simp
+    show "[0..<Suc (degree \<phi>)] = [0..<Suc (degree \<phi>)]" by blast
+    show "\<And>x. x \<in> set [0..<Suc (degree \<phi>)] \<Longrightarrow>
+         (\<lambda>g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> Setup \<alpha> t ! x       ^\<^bsub>G\<^sub>p\<^esub> poly.coeff \<phi> x) 
+       = (\<lambda>g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ x) ^\<^bsub>G\<^sub>p\<^esub> poly.coeff \<phi> x)"
+    proof 
+      fix x::nat
+      fix g::'a
+      assume "x \<in> set [0..<Suc (degree \<phi>)]"
+      then have "Setup \<alpha> t ! x = (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ x)" 
+        using Setup_i asmpt by auto
+      then show "g \<otimes>\<^bsub>G\<^sub>p\<^esub> Setup \<alpha> t ! x ^\<^bsub>G\<^sub>p\<^esub> poly.coeff \<phi> x = g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ x) ^\<^bsub>G\<^sub>p\<^esub> poly.coeff \<phi> x" 
+        by presburger
+    qed
+  qed
+  ultimately show "g_pow_PK_Prod (Setup \<alpha> t) \<phi> = fold (\<lambda>pk g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ pk) ^\<^bsub>G\<^sub>p\<^esub> poly.coeff \<phi> pk) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>"
+    by argo
+qed
+
+lemma poly_altdef_to_fold[symmetric]: "n\<le>degree \<phi>  \<Longrightarrow> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<Sum>i\<le>n. poly.coeff \<phi> i * \<alpha> ^ i) 
+                          = fold (\<lambda>n g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> n * \<alpha> ^ n)) [0..<Suc n] \<one>\<^bsub>G\<^sub>p\<^esub>"
+proof (induction n)
+  case 0
+  have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<Sum>i\<le>0. poly.coeff \<phi> i * \<alpha> ^ i) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> 0 * \<alpha> ^ 0)"
+    by force
+  moreover have "fold (\<lambda>n g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> n * \<alpha> ^ n)) [0..<Suc 0] \<one>\<^bsub>G\<^sub>p\<^esub> 
+    =  \<one>\<^bsub>G\<^sub>p\<^esub> \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> (0::nat) * \<alpha> ^ (0::nat))" by force
+  moreover have "\<one>\<^bsub>G\<^sub>p\<^esub> \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> (0::nat) * \<alpha> ^ (0::nat)) 
+      = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> (0::nat) * \<alpha> ^ (0::nat))" using G\<^sub>p.generator_closed G\<^sub>p.generator G\<^sub>p.l_one by simp 
+  ultimately show ?case by argo
+next
+  case (Suc n)
+  have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<Sum>i\<le>Suc n. poly.coeff \<phi> i * \<alpha> ^ i) 
+      = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((\<Sum>i\<le>n. poly.coeff \<phi> i * \<alpha> ^ i) 
+      + poly.coeff \<phi> (Suc n) * \<alpha> ^ (Suc n))" by force
+  also have "\<dots>= \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<Sum>i\<le>n. poly.coeff \<phi> i * \<alpha> ^ i) 
+     \<otimes>\<^bsub>G\<^sub>p\<^esub>  \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> (Suc n) * \<alpha> ^ (Suc n))" 
+    using mod_ring_pow_mult_G\<^sub>p by fastforce
+  also have "\<dots> = fold (\<lambda>n g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> n * \<alpha> ^ n)) [0..<Suc n] \<one>\<^bsub>G\<^sub>p\<^esub>
+                \<otimes>\<^bsub>G\<^sub>p\<^esub>  \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> (Suc n) * \<alpha> ^ (Suc n))" 
+    using Suc by auto
+  also have "\<dots>=fold (\<lambda>n g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> n * \<alpha> ^ n)) [0..<Suc (Suc n)] \<one>\<^bsub>G\<^sub>p\<^esub>"
+    by simp
+  finally show ?case .
+qed
+
+lemma g_pow_PK_Prod_correct: "degree \<phi> \<le> t \<Longrightarrow> g_pow_PK_Prod (Setup \<alpha> t) \<phi> = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly \<phi> \<alpha> )"
+proof -
+  assume asmpt: "degree \<phi> \<le> t"
+  have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly \<phi> \<alpha> = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<Sum>i\<le>degree \<phi>. poly.coeff \<phi> i * \<alpha> ^ i)"
+    by (simp add: poly_altdef)
+  moreover have "g_pow_PK_Prod (Setup \<alpha> t) \<phi> = fold (\<lambda>n g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> n * \<alpha> ^ n)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>"
+  proof -
+    have "g_pow_PK_Prod (Setup \<alpha> t) \<phi> = fold (\<lambda>pk g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^pk)) ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> pk)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>"
+      using g_pow_PK_Prod_inserted asmpt by blast
+    moreover have "\<forall>n g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^n)) ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> n) 
+              = g \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> n * \<alpha> ^ n)"
+      by (simp add: mod_ring_pow_pow_G\<^sub>p mult.commute G\<^sub>p.int_pow_pow)
+    ultimately show "g_pow_PK_Prod (Setup \<alpha> t) \<phi> 
+    = fold (\<lambda>n g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> n * \<alpha> ^ n)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>"
+      by presburger
+  qed
+  ultimately show "g_pow_PK_Prod (Setup \<alpha> t) \<phi> = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly \<phi> \<alpha>" 
+    using poly_altdef_to_fold[of "degree \<phi>" \<phi> \<alpha>] by fastforce
+qed
+
+corollary Commit_correct: "degree (of_qr \<phi>) \<le> t \<Longrightarrow> Commit (Setup \<alpha> t) \<phi> = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>) \<alpha> )"
+  using g_pow_PK_Prod_correct by force
+
+subsection \<open>Open(PK, C, \<phi>) => \<phi>\<close>
+
+fun Open :: "'a list \<Rightarrow> 'a \<Rightarrow> 'q mod_ring poly \<Rightarrow> 'q mod_ring poly" where
+  "Open PK C \<phi> = \<phi>"
+
+subsection \<open>VerifyPoly(PK, C, \<phi>)\<close>
+
+fun VerifyPoly :: "'a list \<Rightarrow> 'a \<Rightarrow>  'q qr \<Rightarrow> bool" where
+  "VerifyPoly PK C \<phi> = (C = Commit PK \<phi>)"
+
+lemma VerifyPoly_correct: "degree (of_qr \<phi>)\<le>t \<Longrightarrow> VerifyPoly (Setup \<alpha> t) C \<phi> \<equiv> (C=Commit (Setup \<alpha> t) \<phi>)"
+  by fastforce
+
+subsection \<open>CreateWitness(PK, \<phi>, i)==> (i,\<phi>(i),w_i)\<close>
+text \<open>w_i is \<psi>(\<alpha>) in  \<phi>(x)-\<phi>(u)=(x-u)\<psi>(x)\<close>
+
+subsubsection \<open>\<psi> extractor : \<phi>(x)-\<phi>(u)=(x-u)\<psi>(x) for w_i=\<psi>(\<alpha>)\<close>
+
+(*
+Defining and proving-correct a extractor for the polynomial q in f(x)-f(u)=(x-u)q(x), namely 
+"compute_q f u" with f being a polynomial and x being a variable and u being a "known variable
+/parameter".
+
+Basic proof outline:
+
+1. Convert f in sum-form:
+f(x)-f(u) = (\<Sum>i\<le>degree f. coeff f i * x^i) - (\<Sum>i\<le>degree f. coeff f i * x^i)
+from that one easily reduces to (x-u)(\<Sum>i\<le>degree f. coeff f i * (\<Sum>j<i. u^(i - Suc j)*x^j)) 
+(see power_diff_sumr2)
+
+2. Ordering the summation:
+One can imagine the summation to be horizontal, in the sense that it computes the coeffs 
+form 0 to degree f, and adds (or could add) to each coeff in every iteration:
+0: 0 +
+1: f\<^sub>1 +
+2: f\<^sub>2*u + f\<^sub>2*x +
+3: f\<^sub>3*u^2 + f\<^sub>3*u*x + f\<^sub>3*x^2
+...
+n: f\<^sub>n*u^(n-1) + ... f\<^sub>n*u^((n-1)-i)*x^i ...  + f\<^sub>n*x^(n-1)
+we order it to compute coeffs one by one (to compute vertical)
+1: 0 + f\<^sub>1          + ... + f\<^sub>n*u^(n-1)         +
+2: 0 + f\<^sub>2 * x      + ... + f\<^sub>n*u^((n-1)-1) * x +
+...
+n: 0 + f\<^sub>n * x^(n-1)
+In formulas:
+(\<Sum>i\<le>degree f. coeff f i * (\<Sum>j<i. u^(i - Suc j)*x^j)) =
+(\<Sum>i\<le>degree f. (\<Sum>j\<in>{i<..<Suc (degree f)}. coeff f j * u^(j-Suc i)) * x^i)
+
+3. build the extractor: 
+We build the polynomial q from a list of coefficients, that are computed 
+from the coefficients of f and the known variable u to mirror the sum.
+
+4. We show for every i\<le>degree f that the vertical sum is equal to the extracted q as 
+sum 
+In formulas :
+(\<Sum>i\<le>degree f. (\<Sum>j\<in>{i<..<Suc (degree f)}. coeff f j * u^(j-Suc i)) * x^i) = poly extracted_q x
+
 *)
 
 
-definition coeffs_n :: "'a mod_ring poly \<Rightarrow> 'a mod_ring \<Rightarrow> 'a mod_ring list \<Rightarrow> nat \<Rightarrow> 'a mod_ring list"
+definition coeffs_n :: "'q mod_ring poly \<Rightarrow> 'q mod_ring \<Rightarrow> 'q mod_ring list \<Rightarrow> nat \<Rightarrow> 'q mod_ring list"
   where "coeffs_n \<phi> u = (\<lambda>q_coeffs. \<lambda>n. map (\<lambda>(i::nat). (nth_default 0 q_coeffs i + poly.coeff \<phi> n * u ^ (n - Suc i))) [0..<n])"
 
 lemma coeffs_n_length[simp]: "length (coeffs_n \<phi> u q_co n) = n"
@@ -86,31 +391,11 @@ lemma coeffs_n_length[simp]: "length (coeffs_n \<phi> u q_co n) = n"
 lemma coeffs_n_add_nth[simp]: "\<forall>i<n. coeffs_n \<phi> u l n ! i = nth_default 0 l i + poly.coeff \<phi> n * u ^ (n - Suc i)"
   unfolding coeffs_n_def by auto
 
-lemma list_length_sum_ext[simp]: "length (xs@[x]) = Suc n \<Longrightarrow> (\<Sum>i<Suc n. (xs@[x])!i) = (\<Sum>i<n. xs!i) + x"
-proof -
-  assume asmp: "length (xs@[x]) = Suc n"
-  then have xsn_eq_x: "(xs @ [x]) ! n = x" by auto
-  have "(\<Sum>i<n. xs!i) = (\<Sum>i<n. (xs@[x])!i)"
-  proof -
-    have "length xs = n" using asmp by simp
-    then have "\<forall>i<n. xs!i = (xs@[x])!i"
-      by (simp add: append_Cons_nth_left)
-    then show "(\<Sum>i<n. xs!i) = (\<Sum>i<n. (xs@[x])!i)" by auto
-  qed
-  then show "(\<Sum>i<Suc n. (xs@[x])!i) = (\<Sum>i<n. xs!i) + x"
-    using xsn_eq_x by force    
-qed
-
-definition extract_q_coeffs :: "'a mod_ring poly \<Rightarrow> 'a mod_ring \<Rightarrow> nat \<Rightarrow> 'a mod_ring list"
+definition extract_q_coeffs :: "'q mod_ring poly \<Rightarrow> 'q mod_ring \<Rightarrow> nat \<Rightarrow> 'q mod_ring list"
   where "extract_q_coeffs \<phi> u n = foldl (coeffs_n \<phi> u) [] [0..<Suc n]" 
 
-lemma fold_q_coeffs_length[simp]:"length (foldl (coeffs_n \<phi> u) [] [0..<Suc n]) = n"
-  by simp
-
-corollary extract_q_coeffs_length[simp]: "length (extract_q_coeffs \<phi> u n) = n"
+lemma extract_q_coeffs_length[simp]: "length (extract_q_coeffs \<phi> u n) = n"
   unfolding extract_q_coeffs_def by simp
-
-
 
 lemma extract_q_coeffs_nth_sum: "i<n \<Longrightarrow> foldl (coeffs_n \<phi> u) [] [0..<Suc n] ! i
                                         = (\<Sum>j\<in>{i<..<Suc n}. poly.coeff \<phi> j * u ^ (j - Suc i))"
@@ -187,7 +472,7 @@ next
     by (metis Suc_leI atLeastSucLessThan_greaterThanLessThan sum.atLeastLessThan_Suc)
 qed
 
-lemma sum_horiz_to_vert: "n\<le>degree (\<phi>::'a mod_ring poly) \<Longrightarrow> (\<Sum>i\<le>n. poly.coeff \<phi> i * (\<Sum>j<i. u ^ (i - Suc j) * x ^ j)) 
+lemma sum_horiz_to_vert: "n\<le>degree (\<phi>::'q mod_ring poly) \<Longrightarrow> (\<Sum>i\<le>n. poly.coeff \<phi> i * (\<Sum>j<i. u ^ (i - Suc j) * x ^ j)) 
      = (\<Sum>i\<le>n. (\<Sum>j\<in>{i<..<Suc n}. poly.coeff \<phi> j * u ^ (j - Suc i)) * x^i)"
 proof (induction n arbitrary: \<phi>)
   case 0
@@ -252,8 +537,9 @@ next
 qed
 
 
-definition extract_q :: "'a mod_ring poly \<Rightarrow> 'a mod_ring \<Rightarrow> nat \<Rightarrow> 'a mod_ring poly"
+definition extract_q :: "'q mod_ring poly \<Rightarrow> 'q mod_ring \<Rightarrow> nat \<Rightarrow> 'q mod_ring poly"
   where "extract_q \<phi> u n = Poly (extract_q_coeffs \<phi> u n)"
+
 
 lemma pcoeffs_eq_ecoeffs: "i<n \<Longrightarrow> poly.coeff (extract_q \<phi> u n) i = extract_q_coeffs \<phi> u n ! i"
   unfolding extract_q_def 
@@ -267,7 +553,7 @@ lemma degree_q_le_\<phi>: "n\<le> degree \<phi> \<Longrightarrow> degree (extrac
   unfolding extract_q_def
   by (metis degree_Poly extract_q_coeffs_length)
  
-lemma sum_gr_deg: "(n::nat)>degree (q::'a mod_ring poly) \<Longrightarrow> (\<Sum>i<n. poly.coeff q i * x ^ i) 
+lemma sum_gr_deg: "(n::nat)>degree (q::'q mod_ring poly) \<Longrightarrow> (\<Sum>i<n. poly.coeff q i * x ^ i) 
                                                = (\<Sum>i\<le>degree q. poly.coeff q i * x ^ i)"
 proof (induction n arbitrary: q)
   case 0
@@ -303,10 +589,10 @@ proof -
 qed
 
 
-theorem f_eq_xu_extrqx: "\<forall>\<phi>::'a :: qr_spec mod_ring poly. poly \<phi> x - poly \<phi> u = (x-u) * poly (extract_q \<phi> u (degree \<phi>)) x"
+theorem f_eq_xu_extrqx: "\<forall>\<phi>::'q mod_ring poly. poly \<phi> x - poly \<phi> u = (x-u) * poly (extract_q \<phi> u (degree \<phi>)) x"
 proof
-  fix \<phi>::"'a :: qr_spec mod_ring poly"
-  fix u x :: "'a mod_ring"
+  fix \<phi>::"'q  mod_ring poly"
+  fix u x :: "'q mod_ring"
   show "poly \<phi> x - poly \<phi> u = (x-u) * poly (extract_q \<phi> u (degree \<phi>)) x"
   proof -
     let ?q_dirty ="(\<lambda>x. (\<Sum>i\<le>degree \<phi>. poly.coeff \<phi> i * (\<Sum>j<i. u^(i - Suc j) * x^j)))"
@@ -395,7 +681,97 @@ proof
   qed
 qed
 
+definition compute_\<psi> :: "'q qr \<Rightarrow> 'q mod_ring \<Rightarrow> 'q mod_ring poly"
+  where "compute_\<psi> \<phi> u = extract_q (of_qr \<phi>) u (degree (of_qr \<phi>))"
 
+lemma compute_\<psi>_deg: "degree (compute_\<psi> \<phi> u) \<le> degree (of_qr \<phi>)"
+  by (simp add: compute_\<psi>_def degree_q_le_\<phi>)
+
+corollary f_eq_xu_compute_qx: "\<forall>\<phi>::'q qr. poly (of_qr \<phi>) x - poly (of_qr \<phi>) u = (x-u) * poly (compute_\<psi> \<phi> u ) x"
+  unfolding compute_\<psi>_def using f_eq_xu_extrqx by blast
+
+
+
+subsubsection \<open>actual CreateWitness with compute_q: CreateWitness(PK, \<phi>, i) ==> (i, \<phi>(i), g^(\<psi>(\<alpha>)))
+ where PK is Setup t \<alpha>\<close>
+
+fun CreateWitness :: "'a list \<Rightarrow> 'q qr \<Rightarrow> 'q mod_ring \<Rightarrow> 'q mod_ring * 'q mod_ring * 'a" where 
+  "CreateWitness PK \<phi> i = (i, poly (of_qr \<phi>) i, g_pow_PK_Prod PK (compute_\<psi> \<phi> i))"
+
+lemma CreateWitness_correct: "degree (of_qr \<phi>) \<le>t \<Longrightarrow> CreateWitness (Setup \<alpha> t) \<phi> i = (i, poly (of_qr \<phi>) i, \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (compute_\<psi> \<phi> i) \<alpha>))"
+proof 
+  assume asmpt: "degree (of_qr \<phi>) \<le>t"
+  show "fst (CreateWitness (Setup \<alpha> t) \<phi> i) = fst (i, poly (of_qr \<phi>) i, \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly (compute_\<psi> \<phi> i) \<alpha>)"
+    by force
+  show "snd (CreateWitness (Setup \<alpha> t) \<phi> i) = snd (i, poly (of_qr \<phi>) i, \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly (compute_\<psi> \<phi> i) \<alpha>)"
+  proof 
+    show "fst (snd (CreateWitness (Setup \<alpha> t) \<phi> i)) = fst (snd (i, poly (of_qr \<phi>) i, \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly (compute_\<psi> \<phi> i) \<alpha>))"
+      by force
+    have "g_pow_PK_Prod (Setup \<alpha> t) (compute_\<psi> \<phi> i) =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly (compute_\<psi> \<phi> i) \<alpha>"
+    proof (rule g_pow_PK_Prod_correct)
+      show "degree (compute_\<psi> \<phi> i) \<le> t"
+        using asmpt compute_\<psi>_deg order.trans by blast
+    qed
+    then show "snd (snd (CreateWitness (Setup \<alpha> t) \<phi> i)) = snd (snd (i, poly (of_qr \<phi>) i, \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly (compute_\<psi> \<phi> i) \<alpha>))"
+      by auto
+  qed
+qed
+
+subsection \<open>VerifyEval(PK, C, i, \<phi>(i), w_i) ==> bool\<close>
+
+fun div_in_grp (infixr "\<div>\<index>" 70)
+  where "x \<div>\<index> y = x \<otimes>\<index> inv\<index> y"
+
+fun pow_mod_ring_G\<^sub>T :: "'c \<Rightarrow>'q mod_ring \<Rightarrow> 'c" (infixr "^\<^bsub>G\<^sub>T\<^esub>" 75)
+  where "x ^\<^bsub>G\<^sub>T\<^esub> q = x [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring q)"
+
+(*  Condition is: e(w_i,g^\<alpha>/g^i)e(g,g)^\<phi>(i) = e(C,g)  *)
+fun VerifyEval :: "'a list \<Rightarrow> 'a \<Rightarrow> 'q mod_ring \<Rightarrow> 'q mod_ring \<Rightarrow> 'a \<Rightarrow> bool" where
+  "VerifyEval PK C i \<phi>_of_i w_i = 
+  (e w_i (PK!1  \<div>\<^bsub>G\<^sub>p\<^esub> (PK!0 ^\<^bsub>G\<^sub>p\<^esub> i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e (PK!0) (PK!0)) ^\<^bsub>G\<^sub>T\<^esub> \<phi>_of_i) = e C (PK!0))"
+
+(*  lemma on "why VerifyEval is correct", as described in the paper at the definition of VerifyEval  *)
+lemma eq_on_e: "(e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (compute_\<psi> \<phi> i) \<alpha>))  (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) 
+      \<otimes>\<^bsub>G\<^sub>T\<^esub> (e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>)^\<^bsub>G\<^sub>T\<^esub> (poly (of_qr \<phi>) i) 
+      = e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>) \<alpha>)) \<^bold>g\<^bsub>G\<^sub>p\<^esub>"
+proof -
+  have e_in_carrier: "(e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ) \<in> carrier G\<^sub>T" using e_symmetric by blast
+  have "e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly (compute_\<psi> \<phi> i) \<alpha>) (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i) \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>T\<^esub> poly (of_qr \<phi>) i 
+      = e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly (compute_\<psi> \<phi> i) \<alpha>) (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha> - i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>T\<^esub> poly (of_qr \<phi>) i"
+    using mod_ring_pow_mult_inv_G\<^sub>p by force
+  also have "\<dots>= (e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ) ^\<^bsub>G\<^sub>T\<^esub> ((poly (compute_\<psi> \<phi> i) \<alpha>) * (\<alpha>-i))  \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>T\<^esub> poly (of_qr \<phi>) i"
+    by (simp add: e_bilinear)
+  also have "\<dots>= (e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ) ^\<^bsub>G\<^sub>T\<^esub> ((poly (compute_\<psi> \<phi> i) \<alpha>) * (\<alpha>-i) + poly (of_qr \<phi>) i)"
+    using mod_ring_pow_mult_G\<^sub>T e_in_carrier by simp
+  also have "\<dots>= (e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ) ^\<^bsub>G\<^sub>T\<^esub> (poly (of_qr \<phi>) \<alpha>)"
+    by (metis diff_add_cancel f_eq_xu_compute_qx mult.commute)
+  also have "\<dots>= e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>) \<alpha>)) \<^bold>g\<^bsub>G\<^sub>p\<^esub>"
+    by (simp add: e_linear_in_fst)
+  finally show "e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly (compute_\<psi> \<phi> i) \<alpha>) (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i) \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>T\<^esub> poly (of_qr \<phi>) i =
+    e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly (of_qr \<phi>) \<alpha>) \<^bold>g\<^bsub>G\<^sub>p\<^esub>"
+    .
+qed
+
+lemma VerifyEval_correct: 
+  assumes t_ge_2: "t\<ge>2"
+  and deg_\<phi>_let: "degree (of_qr \<phi>) \<le> t"
+  and PK: "PK = Setup \<alpha> t"
+  and C: "C = Commit PK \<phi>"
+  and Witness: "(i, \<phi>_of_i, w_i) = CreateWitness PK \<phi> i"
+shows "VerifyEval PK C i \<phi>_of_i w_i"
+proof -
+  have "VerifyEval PK C i \<phi>_of_i w_i 
+  = (e w_i (( \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>)  \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> \<phi>_of_i) = e C \<^bold>g\<^bsub>G\<^sub>p\<^esub>)"
+    using PK Setup_i t_ge_2 by force
+  also have "\<dots> = (e w_i (( \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>)  \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> \<phi>_of_i) 
+                   = e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>) \<alpha> )) \<^bold>g\<^bsub>G\<^sub>p\<^esub>)"
+    using C Commit_correct PK VerifyEval.simps assms(2) by presburger
+  also have "\<dots>= (e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (compute_\<psi> \<phi> i) \<alpha>)) (( \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>)  \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> (poly (of_qr \<phi>) i )) 
+                   = e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>) \<alpha> )) \<^bold>g\<^bsub>G\<^sub>p\<^esub>)"
+    using CreateWitness_correct[OF deg_\<phi>_let, of \<alpha> i] Witness PK by force
+  also have "\<dots>=True" using eq_on_e by fast
+  finally show "VerifyEval PK C i \<phi>_of_i w_i" by blast
+qed
 
 end
 
