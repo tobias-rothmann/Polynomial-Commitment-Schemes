@@ -1,6 +1,8 @@
 theory Commitment_Scheme
 
-imports "CRYSTALS-Kyber.Kyber_spec" "CryptHOL.Cyclic_Group" 
+imports "CryptHOL.CryptHOL" "CryptHOL.Cyclic_Group" "CRYSTALS-Kyber.Kyber_spec" "Sigma_Commit_Crypto.Commitment_Schemes"
+  "Berlekamp_Zassenhaus.Finite_Field_Factorization" "Sigma_Commit_Crypto.Cyclic_Group_Ext" Complex_Main
+
 
 begin
 section \<open>Type Class for Factorial Ring $\mathbb{Z}_p[x]/(x^d-1)$.\<close>
@@ -36,14 +38,76 @@ Vorsicht! der Einfachkeit halber, sind alle Polynome bis Grad einschließlich d-
 ein Element k aus (Z_p)[x]^{<d} : "k :: 'a qr"
 *)
 
+section \<open>Assumptions\<close>
+
+subsection \<open>t-Strong Diffie Hellmann Assumption (t-SDH)\<close>
+
+locale t_SDH = G\<^sub>p : cyclic_group G
+for G (structure)
+begin
+
+(*type_synonym 'grp' t_SDH_adversary = "'grp' list \<Rightarrow> ('q mod_ring *'grp') spmf"*)
+type_synonym 'grp adversary = "'grp list \<Rightarrow> (nat *'grp) spmf"
+
+
+text \<open>TODO ändere to setup function\<close>
+definition game :: "nat \<Rightarrow> 'a adversary \<Rightarrow> bool spmf" where 
+  "game t \<A> = TRY do { 
+    \<alpha> \<leftarrow> sample_uniform (order G);
+    (c, g) \<leftarrow> \<A> (map (\<lambda>t'. \<^bold>g [^] (int \<alpha>^t')) [0..<t+1]);
+    return_spmf (\<^bold>g [^] (1/((\<alpha>+c))) = g) 
+  } ELSE return_spmf False"
+
+
+definition advantage :: "nat \<Rightarrow> 'a adversary \<Rightarrow> real"
+  where "advantage t \<A> = spmf (game t \<A>) True" \<comment>\<open>subtract Pr random (\<alpha>+c)\<close>
+
+(* adapted proof from Sigma_Commit_Crypto.Commitment_Schemes bind_game_alt_def  *)
+lemma game_alt_def:
+  "game t \<A> = TRY do { 
+    \<alpha> \<leftarrow> sample_uniform (order G);
+    (c, g) \<leftarrow> \<A> (map (\<lambda>t'. \<^bold>g [^] (int \<alpha>^t')) [0..<t+1]);
+    _::unit \<leftarrow> assert_spmf (\<^bold>g [^] (1/((\<alpha>+c))) = g);
+    return_spmf (True) } ELSE return_spmf False"
+  (is "?lhs = ?rhs")
+proof -
+   have "?lhs = TRY do {
+      \<alpha> \<leftarrow> sample_uniform (order G);
+      TRY do {
+        (c, g) \<leftarrow> \<A> (map (\<lambda>t'. \<^bold>g [^] (int \<alpha>^t')) [0..<t+1]);
+          TRY return_spmf (\<^bold>g [^] (1/((\<alpha>+c))) = g) ELSE return_spmf False
+      } ELSE return_spmf False
+    } ELSE return_spmf False"
+    unfolding split_def game_def
+    by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
+  also have "\<dots> = TRY do {
+      \<alpha> \<leftarrow> sample_uniform (order G);
+      TRY do {
+        (c, g) \<leftarrow> \<A> (map (\<lambda>t'. \<^bold>g [^] (int \<alpha>^t')) [0..<t+1]);
+          TRY do {
+            _ :: unit \<leftarrow> assert_spmf (\<^bold>g [^] (1/((\<alpha>+c))) = g);
+            return_spmf True
+        } ELSE return_spmf False
+      } ELSE return_spmf False
+    } ELSE return_spmf False"
+    by(auto simp add: try_bind_assert_spmf try_spmf_return_spmf1 intro!: try_spmf_cong bind_spmf_cong)
+  also have "\<dots> = ?rhs"
+    unfolding split_def Let_def
+    by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
+  finally show ?thesis .
+qed
+
+end
+
 section \<open>commitment scheme spec\<close>
 
 locale commit_scheme_spec =
 G\<^sub>p : cyclic_group G\<^sub>p + G\<^sub>T : cyclic_group G\<^sub>T 
-for G\<^sub>p and G\<^sub>T +
+for G\<^sub>p  (structure) and G\<^sub>T  (structure) +
 fixes "type_a" :: "('q :: qr_spec) itself" 
   and d p::int
   and e
+and deg_t::nat
 assumes
 p_gr_two: "p > 2" and
 p_prime : "prime p" and
@@ -57,9 +121,13 @@ e_bilinear: "\<forall>a b::'q mod_ring . \<forall>P Q. P \<in> carrier G\<^sub>p
 (*$(\mathbb{Z}_p[x])^{<d}$ Assumptions*)
 d_pos: "d > 0" and
 CARD_q: "int (CARD('q)) = p" and
-qr_poly'_eq: "qr_poly' TYPE('q) = Polynomial.monom 1 (nat d) - 1"
-
+qr_poly'_eq: "qr_poly' TYPE('q) = Polynomial.monom 1 (nat d) - 1" and
+t_SDH_GP: "t_SDH G\<^sub>p" and
+deg_t_le_p: "deg_t \<le> p" 
+\<comment>\<open>and t_SDH_GP: "t_SDH GP"\<close>
 begin
+
+sublocale t_SDH_G\<^sub>p: t_SDH G\<^sub>p using t_SDH_GP by blast
 
 subsection \<open>Additional group lemmas\<close>
 
@@ -88,7 +156,7 @@ subsubsection\<open>mod_ring operations on pow for Gp\<close>
 
 lemma pow_mod_order_G\<^sub>p: "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod p)" 
 proof -
-  have "p=order G\<^sub>p" by (simp add: CARD_G\<^sub>p)
+  have "p=(order G\<^sub>p)" by (simp add: CARD_G\<^sub>p)
   also have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod order G\<^sub>p)"
   proof -
     have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x \<in> carrier G\<^sub>p" by simp
@@ -153,7 +221,7 @@ subsubsection\<open>mod_ring operations on pow for GT\<close>
 lemma pow_mod_order_G\<^sub>T: "g \<in> carrier G\<^sub>T \<Longrightarrow> g [^]\<^bsub>G\<^sub>T\<^esub> x = g [^]\<^bsub>G\<^sub>T\<^esub> (x mod p)" 
 proof -
   assume asmpt: "g \<in> carrier G\<^sub>T"
-  have "p=order G\<^sub>T" by (simp add: CARD_G\<^sub>T)
+  have "p=(order G\<^sub>T)" by (simp add: CARD_G\<^sub>T)
   also have "g[^]\<^bsub>G\<^sub>T\<^esub> x = g [^]\<^bsub>G\<^sub>T\<^esub> (x mod order G\<^sub>T)"
   proof -
     have "g [^]\<^bsub>G\<^sub>T\<^esub> x \<in> carrier G\<^sub>T" using asmpt by simp
@@ -193,9 +261,55 @@ lemma [simp]: "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> p
 lemma [simp]: "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x*p) =  \<one>\<^bsub>G\<^sub>p\<^esub>"
   by (metis CARD_G\<^sub>p G\<^sub>p.generator_closed G\<^sub>p.int_pow_one G\<^sub>p.int_pow_pow G\<^sub>p.pow_order_eq_1 int_pow_int mult.commute)
 
+subsection \<open>pow mod_ring and lemmas\<close>
+
 (*  TODO dirty  *)
 abbreviation pow_mod_ring_G\<^sub>p :: "'a \<Rightarrow>'q mod_ring \<Rightarrow> 'a" (infixr "^\<^bsub>G\<^sub>p\<^esub>" 75)
   where "x ^\<^bsub>G\<^sub>p\<^esub> q \<equiv> x [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring q)"
+
+lemma "finite (carrier G\<^sub>p)"
+  using G\<^sub>p.finite_carrier by auto
+
+(*TODO delete nat and import for ext_cyclic_group*)
+fun to_nat_mod_ring :: "'q mod_ring \<Rightarrow> nat" where
+  "to_nat_mod_ring x = nat (to_int_mod_ring x)"
+
+fun of_nat_mod_ring :: "nat \<Rightarrow> 'q mod_ring" where
+  "of_nat_mod_ring x = of_int_mod_ring (int x)"
+
+lemma of_nat_mod_ring_to_nat_mod_ring[simp]: "of_nat_mod_ring (to_nat_mod_ring x) = x"
+proof -
+  have "to_int_mod_ring x \<ge> 0" using range_to_int_mod_ring by fastforce
+  then have "int (nat (to_int_mod_ring x)) = to_int_mod_ring x" by presburger
+  then show "of_nat_mod_ring (to_nat_mod_ring x) = x" 
+    using of_int_mod_ring_to_int_mod_ring by auto
+qed
+(*TODO nat delete until here*)
+
+lemma to_int_mod_ring_ge_0: "to_int_mod_ring x \<ge> 0" 
+  using range_to_int_mod_ring by fastforce
+
+lemma pow_on_eq_card: "(\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) = (x=y)"
+proof 
+  assume assm: "\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> y"
+  then have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring y"
+    using assm by blast
+  then have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> nat (to_int_mod_ring x) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> nat (to_int_mod_ring y)" 
+    using to_int_mod_ring_ge_0[of "x"] to_int_mod_ring_ge_0[of "y"] by fastforce
+  then have "[nat (to_int_mod_ring x) = nat (to_int_mod_ring y)] (mod order G\<^sub>p)"
+    using G\<^sub>p.pow_generator_eq_iff_cong G\<^sub>p.finite_carrier by fast
+  then have "[to_int_mod_ring x = to_int_mod_ring y] (mod order G\<^sub>p)" 
+    using to_int_mod_ring_ge_0[of "x"] to_int_mod_ring_ge_0[of "y"]
+    by (metis cong_int_iff int_nat_eq)
+  then have "[to_int_mod_ring x = to_int_mod_ring y] (mod p)" 
+    using CARD_G\<^sub>p by fast
+  then have "to_int_mod_ring x = to_int_mod_ring y" using range_to_int_mod_ring CARD_q
+    by (metis cong_def of_int_mod_ring.rep_eq of_int_mod_ring_to_int_mod_ring to_int_mod_ring.rep_eq)
+  then show "x = y" by force
+next 
+  assume "x = y"
+  then show "\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> y" by fast
+qed
 
 
 section \<open>KZG functions\<close>
@@ -773,6 +887,276 @@ proof -
   finally show "VerifyEval PK C i \<phi>_of_i w_i" by blast
 qed
 
-end
+section \<open>Soundness\<close>
+  
+
+subsection \<open>Polynomial Binding\<close>
+
+(*  TODO delete die beiden lemmas *)
+lemma "t_SDH G\<^sub>p = True" by (simp add: t_SDH_G\<^sub>p.t_SDH_axioms)
+lemma "poly.coeff (Poly [1::nat,2]) 0 = 1"
+  by simp     
+
+lemma commit_eq_is_poly_diff_\<alpha>_eq_0: "degree (of_qr \<phi>) \<le> deg_t \<Longrightarrow> degree (of_qr \<phi>') \<le> deg_t \<Longrightarrow> 
+  Commit (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<deg_t+1]) \<phi> 
+= Commit ( map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<deg_t+1]) \<phi>'
+  \<longleftrightarrow> poly (of_qr \<phi> - of_qr \<phi>') \<alpha> = 0"
+proof 
+  assume deg_\<phi>: "degree (of_qr \<phi>) \<le> deg_t"
+  assume deg_\<phi>': "degree (of_qr \<phi>') \<le> deg_t"
+  assume commit_eq: "Commit (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<deg_t + 1]) \<phi> = Commit (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<deg_t + 1]) \<phi>'"
+  have acc_\<phi>: "Commit (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<deg_t + 1]) \<phi> =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>) \<alpha> )"
+    by (metis Commit_correct Setup.simps deg_\<phi>)
+  moreover have acc_\<phi>': "Commit (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<deg_t + 1]) \<phi>' =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>') \<alpha> )"
+    by (metis Commit_correct Setup.simps deg_\<phi>')
+  ultimately show "(poly (of_qr \<phi> - of_qr \<phi>') \<alpha> = 0)"
+    using pow_on_eq_card commit_eq by fastforce
+next
+  assume deg_\<phi>: "degree (of_qr \<phi>) \<le> deg_t"
+  assume deg_\<phi>': "degree (of_qr \<phi>') \<le> deg_t"
+  assume poly_eq_0: "poly (of_qr \<phi> - of_qr \<phi>') \<alpha> = 0"
+  have acc_\<phi>: "Commit (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<deg_t + 1]) \<phi> =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>) \<alpha> )"
+    by (metis Commit_correct Setup.simps deg_\<phi>)
+  moreover have acc_\<phi>': "Commit (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<deg_t + 1]) \<phi>' =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>') \<alpha> )"
+    by (metis Commit_correct Setup.simps deg_\<phi>')
+  ultimately show "Commit (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<deg_t + 1]) \<phi> = Commit (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<deg_t + 1]) \<phi>'" 
+    using poly_eq_0 by fastforce 
+qed
+
+subsubsection \<open>Factorization of \<alpha> if poly (\<phi> - \<psi>) \<alpha> = 0\<close>
+
+fun elimination_of_repeated_factors :: "'q mod_ring poly \<Rightarrow> 'q mod_ring poly list" where
+  "elimination_of_repeated_factors f = (let u = gcd f (pderiv f) in 
+    if u=1 then [u] else                         
+      let v = Polynomial.divide_poly_inst.divide_poly f u;
+          w = Polynomial.divide_poly_inst.divide_poly u (gcd u (v^(degree f)));
+          z = w ^ (nat p)  \<comment>\<open>TODO should be 1/p\<close>
+ in [z])"
+
+lemma "monic (f::'q mod_ring poly) \<Longrightarrow> \<exists>ls. prod_list ls = f \<and> (\<forall>i. irreducible (ls!i))"
+  sorry
+
+declare [[show_types]]
+lemma "(x::'q mod_ring)^y =  (x::'q mod_ring)^(y mod CARD ('q))"
+proof -
+  obtain y_qcard y_mod where y_split: "y=CARD ('q)*y_qcard + y_mod"
+    by (metis mult_hom.hom_zero plus_nat.simps(1))
+  then have "x^y = x^(CARD ('q)*y_qcard) * x^y_mod" using power_add by blast
+  moreover have "x^(CARD ('q)*y_qcard) = 1" (*False*) sorry 
+  moreover have "y_mod = y mod CARD ('q)" using y_split sorry
+  ultimately show ?thesis by auto
+qed
+
+fun find_\<alpha>_square_free :: "'a \<Rightarrow> 'q mod_ring poly \<Rightarrow> 'q mod_ring" where
+  "find_\<alpha>_square_free g_pow_\<alpha> \<phi> = (let (c, polys) = finite_field_factorization \<phi>;
+    deg1_polys = filter (\<lambda>f. degree f = 1) polys;
+    root_list = map (\<lambda>p. poly.coeff p 0) deg1_polys;
+    \<alpha>_roots = filter (\<lambda>r. g_pow_\<alpha> = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> r) root_list
+in \<alpha>_roots!0)"
+
+declare [[show_types]]
+lemma poly_eq0_is_find_\<alpha>_eq_\<alpha>: "poly \<phi> \<alpha>=0 \<longleftrightarrow> find_\<alpha>_square_free (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = -\<alpha>"
+proof 
+  assume "poly \<phi> \<alpha> = 0"
+  then show "find_\<alpha>_square_free (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = -\<alpha>"
+    
+    sorry
+next 
+  assume "find_\<alpha>_square_free (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = -\<alpha>"
+  obtain c polys where "finite_field_factorization \<phi> = (c,polys)"
+    by (metis prod.exhaust)
+  moreover have "square_free \<phi>" sorry
+  ultimately have "\<phi> = Polynomial.smult c (prod_list polys)"
+    using finite_field_factorization_explicit by blast
+  then show "poly \<phi> \<alpha> = 0"
+    sorry
+qed
+
+definition bind_key_gen :: "('a list * 'a list) spmf"
+ where 
+  "bind_key_gen = do {
+    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    let PK = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'q mod_ring)^t)) [0..<deg_t+1];
+    return_spmf (PK, PK) 
+  }" 
+
+definition bind_commit :: "'a list \<Rightarrow> 'q qr \<Rightarrow> ('a \<times> 'q qr) spmf"
+where 
+  "bind_commit PK \<phi> = do {
+    let c = Commit PK \<phi>;
+    return_spmf (c,\<phi>) 
+  }"
+
+definition bind_verify :: "'a list \<Rightarrow> 'q qr \<Rightarrow> 'a \<Rightarrow> 'q qr \<Rightarrow> bool"
+where 
+  "bind_verify PK \<phi> C _ = (C = Commit PK \<phi>)"
+
+definition bind_valid_msg :: "'q qr \<Rightarrow> bool"
+  where "bind_valid_msg \<phi> \<equiv> (degree (of_qr \<phi>) \<le> deg_t)"
+
+sublocale bind_commit: abstract_commitment bind_key_gen bind_commit bind_verify bind_valid_msg .
+
+(* "('a list, 'q qr, 'a, 'q qr)  bind_adversary \<Rightarrow> 'a t_SDH.adversary" *)
+fun bind_reduction
+  :: "('a list, 'q qr, 'a, 'q qr)  bind_adversary \<Rightarrow> 'a t_SDH.adversary"                     
+where
+  "bind_reduction \<A> PK = do {
+  (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> PK;
+  _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> bind_valid_msg \<phi> \<and> bind_valid_msg \<phi>');
+  let \<alpha> = find_\<alpha>_square_free (PK!1) (of_qr \<phi> - of_qr \<phi>');
+  return_spmf (0::nat, \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/\<alpha>))}"
+
+type_synonym 'grp poly_bind_adversary = "'grp list \<Rightarrow> (nat *'grp) spmf"
+
+lemma assert_anding: "TRY do {
+          _ :: unit \<leftarrow> assert_spmf (a);
+            _ :: unit \<leftarrow> assert_spmf (b);
+            return_spmf True
+        } ELSE return_spmf False 
+    = TRY do {
+          _ :: unit \<leftarrow> assert_spmf (a \<and> b);
+          return_spmf True
+      } ELSE return_spmf False"
+  by (simp add: try_bind_assert_spmf)
+
+lemma "\<phi> \<noteq> \<phi>' \<and> bind_valid_msg \<phi> \<and> bind_valid_msg \<phi>' 
+  \<and> (C = Commit (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'q mod_ring)^t)) [0..<deg_t+1]) \<phi>) 
+  \<and> (C = Commit (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'q mod_ring)^t)) [0..<deg_t+1]) \<phi>') 
+  \<longleftrightarrow> \<phi> \<noteq> \<phi>' \<and> bind_valid_msg \<phi> \<and> bind_valid_msg \<phi>' \<and> poly (of_qr \<phi> - of_qr \<phi>') (of_int_mod_ring (int \<alpha>)::'q mod_ring) = 0"
+proof 
+  assume "\<phi> \<noteq> \<phi>' \<and>
+    bind_valid_msg \<phi> \<and>
+    bind_valid_msg \<phi>' \<and>
+    C = Commit (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> of_int_mod_ring (int \<alpha>) ^ t) [0..<deg_t + 1]) \<phi> \<and>
+    C = Commit (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> of_int_mod_ring (int \<alpha>) ^ t) [0..<deg_t + 1]) \<phi>'"
+   then show "\<phi> \<noteq> \<phi>' \<and> bind_valid_msg \<phi> \<and> bind_valid_msg \<phi>' \<and> poly (of_qr \<phi> - of_qr \<phi>') (of_int_mod_ring (int \<alpha>)) = 0"
+     unfolding bind_valid_msg_def using commit_eq_is_poly_diff_\<alpha>_eq_0 by blast
+ next 
+   assume "\<phi> \<noteq> \<phi>' \<and> bind_valid_msg \<phi> \<and> bind_valid_msg \<phi>' \<and> poly (of_qr \<phi> - of_qr \<phi>') (of_int_mod_ring (int \<alpha>)) = 0"
+   then show " \<phi> \<noteq> \<phi>' \<and>
+    bind_valid_msg \<phi> \<and>
+    bind_valid_msg \<phi>' \<and>
+    C = Commit (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> of_int_mod_ring (int \<alpha>) ^ t) [0..<deg_t + 1]) \<phi> \<and>
+    C = Commit (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> of_int_mod_ring (int \<alpha>) ^ t) [0..<deg_t + 1]) \<phi>'"
+     unfolding bind_valid_msg_def using commit_eq_is_poly_diff_\<alpha>_eq_0 sorry
+ qed
+
+lemma poly_bind_game_eq_t_SDH: "bind_commit.bind_game \<A> = t_SDH_G\<^sub>p.game deg_t (bind_reduction \<A>)"
+proof -
+  note [simp] = Let_def split_def
+  let ?PK = "\<lambda>\<alpha>. (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'q mod_ring)^t)) [0..<deg_t+1])"
+  have "bind_commit.bind_game \<A> = TRY do {
+    (ck,vk) \<leftarrow> bind_key_gen;
+    (c, m, d, m', d') \<leftarrow> \<A> ck;
+    _ :: unit \<leftarrow> assert_spmf(m \<noteq> m' \<and> bind_valid_msg m \<and> bind_valid_msg m'); 
+    let b = bind_verify vk m c d;
+    let b' = bind_verify vk m' c d';
+    _ :: unit \<leftarrow> assert_spmf (b \<and> b');
+    return_spmf True} ELSE return_spmf False" 
+    by(simp add: abstract_commitment.bind_game_alt_def) 
+  also have "\<dots>= TRY do {
+    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    let PK = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'q mod_ring)^t)) [0..<deg_t+1];
+    (C, \<phi>, d, \<phi>', d') \<leftarrow> \<A> PK;
+    _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> bind_valid_msg \<phi> \<and> bind_valid_msg \<phi>'); 
+    _ :: unit \<leftarrow> assert_spmf ((C = Commit PK \<phi>) \<and> (C = Commit PK \<phi>'));
+    return_spmf True} ELSE return_spmf False"
+    by (simp add: bind_key_gen_def bind_verify_def)
+ also have "\<dots>= TRY do {
+    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    let PK = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'q mod_ring)^t)) [0..<deg_t+1];
+    (C, \<phi>, d, \<phi>', d') \<leftarrow> \<A> PK;
+  do {
+    _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> bind_valid_msg \<phi> \<and> bind_valid_msg \<phi>'); 
+    _ :: unit \<leftarrow> assert_spmf ((C = Commit PK \<phi>) \<and> (C = Commit PK \<phi>'));
+    return_spmf True}
+  } ELSE return_spmf False"
+   by blast
+  also have "\<dots>= TRY do {
+    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    TRY do {
+    (C, \<phi>, d, \<phi>', d') \<leftarrow> \<A> (?PK \<alpha>);
+      TRY do {
+      _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> bind_valid_msg \<phi> \<and> bind_valid_msg \<phi>'); 
+        _ :: unit \<leftarrow> assert_spmf ((C = Commit (?PK \<alpha>) \<phi>) \<and> (C = Commit (?PK \<alpha>) \<phi>'));
+        return_spmf True
+      } ELSE return_spmf False
+    } ELSE return_spmf False
+  } ELSE return_spmf False"
+    unfolding split_def
+    by(fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
+  moreover have "\<dots>= TRY do {
+    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    TRY do {
+    (C, \<phi>, d, \<phi>', d') \<leftarrow> \<A> (?PK \<alpha>);
+      TRY do {
+        _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> bind_valid_msg \<phi> \<and> bind_valid_msg \<phi>' \<and> (C = Commit (?PK \<alpha>) \<phi>) \<and> (C = Commit (?PK \<alpha>) \<phi>'));
+        return_spmf True
+      } ELSE return_spmf False
+    } ELSE return_spmf False
+  } ELSE return_spmf False"
+    using assert_anding by presburger 
+  moreover have "\<dots>=TRY do {
+    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    TRY do {
+    (C, \<phi>, d, \<phi>', d') \<leftarrow> \<A> (?PK \<alpha>);
+      TRY do {
+        _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> bind_valid_msg \<phi> \<and> bind_valid_msg \<phi>' \<and> poly (of_qr \<phi> - of_qr \<phi>') (of_int_mod_ring (int \<alpha>)::'q mod_ring) = 0);
+        return_spmf True
+      } ELSE return_spmf False
+    } ELSE return_spmf False
+  } ELSE return_spmf False"
+    unfolding bind_valid_msg_def using commit_eq_is_poly_diff_\<alpha>_eq_0  sorry
+  (*  t_SDH reduction game  *)
+    (*idea :
+  verify \<phi> =C \<and> verify \<phi>'=C
+  \<longleftrightarrow> poly (of_qr \<phi> - of_qr \<phi>') \<alpha> = 0 (commit_eq_is_poly_diff_\<alpha>_eq_0) (\<and> verify \<phi> =C \<and> verify \<phi>'=C)
+  \<longleftrightarrow> find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> \<alpha>) (of_qr \<phi> - of_qr \<phi>') = \<alpha> (poly_eq0_is_find_\<alpha>_eq_\<alpha>) (\<and> verify \<phi> =C \<and> verify \<phi>'=C)
+*)
+  have "
+  TRY do { 
+    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+  (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (map (\<lambda>t'. \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (int \<alpha>^t')) [0..<deg_t+1]);
+  _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> bind_valid_msg \<phi> \<and> bind_valid_msg \<phi>');
+  let \<alpha>' = find_\<alpha>_square_free ((map (\<lambda>t'. \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (int \<alpha>^t')) [0..<deg_t+1])!1) (of_qr \<phi> - of_qr \<phi>');
+    _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (1/((\<alpha>+0))) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/\<alpha>'));
+    return_spmf (True) } ELSE return_spmf False
+  = 
+  TRY do { 
+    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    (c, g) \<leftarrow> (bind_reduction \<A>) (map (\<lambda>t'. \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (int \<alpha>^t')) [0..<deg_t+1]);
+    _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (1/((\<alpha>+c))) = g);
+    return_spmf (True) } ELSE return_spmf False"
+    by simp  
+  moreover have "\<dots> = t_SDH_G\<^sub>p.game deg_t (bind_reduction \<A>)"
+    by (simp add: t_SDH_G\<^sub>p.game_alt_def t_SDH_G\<^sub>p.game_def)
+  ultimately show ?thesis sorry
+qed
+
+fun stronger_bind_reduction
+  :: "('a list, 'q qr, 'a, 'q qr)  bind_adversary \<Rightarrow> 'a t_SDH.adversary"                     
+where
+  "stronger_bind_reduction \<A> PK = do {
+  (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> PK;
+  _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> bind_valid_msg \<phi> \<and> bind_valid_msg \<phi>' \<and> (C=Commit PK \<phi>) \<and> (C=Commit PK \<phi>'));
+  let \<alpha> = find_\<alpha>_square_free (PK!1) (of_qr \<phi> - of_qr \<phi>');
+  return_spmf (0::nat, \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/\<alpha>))}"
+
+lemma lossless_bind:"lossless_spmf (t_SDH_G\<^sub>p.game deg_t (bind_reduction \<A>))"
+  using bind_commit.lossless_binding_game poly_bind_game_eq_t_SDH by auto
+
+lemma "t_SDH_G\<^sub>p.advantage deg_t (stronger_bind_reduction \<A>) \<le> t_SDH_G\<^sub>p.advantage deg_t (bind_reduction \<A>)"
+  unfolding t_SDH_G\<^sub>p.advantage_def stronger_bind_reduction.simps bind_reduction.simps t_SDH_G\<^sub>p.game_def sorry
+  sorry
+
+lemma poly_binding:"bind_commit.bind_advantage \<A> = t_SDH_G\<^sub>p.advantage deg_t (bind_reduction \<A>)"
+  unfolding abstract_commitment.bind_advantage_def t_SDH_G\<^sub>p.advantage_def 
+    using poly_bind_game_eq_t_SDH by simp
+
+subsection \<open>Evaluation Binding\<close>
+
+subsection \<open>Hiding\<close>
+
+end 
 
 end
