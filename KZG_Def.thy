@@ -35,14 +35,32 @@ abbreviation pow_mod_ring_G\<^sub>p :: "'a \<Rightarrow>'q mod_ring \<Rightarrow
 
 end
 
+section \<open>KZG function definitions\<close>
+
 locale KZG_Def = crypto_primitives
 begin
 
+text\<open>The definitions of the KZG functions are from the section 3.2 of the original paper 
+"Constant-Size Commitments to Polynomials and Their Applications" and mirror the construction of 
+PolyCommitDL.
+I strongly recommend having the section 3.2 of the paper ready for look-up when trying to 
+understand this formalization.\<close>
+
 type_synonym 'q' sk = "'q' mod_ring"
 type_synonym 'a' pk = "'a' list"
+
 type_synonym 'e' polynomial = "'e' qr"
 type_synonym 'a' commit = "'a'"
 
+type_synonym 'e' eval_position = "'e' mod_ring"
+type_synonym 'e' eval_value = "'e' mod_ring"
+type_synonym 'a' eval_witness = "'a'"
+
+subsection\<open>Setup: 
+we do not compute the Groups for the bilinear pairing but assume them and compute 
+a uniformly random secret key \<alpha> and from that the public key PK = (g, g^\<alpha>, ... , g^(\<alpha>^t) ).
+Setup is a trusted Setup function, which generates the shared public key for both parties 
+(prover and verifier).\<close>
 definition Setup :: "nat \<Rightarrow> ('e sk \<times> 'a pk) spmf"
 where 
   "Setup t = do {
@@ -51,23 +69,54 @@ where
     return_spmf (\<alpha>, map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<t+1]) 
   }" 
 
+subsection\<open>Commit\<close>
+
+text\<open>This function computes g^\<phi>(\<alpha>), given the by Setup generated public key. 
+(\<alpha> being the from Setup generated private key)
+
+The function is basically a Prod of public key!i ^ coeff \<phi> i, which computes g^\<phi>(a):
+\<Prod>[0...degree \<phi>]. PK!i^coeff \<phi> i 
+= \<Prod>[0...degree \<phi>]. g^(\<alpha>^i)^coeff \<phi> i
+= \<Prod>[0...degree \<phi>]. g^(coeff \<phi> i * \<alpha>^i)
+= g^(\<Sum>[0...degree \<phi>]. coeff \<phi> i * \<alpha>^i)
+= g^\<phi>(\<alpha>)
+\<close>
 fun g_pow_PK_Prod :: "'a list \<Rightarrow>'e mod_ring poly \<Rightarrow> 'a" where
   "g_pow_PK_Prod PK \<phi> = fold (\<lambda>pk g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!pk ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> pk)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>"
 
+subsubsection\<open>actual Commit definition is basically computing g^\<phi>(a) from the public key\<close>
 definition Commit :: "'a pk \<Rightarrow> 'e polynomial \<Rightarrow> ('a commit) spmf"
 where 
   "Commit PK \<phi> = do {
     return_spmf (g_pow_PK_Prod PK (of_qr \<phi>)) 
   }" 
 
+(* TODO Delete
 lemma "set_spmf (Commit PK \<phi>) = {g_pow_PK_Prod PK (of_qr \<phi>)}"
   unfolding Commit_def by force
+*)
 
+subsection \<open>Open: opens the commitment\<close>
+
+definition Open :: "'a pk \<Rightarrow> 'a commit \<Rightarrow> 'e polynomial \<Rightarrow> 'e polynomial spmf"
+where 
+  "Open PK C \<phi> = do {
+    return_spmf \<phi> 
+  }" 
+
+
+subsection \<open>VerifyPoly: verify the commitment
+Recomputes the commitment and checks the equality\<close>
 definition VerifyPoly :: "'a pk \<Rightarrow> 'a commit \<Rightarrow> 'e polynomial \<Rightarrow> bool spmf"
 where 
   "VerifyPoly PK C \<phi> = do {
     return_spmf (C = g_pow_PK_Prod PK (of_qr \<phi>)) 
   }" 
+
+subsection \<open>CreateWitness: creates a witness for a commitment to an evaluation of a polynomial 
+at position i\<close>
+
+text\<open>To create a witness we have to compute \<psi> in \<phi> x - \<phi> u = (x-u) * \<psi> x\<close>
 
 subsubsection \<open>extract \<psi> in \<phi> x - \<phi> u = (x-u) * \<psi> x\<close>
 text \<open>Idea:
@@ -124,25 +173,20 @@ definition coeffs_n :: "'e mod_ring poly \<Rightarrow> 'e mod_ring \<Rightarrow>
 
 definition \<psi>_of :: "'e qr \<Rightarrow> 'e mod_ring \<Rightarrow> 'e mod_ring poly" 
   where "\<psi>_of \<phi> u = (let 
-     \<psi>_coeffs = foldl (coeffs_n (of_qr \<phi>) u) [] [0..<Suc (degree (of_qr \<phi>))]
-    in Poly \<psi>_coeffs)"
+     \<psi>_coeffs = foldl (coeffs_n (of_qr \<phi>) u) [] [0..<Suc (degree (of_qr \<phi>))] \<comment>\<open>coefficients of \<psi>\<close>
+    in Poly \<psi>_coeffs) \<comment>\<open>\<psi>\<close>"
 
-subsubsection \<open>actual CreateWitness with compute_q: CreateWitness(PK, \<phi>, i) ==> (i, \<phi>(i), g^(\<psi>(\<alpha>)))
- where PK is Setup t \<alpha>\<close>
-
-type_synonym 'e' eval_position = "'e' mod_ring"
-type_synonym 'e' eval_value = "'e' mod_ring"
-type_synonym 'a' eval_witness = "'a'"
-
+subsubsection \<open>actual CreateWitness:
+computes the evalutation at position i, \<phi>(i), and the witness g^\<psi>(\<alpha>)\<close>
 definition CreateWitness :: "'a pk \<Rightarrow> 'e polynomial \<Rightarrow> 'e eval_position 
   \<Rightarrow> ('e eval_position \<times> 'e eval_value \<times> 'a eval_witness) spmf"
 where 
   "CreateWitness PK \<phi> i = do { 
-    let \<phi>_of_i = poly (of_qr \<phi>) i;
-        \<psi> = \<psi>_of \<phi> i;
-        g_pow_\<psi>_of_\<alpha> = g_pow_PK_Prod PK \<psi>
+    let \<phi>_of_i = poly (of_qr \<phi>) i; \<comment>\<open>\<phi>(i)\<close>
+        \<psi> = \<psi>_of \<phi> i; \<comment>\<open>\<psi> in \<phi>(x) - \<phi>(i) = (x-i) * \<psi>(x)\<close>
+        g_pow_\<psi>_of_\<alpha> = g_pow_PK_Prod PK \<psi> \<comment>\<open>g^\<psi>(\<alpha>)\<close>
     in
-    return_spmf (i, \<phi>_of_i,g_pow_\<psi>_of_\<alpha>) 
+    return_spmf (i, \<phi>_of_i,g_pow_\<psi>_of_\<alpha>) \<comment>\<open>(i, \<phi>(i), g^\<psi>(\<alpha>))\<close>
   }" 
 end
 
