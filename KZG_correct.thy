@@ -9,37 +9,37 @@ begin
 subsection \<open>
 Verifying that a correct Setup with a correct commit yields a correct verification\<close>
 
-definition Poly_Commit_game:: "nat \<Rightarrow>'e polynomial \<Rightarrow> bool spmf"
-  where "Poly_Commit_game t \<phi> = 
+definition Poly_Commit_game:: "'e polynomial \<Rightarrow> bool spmf"
+  where "Poly_Commit_game \<phi> = 
     do{
-    (\<alpha>,PK) \<leftarrow> Setup t;
+    (\<alpha>,PK) \<leftarrow> Setup;
     C::'a commit \<leftarrow> Commit PK \<phi>;
     VerifyPoly PK C \<phi>
     }"
 
-lemma lossless_Setup: "lossless_spmf (Setup t)"
+lemma lossless_Setup: "lossless_spmf Setup"
   unfolding Setup_def 
   by (metis (no_types, lifting) G\<^sub>p.order_gt_0 lossless_bind_spmf lossless_return_spmf lossless_sample_uniform)
 
-theorem Poly_Commit_correct: "spmf (Poly_Commit_game t \<phi>) True = 1"
+theorem Poly_Commit_correct: "spmf (Poly_Commit_game \<phi>) True = 1"
 proof -
-  have weight_Setup: "weight_spmf (Setup t) = 1" using lossless_spmf_def lossless_Setup by fast
-  have "(Poly_Commit_game t \<phi>) = 
+  have weight_Setup: "weight_spmf Setup = 1" using lossless_spmf_def lossless_Setup by fast
+  have "(Poly_Commit_game \<phi>) = 
    do{
-    (\<alpha>,PK) \<leftarrow> Setup t;
+    (\<alpha>,PK) \<leftarrow> Setup;
     return_spmf True
     }"
   unfolding Poly_Commit_game_def Commit_def VerifyPoly_def by force
-  also have "\<dots> = scale_spmf (weight_spmf (Setup t)) (return_spmf True)"
+  also have "\<dots> = scale_spmf (weight_spmf Setup) (return_spmf True)"
     by (simp add: split_def)(rule bind_spmf_const)
   also have "\<dots> = return_spmf True" using weight_Setup by force
   finally show ?thesis by fastforce
 qed
 
-definition Eval_Commit_game:: "nat \<Rightarrow>'e polynomial \<Rightarrow> 'e eval_position  \<Rightarrow> bool spmf"
-  where "Eval_Commit_game t \<phi> i = 
+definition Eval_Commit_game:: "'e polynomial \<Rightarrow> 'e eval_position  \<Rightarrow> bool spmf"
+  where "Eval_Commit_game \<phi> i = 
     do{
-    (\<alpha>,PK) \<leftarrow> Setup t;
+    (\<alpha>,PK) \<leftarrow> Setup;
     C::'a commit \<leftarrow> Commit PK \<phi>;
     (i, \<phi>_of_i, w_i) \<leftarrow> CreateWitness PK \<phi> i;
     VerifyEval PK C i \<phi>_of_i w_i
@@ -435,18 +435,19 @@ proof -
     using poly_altdef_to_fold[of "degree \<phi>" \<phi> \<alpha>] by fastforce
 qed
 
+(*TODO change assms to lemmas from KZG_Def locale*)
 theorem Eval_Commit_correct:  
-  assumes t_ge_2: "t\<ge>2"
-  and deg_\<phi>_let: "degree (of_qr \<phi>) \<le> t"
-shows "spmf (Eval_Commit_game t \<phi> i) True = 1"
+  assumes t_ge_2: "max_deg\<ge>2"
+  and deg_\<phi>_let: "degree (of_qr \<phi>) \<le> max_deg"
+shows "spmf (Eval_Commit_game \<phi> i) True = 1"
 proof -
   let ?\<alpha> = "\<lambda>x. of_int_mod_ring (int x)"
-  let ?PK = "\<lambda>x. (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> ?\<alpha> x ^ t) [0..<t+1])"
-  have "spmf (Eval_Commit_game t \<phi> i) True 
+  let ?PK = "\<lambda>x. (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> ?\<alpha> x ^ t) [0..<max_deg+1])"
+  have "spmf (Eval_Commit_game \<phi> i) True 
   = spmf ( do{
     (\<alpha>,PK) \<leftarrow> do {
     x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
-    return_spmf (of_int_mod_ring (int x)::'e sk, map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int x)::'e sk)^t)) [0..<t+1]) 
+    return_spmf (of_int_mod_ring (int x)::'e sk, map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int x)::'e sk)^t)) [0..<max_deg+1]) 
     };
     C::'a commit \<leftarrow> Commit PK \<phi>;
     (i, \<phi>_of_i, w_i) \<leftarrow> CreateWitness PK \<phi> i;
@@ -474,7 +475,7 @@ proof -
     let ?g_pow_\<alpha> = "\<lambda>x. (?PK x)!1"
     have g_pow_\<phi>: "?g_pow_\<phi> = (\<lambda>x. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>) (?\<alpha> x)))"
       using g_pow_PK_Prod_correct[OF assms(2)] by presburger
-    have degree_\<psi>: "degree (\<psi>_of \<phi> i) \<le> t" using assms(2) 
+    have degree_\<psi>: "degree (\<psi>_of \<phi> i) \<le> max_deg" using assms(2) 
       by (metis \<psi>_of_and_\<psi>_of_poly degree_q_le_\<phi> dual_order.trans)
     have g_pow_\<psi>: "?g_pow_\<psi> = (\<lambda>x. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (\<psi>_of \<phi> i) (?\<alpha> x)))"
       using g_pow_PK_Prod_correct[OF degree_\<psi>] by presburger
