@@ -337,13 +337,111 @@ proof -
     .
 qed
 
+lemma PK_i: "i\<le>t \<Longrightarrow> map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<t + 1] ! i =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^i)"
+proof (induction t)
+  case 0
+  then show ?case by force
+next
+  case (Suc t)
+  then show ?case 
+  proof (cases "i\<le>t")
+    case True
+    then show ?thesis
+      by (metis (no_types, lifting) Groups.add_ac(2) Suc(1) Suc(2) diff_zero le_imp_less_Suc nth_map_upt plus_1_eq_Suc)
+      next
+        case False
+        then show ?thesis
+          by (metis (no_types, lifting) Suc(2) add_Suc_shift le_SucE le_imp_less_Suc less_diff_conv nth_map_upt plus_1_eq_Suc semiring_norm(51))
+  qed
+qed
+
+lemma g_pow_PK_Prod_inserted[simp]: "degree \<phi> \<le> t \<Longrightarrow> g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<t + 1]) \<phi> 
+  = fold (\<lambda>pk g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^pk)) ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> pk)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>"
+proof -
+  let ?PK = "map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<t + 1]"
+  let ?g_pow_PK = "g_pow_PK_Prod ?PK \<phi>"
+  assume asmpt: "degree \<phi> \<le> t"
+  have "?g_pow_PK = fold (\<lambda>pk g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> ?PK!pk ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> pk)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>" 
+    by auto
+  also have "fold (\<lambda>pk g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (?PK)!pk ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> pk)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>
+           = fold (\<lambda>pk g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^pk)) ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> pk)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>" 
+  proof(rule List.fold_cong)
+    show "\<one>\<^bsub>G\<^sub>p\<^esub> = \<one>\<^bsub>G\<^sub>p\<^esub>" by simp
+    show "[0..<Suc (degree \<phi>)] = [0..<Suc (degree \<phi>)]" by blast
+    show "\<And>x. x \<in> set [0..<Suc (degree \<phi>)] \<Longrightarrow>
+         (\<lambda>g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> ?PK ! x       ^\<^bsub>G\<^sub>p\<^esub> poly.coeff \<phi> x) 
+       = (\<lambda>g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ x) ^\<^bsub>G\<^sub>p\<^esub> poly.coeff \<phi> x)"
+    proof 
+      fix x::nat
+      fix g::'a
+      assume "x \<in> set [0..<Suc (degree \<phi>)]"
+      then have "?PK ! x = (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ x)" 
+        using PK_i asmpt by auto
+      then show "g \<otimes>\<^bsub>G\<^sub>p\<^esub> ?PK ! x ^\<^bsub>G\<^sub>p\<^esub> poly.coeff \<phi> x = g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ x) ^\<^bsub>G\<^sub>p\<^esub> poly.coeff \<phi> x" 
+        by presburger
+    qed
+  qed
+  ultimately show "g_pow_PK_Prod ?PK \<phi> = fold (\<lambda>pk g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ pk) ^\<^bsub>G\<^sub>p\<^esub> poly.coeff \<phi> pk) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>"
+    by argo
+qed
+
+lemma poly_altdef_to_fold[symmetric]: "n\<le>degree \<phi>  \<Longrightarrow> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<Sum>i\<le>n. poly.coeff \<phi> i * \<alpha> ^ i) 
+                          = fold (\<lambda>n g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> n * \<alpha> ^ n)) [0..<Suc n] \<one>\<^bsub>G\<^sub>p\<^esub>"
+proof (induction n)
+  case 0
+  have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<Sum>i\<le>0. poly.coeff \<phi> i * \<alpha> ^ i) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> 0 * \<alpha> ^ 0)"
+    by force
+  moreover have "fold (\<lambda>n g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> n * \<alpha> ^ n)) [0..<Suc 0] \<one>\<^bsub>G\<^sub>p\<^esub> 
+    =  \<one>\<^bsub>G\<^sub>p\<^esub> \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> (0::nat) * \<alpha> ^ (0::nat))" by force
+  moreover have "\<one>\<^bsub>G\<^sub>p\<^esub> \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> (0::nat) * \<alpha> ^ (0::nat)) 
+      = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> (0::nat) * \<alpha> ^ (0::nat))" using G\<^sub>p.generator_closed G\<^sub>p.generator G\<^sub>p.l_one by simp 
+  ultimately show ?case by argo
+next
+  case (Suc n)
+  have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<Sum>i\<le>Suc n. poly.coeff \<phi> i * \<alpha> ^ i) 
+      = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((\<Sum>i\<le>n. poly.coeff \<phi> i * \<alpha> ^ i) 
+      + poly.coeff \<phi> (Suc n) * \<alpha> ^ (Suc n))" by force
+  also have "\<dots>= \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<Sum>i\<le>n. poly.coeff \<phi> i * \<alpha> ^ i) 
+     \<otimes>\<^bsub>G\<^sub>p\<^esub>  \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> (Suc n) * \<alpha> ^ (Suc n))" 
+    using mod_ring_pow_mult_G\<^sub>p by fastforce
+  also have "\<dots> = fold (\<lambda>n g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> n * \<alpha> ^ n)) [0..<Suc n] \<one>\<^bsub>G\<^sub>p\<^esub>
+                \<otimes>\<^bsub>G\<^sub>p\<^esub>  \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> (Suc n) * \<alpha> ^ (Suc n))" 
+    using Suc by auto
+  also have "\<dots>=fold (\<lambda>n g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> n * \<alpha> ^ n)) [0..<Suc (Suc n)] \<one>\<^bsub>G\<^sub>p\<^esub>"
+    by simp
+  finally show ?case .
+qed
+
+lemma g_pow_PK_Prod_correct: "degree \<phi> \<le> t 
+  \<Longrightarrow> g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<t + 1]) \<phi> 
+      = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly \<phi> \<alpha>)"
+proof -
+  let ?g_pow_PK = "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<t + 1]) \<phi>"
+  assume asmpt: "degree \<phi> \<le> t"
+  have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly \<phi> \<alpha> = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<Sum>i\<le>degree \<phi>. poly.coeff \<phi> i * \<alpha> ^ i)"
+    by (simp add: poly_altdef)
+  moreover have "?g_pow_PK = fold (\<lambda>n g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> n * \<alpha> ^ n)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>"
+  proof -
+    have "?g_pow_PK = fold (\<lambda>pk g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^pk)) ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> pk)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>"
+      using g_pow_PK_Prod_inserted asmpt by blast
+    moreover have "\<forall>n g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^n)) ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> n) 
+              = g \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> n * \<alpha> ^ n)"
+      by (simp add: mod_ring_pow_pow_G\<^sub>p mult.commute G\<^sub>p.int_pow_pow)
+    ultimately show "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<t + 1]) \<phi> 
+    = fold (\<lambda>n g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> n * \<alpha> ^ n)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>"
+      by presburger
+  qed
+  ultimately show "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<t + 1]) \<phi> = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly \<phi> \<alpha>" 
+    using poly_altdef_to_fold[of "degree \<phi>" \<phi> \<alpha>] by fastforce
+qed
+
 theorem Eval_Commit_correct:  
   assumes t_ge_2: "t\<ge>2"
   and deg_\<phi>_let: "degree (of_qr \<phi>) \<le> t"
 shows "spmf (Eval_Commit_game t \<phi> i) True = 1"
 proof -
   let ?\<alpha> = "\<lambda>x. of_int_mod_ring (int x)"
-  let ?PK = "\<lambda>y. (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> ?\<alpha> y ^ t) [0..<t+1])"
+  let ?PK = "\<lambda>x. (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> ?\<alpha> x ^ t) [0..<t+1])"
   have "spmf (Eval_Commit_game t \<phi> i) True 
   = spmf ( do{
     (\<alpha>,PK) \<leftarrow> do {
@@ -358,9 +456,9 @@ proof -
   also have "\<dots> = spmf ( do {
       x::nat \<leftarrow> sample_uniform (order G\<^sub>p);
       return_spmf
-             (e (g_pow_PK_Prod (?PK x) (\<psi>_of \<phi> i))((?PK x)!1 \<div>\<^bsub>G\<^sub>p\<^esub> ((?PK x)!0 ^\<^bsub>G\<^sub>p\<^esub> i)) 
-              \<otimes>\<^bsub>G\<^sub>T\<^esub> e ((?PK x)!0) ((?PK x)!0) ^\<^bsub>G\<^sub>T\<^esub> poly (of_qr \<phi>) i 
-                  = e (g_pow_PK_Prod (?PK x) (of_qr \<phi>)) ((?PK x) ! 0))})
+             (e (g_pow_PK_Prod (?PK x) (\<psi>_of \<phi> i))((?PK x)!1 \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) 
+              \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>T\<^esub> poly (of_qr \<phi>) i 
+                  = e (g_pow_PK_Prod (?PK x) (of_qr \<phi>)) \<^bold>g\<^bsub>G\<^sub>p\<^esub>)})
      True" 
     unfolding Commit_def CreateWitness_def VerifyEval_def
     by (auto simp del: g_pow_PK_Prod.simps)
@@ -368,9 +466,22 @@ proof -
       x::nat \<leftarrow> sample_uniform (order G\<^sub>p);
       return_spmf
              (e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (\<psi>_of \<phi> i) (?\<alpha> x))) (( \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (?\<alpha> x))  \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> (poly (of_qr \<phi>) i )) 
-                   = e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>) (?\<alpha> x) )) \<^bold>g\<^bsub>G\<^sub>p\<^esub>)})
+                   = e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>) (?\<alpha> x))) \<^bold>g\<^bsub>G\<^sub>p\<^esub>)})
      True"
-    sorry
+  proof -
+    let ?g_pow_\<phi> = "\<lambda>x. g_pow_PK_Prod (?PK x) (of_qr \<phi>)"
+    let ?g_pow_\<psi> = "\<lambda>x. g_pow_PK_Prod (?PK x) (\<psi>_of \<phi> i)"
+    let ?g_pow_\<alpha> = "\<lambda>x. (?PK x)!1"
+    have g_pow_\<phi>: "?g_pow_\<phi> = (\<lambda>x. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>) (?\<alpha> x)))"
+      using g_pow_PK_Prod_correct[OF assms(2)] by presburger
+    have degree_\<psi>: "degree (\<psi>_of \<phi> i) \<le> t" using assms(2) 
+      by (metis \<psi>_of_and_\<psi>_of_poly degree_q_le_\<phi> dual_order.trans)
+    have g_pow_\<psi>: "?g_pow_\<psi> = (\<lambda>x. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (\<psi>_of \<phi> i) (?\<alpha> x)))"
+      using g_pow_PK_Prod_correct[OF degree_\<psi>] by presburger
+    have g_pow_\<alpha>: "?g_pow_\<alpha> = (\<lambda>x. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (?\<alpha> x))"
+      using PK_i assms(1) by simp
+    show ?thesis using g_pow_\<phi> g_pow_\<psi> g_pow_\<alpha> by metis
+    qed
   also have "\<dots>= spmf ( do {
       x::nat \<leftarrow> sample_uniform (order G\<^sub>p);
       return_spmf True}) True" 
@@ -380,7 +491,6 @@ proof -
   also have "\<dots> = 1" by (simp add: G\<^sub>p.order_gt_0)
   finally show ?thesis .
 qed  
-  
 
 end
 
