@@ -1,6 +1,7 @@
 theory KZG_Def
 
-imports "CryptHOL.CryptHOL" "CryptHOL.Cyclic_Group" "CRYSTALS-Kyber.Kyber_spec" 
+imports "CRYSTALS-Kyber.Kyber_spec" "CryptHOL.CryptHOL" "CryptHOL.Cyclic_Group" 
+  "Sigma_Commit_Crypto.Cyclic_Group_Ext" 
 
 begin
 
@@ -10,7 +11,7 @@ for G\<^sub>p  (structure) and G\<^sub>T  (structure) +
 fixes "type_a" :: "('q :: qr_spec) itself"
   and d p::int
   and e
-and deg_t::nat
+and max_deg::nat
 assumes
 p_gr_two: "p > 2" and
 p_prime : "prime p" and
@@ -25,8 +26,8 @@ e_bilinear: "\<forall>a b::'q mod_ring . \<forall>P Q. P \<in> carrier G\<^sub>p
 d_pos: "d > 0" and
 CARD_q: "int (CARD('q)) = p" and
 qr_poly'_eq: "qr_poly' TYPE('q) = Polynomial.monom 1 (nat d) - 1" and
-deg_t_le_p: "deg_t \<le> p" 
-\<comment>\<open>and t_SDH_GP: "t_SDH GP"\<close>
+max_deg_le_p: "max_deg \<le> p" 
+\<comment>\<open>and t_SDH_GP: "t_SDH GP" TODO\<close>
 begin
 
 abbreviation pow_mod_ring_G\<^sub>p :: "'a \<Rightarrow>'q mod_ring \<Rightarrow> 'a" (infixr "^\<^bsub>G\<^sub>p\<^esub>" 75)
@@ -184,12 +185,12 @@ we do not compute the Groups for the bilinear pairing but assume them and comput
 a uniformly random secret key \<alpha> and from that the public key PK = (g, g^\<alpha>, ... , g^(\<alpha>^t) ).
 Setup is a trusted Setup function, which generates the shared public key for both parties 
 (prover and verifier).\<close>
-definition Setup :: "nat \<Rightarrow> ('e sk \<times> 'a pk) spmf"
+definition Setup :: "('e sk \<times> 'a pk) spmf"
 where 
-  "Setup t = do {
+  "Setup = do {
     x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
     let \<alpha>::'e mod_ring = of_int_mod_ring (int x) in
-    return_spmf (\<alpha>, map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<t+1]) 
+    return_spmf (\<alpha>, map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) 
   }" 
 
 subsection\<open>Commit\<close>
