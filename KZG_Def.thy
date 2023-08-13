@@ -1,7 +1,6 @@
 theory KZG_Def
 
-imports "CryptHOL.CryptHOL" "CryptHOL.Cyclic_Group" "CRYSTALS-Kyber.Kyber_spec" "Sigma_Commit_Crypto.Commitment_Schemes"
-  "Berlekamp_Zassenhaus.Finite_Field_Factorization" "Sigma_Commit_Crypto.Cyclic_Group_Ext" Complex_Main
+imports "CryptHOL.CryptHOL" "CryptHOL.Cyclic_Group" "CRYSTALS-Kyber.Kyber_spec" 
 
 begin
 
