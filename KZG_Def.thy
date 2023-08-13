@@ -33,6 +33,130 @@ begin
 abbreviation pow_mod_ring_G\<^sub>p :: "'a \<Rightarrow>'q mod_ring \<Rightarrow> 'a" (infixr "^\<^bsub>G\<^sub>p\<^esub>" 75)
   where "x ^\<^bsub>G\<^sub>p\<^esub> q \<equiv> x [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring q)"
 
+abbreviation pow_mod_ring_G\<^sub>T :: "'c \<Rightarrow>'q mod_ring \<Rightarrow> 'c" (infixr "^\<^bsub>G\<^sub>T\<^esub>" 75)
+  where "x ^\<^bsub>G\<^sub>T\<^esub> q \<equiv> x [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring q)"
+
+abbreviation div_in_grp (infixr "\<div>\<index>" 70)
+  where "x \<div>\<index> y \<equiv> x \<otimes>\<index> inv\<index> y"
+
+subsubsection \<open>mod_ring operations on pow of Gp\<close>
+
+lemma pow_mod_order_G\<^sub>p: "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod p)" 
+proof -
+  have "p=(order G\<^sub>p)" by (simp add: CARD_G\<^sub>p)
+  also have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod order G\<^sub>p)"
+  proof -
+    have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x \<in> carrier G\<^sub>p" by simp
+    let ?d = "x div (order G\<^sub>p)"
+    have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (?d * order G\<^sub>p + x mod order G\<^sub>p)" 
+      using div_mult_mod_eq by presburger
+    also have "\<dots>= \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (?d * order G\<^sub>p) \<otimes>\<^bsub>G\<^sub>p\<^esub>  \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod order G\<^sub>p)"
+      using G\<^sub>p.int_pow_mult by blast
+    also have "\<dots>=\<one>\<^bsub>G\<^sub>p\<^esub> \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod order G\<^sub>p)"
+      by (metis G\<^sub>p.generator_closed G\<^sub>p.int_pow_closed G\<^sub>p.int_pow_pow G\<^sub>p.pow_order_eq_1 int_pow_int)
+    finally show "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod order G\<^sub>p)" by fastforce
+  qed
+  finally show "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod p)" .
+qed
+
+lemma mod_ring_pow_mult_inv_G\<^sub>p[symmetric]:" (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a::'q mod_ring))) \<otimes>\<^bsub>G\<^sub>p\<^esub> inv\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring b)) 
+  =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a-b))"
+proof -
+  have "(\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a::'q mod_ring))) \<otimes>\<^bsub>G\<^sub>p\<^esub> inv\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring b)) 
+        = (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a::'q mod_ring))) \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (- to_int_mod_ring b))"
+    by (simp add: G\<^sub>p.int_pow_neg)
+  also have "\<dots>=(\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> ((to_int_mod_ring a + -to_int_mod_ring b) mod CARD ('q)))"
+    using pow_mod_order_G\<^sub>p CARD_q G\<^sub>p.generator_closed G\<^sub>p.int_pow_mult by presburger
+  also have "\<dots>=(\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> ((to_int_mod_ring a - to_int_mod_ring b) mod CARD ('q)))"
+    by fastforce
+  also have "\<dots>=  \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring (a - b)"
+    by (simp add: minus_mod_ring.rep_eq to_int_mod_ring.rep_eq)
+  finally show "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a \<otimes>\<^bsub>G\<^sub>p\<^esub> inv\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring b) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring (a - b)" .
+qed
+
+lemma mod_ring_pow_mult_G\<^sub>p[symmetric]:" (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a::'q mod_ring))) \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring b)) 
+  =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a+b))"
+proof -
+  have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring b =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring a + to_int_mod_ring b)"
+    by (simp add: G\<^sub>p.int_pow_mult)
+  also have "\<dots>=  \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> ((to_int_mod_ring a + to_int_mod_ring b) mod (CARD ('q)))" 
+    using pow_mod_order_G\<^sub>p CARD_q by blast
+  also have "\<dots>=  \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring (a + b)"
+    by (simp add: plus_mod_ring.rep_eq to_int_mod_ring.rep_eq)
+  finally show "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring b = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring (a + b)" .
+qed
+
+lemma mod_ring_pow_pow_G\<^sub>p[symmetric]: "(\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a::'q mod_ring))) [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (b::'q mod_ring)) 
+                       = \<^bold>g\<^bsub>G\<^sub>p\<^esub>[^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a*b::'q mod_ring))"
+proof -
+  have "(\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a) [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring b = (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring a * to_int_mod_ring b))"
+    using G\<^sub>p.int_pow_pow by auto
+  also have "\<dots> = (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> ((to_int_mod_ring a * to_int_mod_ring b) mod CARD ('q)))"
+    using CARD_q pow_mod_order_G\<^sub>p by blast
+  also have "\<dots>=  \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring (a * b)"
+    by (simp add: times_mod_ring.rep_eq to_int_mod_ring.rep_eq)
+  finally show "(\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a) [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring b 
+               = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring (a * b)" .
+qed
+
+subsubsection\<open>mod_ring operations on pow of GT\<close>
+
+lemma pow_mod_order_G\<^sub>T: "g \<in> carrier G\<^sub>T \<Longrightarrow> g [^]\<^bsub>G\<^sub>T\<^esub> x = g [^]\<^bsub>G\<^sub>T\<^esub> (x mod p)" 
+proof -
+  assume asmpt: "g \<in> carrier G\<^sub>T"
+  have "p=(order G\<^sub>T)" by (simp add: CARD_G\<^sub>T)
+  also have "g[^]\<^bsub>G\<^sub>T\<^esub> x = g [^]\<^bsub>G\<^sub>T\<^esub> (x mod order G\<^sub>T)"
+  proof -
+    have "g [^]\<^bsub>G\<^sub>T\<^esub> x \<in> carrier G\<^sub>T" using asmpt by simp
+    let ?d = "x div (order G\<^sub>T)"
+    have "g [^]\<^bsub>G\<^sub>T\<^esub> x = g [^]\<^bsub>G\<^sub>T\<^esub> (?d * order G\<^sub>T + x mod order G\<^sub>T)" 
+      using div_mult_mod_eq by presburger
+    also have "\<dots>=g [^]\<^bsub>G\<^sub>T\<^esub> (?d * order G\<^sub>T) \<otimes>\<^bsub>G\<^sub>T\<^esub>  g [^]\<^bsub>G\<^sub>T\<^esub> (x mod order G\<^sub>T)"
+      using G\<^sub>T.int_pow_mult asmpt by fast
+    also have "\<dots>=\<one>\<^bsub>G\<^sub>T\<^esub> \<otimes>\<^bsub>G\<^sub>T\<^esub> g [^]\<^bsub>G\<^sub>T\<^esub> (x mod order G\<^sub>T)"
+      by (metis G\<^sub>T.int_pow_one G\<^sub>T.int_pow_pow G\<^sub>T.pow_order_eq_1 int_pow_int mult.commute asmpt)
+    finally show "g [^]\<^bsub>G\<^sub>T\<^esub> x = g [^]\<^bsub>G\<^sub>T\<^esub> (x mod order G\<^sub>T)"
+      using asmpt by fastforce
+  qed
+  finally show "g [^]\<^bsub>G\<^sub>T\<^esub> x = g [^]\<^bsub>G\<^sub>T\<^esub> (x mod p)" .
+qed
+
+
+lemma mod_ring_pow_mult_G\<^sub>T[symmetric]:" x \<in> carrier G\<^sub>T \<Longrightarrow> (x [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring (a::'q mod_ring))) \<otimes>\<^bsub>G\<^sub>T\<^esub> (x [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring b)) 
+  =  x [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring (a+b))"
+proof -
+  assume asmpt: "x \<in> carrier G\<^sub>T"
+  have "x [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring a \<otimes>\<^bsub>G\<^sub>T\<^esub> x [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring b =  x [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring a + to_int_mod_ring b)"
+    by (simp add: G\<^sub>T.int_pow_mult asmpt)
+  also have "\<dots>=  x [^]\<^bsub>G\<^sub>T\<^esub> ((to_int_mod_ring a + to_int_mod_ring b) mod (CARD ('q)))" 
+    using pow_mod_order_G\<^sub>T CARD_q asmpt by blast
+  also have "\<dots>=  x [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring (a + b)"
+    by (simp add: plus_mod_ring.rep_eq to_int_mod_ring.rep_eq)
+  finally show "x [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring a \<otimes>\<^bsub>G\<^sub>T\<^esub> x [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring b = x [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring (a + b)" .
+qed
+
+subsubsection \<open>bilinearity operations for mod_ring elements\<close>
+
+lemma e_linear_in_fst: 
+  assumes "P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p"
+  shows "e (P [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a::'q mod_ring))) (Q) = (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring a)"
+proof -
+  have "e (P [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a) Q = e (P [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a) (Q [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring (1::'q mod_ring))" using assms by simp
+  also have "... = (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring (a*(1::'q mod_ring)))" using assms e_bilinear by fast
+  also have "\<dots>=(e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring a)" by simp
+  finally show "e (P [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring a)) Q = (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring a)" .
+qed
+
+lemma e_linear_in_snd: 
+assumes "P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p"
+shows "e (P) (Q [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a::'q mod_ring))) = (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring a)"
+proof -
+have "e P (Q [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a) = e (P [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring (1::'q mod_ring)) (Q [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a)" using assms by simp
+  also have "... = (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring ((1::'q mod_ring)*a))" using assms e_bilinear by fast
+  also have "\<dots>=(e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring a)" by simp
+  finally show "e P (Q [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a) = e P Q [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring a" .
+qed
+
 end
 
 section \<open>KZG function definitions\<close>
@@ -74,7 +198,8 @@ subsection\<open>Commit\<close>
 text\<open>This function computes g^\<phi>(\<alpha>), given the by Setup generated public key. 
 (\<alpha> being the from Setup generated private key)
 
-The function is basically a Prod of public key!i ^ coeff \<phi> i, which computes g^\<phi>(a):
+The function is basically a Prod of public key!i ^ coeff \<phi> i, which computes g^\<phi>(a), given the 
+public key:
 \<Prod>[0...degree \<phi>]. PK!i^coeff \<phi> i 
 = \<Prod>[0...degree \<phi>]. g^(\<alpha>^i)^coeff \<phi> i
 = \<Prod>[0...degree \<phi>]. g^(coeff \<phi> i * \<alpha>^i)
@@ -91,13 +216,7 @@ where
     return_spmf (g_pow_PK_Prod PK (of_qr \<phi>)) 
   }" 
 
-(* TODO Delete
-lemma "set_spmf (Commit PK \<phi>) = {g_pow_PK_Prod PK (of_qr \<phi>)}"
-  unfolding Commit_def by force
-*)
-
 subsection \<open>Open: opens the commitment\<close>
-
 definition Open :: "'a pk \<Rightarrow> 'a commit \<Rightarrow> 'e polynomial \<Rightarrow> 'e polynomial spmf"
 where 
   "Open PK C \<phi> = do {
@@ -184,10 +303,25 @@ where
   "CreateWitness PK \<phi> i = do { 
     let \<phi>_of_i = poly (of_qr \<phi>) i; \<comment>\<open>\<phi>(i)\<close>
         \<psi> = \<psi>_of \<phi> i; \<comment>\<open>\<psi> in \<phi>(x) - \<phi>(i) = (x-i) * \<psi>(x)\<close>
-        g_pow_\<psi>_of_\<alpha> = g_pow_PK_Prod PK \<psi> \<comment>\<open>g^\<psi>(\<alpha>)\<close>
+        w_i = g_pow_PK_Prod PK \<psi> \<comment>\<open>g^\<psi>(\<alpha>)\<close>
     in
-    return_spmf (i, \<phi>_of_i,g_pow_\<psi>_of_\<alpha>) \<comment>\<open>(i, \<phi>(i), g^\<psi>(\<alpha>))\<close>
+    return_spmf (i, \<phi>_of_i,w_i) \<comment>\<open>(i, \<phi>(i), g^\<psi>(\<alpha>))\<close>
   }" 
+
+
+definition VerifyEval :: "'a pk \<Rightarrow> 'a commit \<Rightarrow> 'e eval_position \<Rightarrow> 'e eval_value \<Rightarrow> 'a eval_witness \<Rightarrow> bool spmf"
+where 
+  "VerifyEval PK C i \<phi>_of_i w_i =
+    return_spmf (e w_i (PK!1  \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> \<phi>_of_i) = e C \<^bold>g\<^bsub>G\<^sub>p\<^esub>) 
+    \<comment>\<open>e(g^\<psi>(\<alpha>), g^\<alpha> / g^i) \<otimes> e(g,g)^\<phi>(i) = e(C, g)\<close>" 
+
+thm Setup_def[simp]
+thm Commit_def[simp]
+thm Open_def[simp]
+thm VerifyPoly_def[simp]
+thm CreateWitness_def[simp]
+thm VerifyEval_def[simp]
+
 end
 
 end
