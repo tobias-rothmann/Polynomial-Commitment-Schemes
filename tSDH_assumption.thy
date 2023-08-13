@@ -5,28 +5,27 @@ imports "Sigma_Commit_Crypto.Commitment_Schemes"
 begin
 
 locale t_SDH = G\<^sub>p : cyclic_group G
-for G (structure)
+for G (structure) and t::nat
 begin
 
 (*type_synonym 'grp' t_SDH_adversary = "'grp' list \<Rightarrow> ('q mod_ring *'grp') spmf"*)
 type_synonym 'grp adversary = "'grp list \<Rightarrow> (nat *'grp) spmf"
 
 
-text \<open>TODO ändere to setup function\<close>
-definition game :: "nat \<Rightarrow> 'a adversary \<Rightarrow> bool spmf" where 
-  "game t \<A> = TRY do { 
+definition game :: "'a adversary \<Rightarrow> bool spmf" where 
+  "game \<A> = TRY do { 
     \<alpha> \<leftarrow> sample_uniform (order G);
     (c, g) \<leftarrow> \<A> (map (\<lambda>t'. \<^bold>g [^] (int \<alpha>^t')) [0..<t+1]);
     return_spmf (\<^bold>g [^] (1/((\<alpha>+c))) = g) 
   } ELSE return_spmf False"
 
 
-definition advantage :: "nat \<Rightarrow> 'a adversary \<Rightarrow> real"
-  where "advantage t \<A> = spmf (game t \<A>) True" \<comment>\<open>subtract Pr random (\<alpha>+c)\<close>
+definition advantage :: " 'a adversary \<Rightarrow> real"
+  where "advantage \<A> = spmf (game \<A>) True" \<comment>\<open>subtract Pr random (\<alpha>+c)\<close>
 
 (* adapted proof from Sigma_Commit_Crypto.Commitment_Schemes bind_game_alt_def  *)
 lemma game_alt_def:
-  "game t \<A> = TRY do { 
+  "game \<A> = TRY do { 
     \<alpha> \<leftarrow> sample_uniform (order G);
     (c, g) \<leftarrow> \<A> (map (\<lambda>t'. \<^bold>g [^] (int \<alpha>^t')) [0..<t+1]);
     _::unit \<leftarrow> assert_spmf (\<^bold>g [^] (1/((\<alpha>+c))) = g);
