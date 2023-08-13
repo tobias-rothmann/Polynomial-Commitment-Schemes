@@ -6,7 +6,8 @@
 ## Reference Paper
 This formalization follows the original [paper](https://cacr.uwaterloo.ca/techreports/2010/cacr2010-10.pdf):  
 A. Kate, G. Zaverucha, and I. Goldberg. Polynomial commitments. Technical report, 2010. CACR 2010-10, Centre for Applied Cryptographic Research, University
-of Waterloo
+of Waterloo 
+
 First step is to prove the DL version.
 
 
