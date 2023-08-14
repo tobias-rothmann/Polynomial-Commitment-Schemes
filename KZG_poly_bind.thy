@@ -7,7 +7,11 @@ begin
 
 section \<open>polynomial binding\<close>
 text \<open>We show that the KZG is polynomial binding for every polynomial of degree <= deg_t.
-We use the Sigma_Commit_Crypto template to prove the binding game.\<close>
+We use the Sigma_Commit_Crypto template to prove the binding game.
+The proof is adapted from the Appendix C.1 in the original paper:
+A. Kate, G. Zaverucha, and I. Goldberg. Polynomial commitments. Technical report, 2010. 
+CACR 2010-10, Centre for Applied Cryptographic Research, University of Waterloo 
+(available at https://cacr.uwaterloo.ca/techreports/2010/cacr2010-10.pdf)\<close>
 
 locale bind_game_def = KZG_Def
 begin
@@ -29,7 +33,7 @@ definition SCC_key_gen:: "('a pk \<times> 'a pk) spmf" where
 
 text \<open>2. the Commit function, that commits to the plain text (polynomials in the KZG case).
 The Sigma_Commit_Crypto Commit function gives the Commitment, just like the KZG defined Commit 
-function, and a opening (the polynomial in the KZG case) that was commitment to 
+function, and a opening (the polynomial in the KZG case) for the commitment 
 (unlike the KZG's Commit function).
 Hence the Commit function from KZG_Def is extended to also return the polynomial that is commited 
 to.\<close>
@@ -43,7 +47,7 @@ text \<open>3. the Verify function, that verifies that the commitment was actual
 using the opening, which in the KZG case is equivalent to the plain-text. Since the opening is 
 cryptographic irrelevant (i.e. binding is evaluated on commitments to plain texts) and equivalent 
 to the plain text, it does not hold relevant information and can be neglected.
-The function is copied from KZG_Def with erxtended parameter opening. 
+The function is copied from KZG_Def with extended parameter, opening. 
 Furthermore, it does not return a bool spmf, like in the KZG_Def, but a just a bool. The two 
 are still equivalent though as the bool spmf is depended on C and \<phi> either {1} or {0} 
 (for spmf _ True).
@@ -52,8 +56,8 @@ definition SCC_Verify :: "'a pk \<Rightarrow> 'e polynomial \<Rightarrow> 'a com
 where 
   "SCC_Verify PK \<phi> C _ \<equiv> (C = g_pow_PK_Prod PK (of_qr \<phi>))"
 
-text \<open>4. the valid_msg function, that checks wether a provided plaintext / polynomial is actually 
-a valid/allwoed message. For the KZG, a polynomial must be of degree less or equal than the maximum 
+text \<open>4. the valid_msg function, that checks whether a provided plain text / polynomial is actually 
+a valid/allowed message. For the KZG, a polynomial must be of degree less than or equal to the maximum 
 degree max_deg. This however is already ensured by the type qr that is a quotient ring over 
 polynomials for degree max_deg. Hence the valid_msg function is True\<close>
 definition SCC_valid_msg :: "'e polynomial \<Rightarrow> bool"
@@ -75,6 +79,10 @@ polynomials such that they have the same commitment in polynomial time, we can c
 algorithm, using that adversary, that can solve the t-SDH in polynomial time, thus breaking the 
 t-SDH assumption.\<close>
 
+
+text \<open>This functions purpose is to extract \<alpha> based on the inputs g^\<alpha> and \<phi>, where \<phi> has a root at \<alpha>. 
+The function factorizes \<phi> and filters for all roots. Since \<alpha>'s mod_ring is of the same cardinality 
+as g's group's order, we can conclude that if g^r = g^\<alpha> then r=\<alpha>\<close>
 (*TODO finite_field_factorization works only for square-free polys \<rightarrow> add step for non-sf to sf*)
 fun find_\<alpha>_square_free :: "'a \<Rightarrow> 'e mod_ring poly \<Rightarrow> 'e mod_ring" where
   "find_\<alpha>_square_free g_pow_\<alpha> \<phi> = (let (c, polys) = finite_field_factorization \<phi>;
@@ -83,6 +91,15 @@ fun find_\<alpha>_square_free :: "'a \<Rightarrow> 'e mod_ring poly \<Rightarrow
     \<alpha>_roots = filter (\<lambda>r. g_pow_\<alpha> = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> r) root_list
 in \<alpha>_roots!0)"
 
+text \<open>The reduction: 
+An adversary for the KZG polynomial binding can output two polynomials \<phi> and \<phi>' that have the same 
+commitment, i.e g^\<phi>(\<alpha>) = g^\<phi>(\<alpha>), which is equivalent to \<phi>(\<alpha>) = \<phi>'(\<alpha>) (same argument as in the 
+function above). Hence (\<phi>-\<phi>')(\<alpha>) = 0, so (\<phi>-\<phi>') has a root at \<alpha>. Furthermore we have g^\<alpha> in the 
+public key at position 1. Hence we can use the find_\<alpha>_square_free function to compute \<alpha> in 
+polynomial time. Given \<alpha> we can easily compute a c and a g' such that g^(1/((\<alpha>+c))) = g'.
+E.g. c=0 and g' = (1/\<alpha>)
+Hence we can break the t-SDH assumption, as we have a polynomial-time algorithm to compute (c,g).
+\<close>
 fun bind_reduction
   :: "('a list, 'e qr, 'a, 'e qr)  bind_adversary \<Rightarrow> 'a t_SDH.adversary"                     
 where
@@ -91,7 +108,6 @@ where
   _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>');
   let \<alpha> = find_\<alpha>_square_free (PK!1) (of_qr \<phi> - of_qr \<phi>');
   return_spmf (0::nat, \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/\<alpha>))}"
-
 end
 
 
