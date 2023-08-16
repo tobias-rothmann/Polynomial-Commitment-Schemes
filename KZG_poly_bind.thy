@@ -43,6 +43,9 @@ where
     return_spmf (g_pow_PK_Prod PK (of_qr \<phi>), \<phi>)
   }" 
 
+lemma "spmf (VerifyPoly PK C \<phi>) True =  (if C = g_pow_PK_Prod PK (of_qr \<phi>) then 1 else 0)"
+  unfolding VerifyPoly_def by simp
+
 text \<open>3. the Verify function, that verifies that the commitment was actually made to the plain-text, 
 using the opening, which in the KZG case is equivalent to the plain-text. Since the opening is 
 cryptographic irrelevant (i.e. binding is evaluated on commitments to plain texts) and equivalent 
@@ -211,11 +214,22 @@ lemma helping_2_factorize_\<alpha>: "\<phi> \<noteq> \<phi>' \<and> SCC_valid_ms
         \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (of_qr \<phi> - of_qr \<phi>') = -(of_int_mod_ring (int \<alpha>)::'e mod_ring))"
   (is "?lhs = ?rhs")
   by (metis poly_eq0_is_find_\<alpha>_eq_\<alpha> right_minus_eq to_qr_of_qr)
+
+lemma " \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> of_int_mod_ring x =  \<^bold>g [^] x"
+  (is "?lhs = ?rhs")
+proof -
+  have "?lhs =  \<^bold>g [^] (x mod p)"
+    by (simp add: CARD_q of_int_mod_ring.rep_eq to_int_mod_ring.rep_eq)
+  also have "\<dots>=?rhs" using CARD_G\<^sub>p G\<^sub>p.pow_generator_mod_int by presburger
+  finally show ?thesis .
+qed
    
 
 subsubsection \<open>KZG poly bind game to strong reduction game - reducing lemma\<close>
 
-lemma poly_bind_game_eq_t_SDH_strong_red: "bind_commit.bind_game \<A> = t_SDH_G\<^sub>p.game (stronger_bind_reduction \<A>)"
+lemma poly_bind_game_eq_t_SDH_strong_red: 
+  assumes "lossless \<A>"
+  shows "bind_commit.bind_game \<A> = t_SDH_G\<^sub>p.game (stronger_bind_reduction \<A>)"
 proof -
   note [simp] = Let_def split_def
   let ?\<alpha> = "\<lambda>\<alpha>. (of_int_mod_ring (int \<alpha>)::'e mod_ring)"
@@ -305,20 +319,15 @@ proof -
     (c, g) \<leftarrow> (stronger_bind_reduction \<A>) (map (\<lambda>t'. \<^bold>g [^] (int \<alpha>^t')) [0..<max_deg+1]);
     _::unit \<leftarrow> assert_spmf (\<^bold>g [^] (1/((\<alpha>+c))) = g);
     return_spmf True } ELSE return_spmf False"
-    unfolding stronger_bind_reduction.simps
-     sorry
-   have "TRY do { 
-    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
-    (c, g) \<leftarrow> (stronger_bind_reduction \<A>) (map (\<lambda>t'. \<^bold>g [^] (int \<alpha>^t')) [0..<max_deg+1]);
-    _::unit \<leftarrow> assert_spmf (\<^bold>g [^] (1/((\<alpha>+c))) = g);
-    return_spmf True } ELSE return_spmf False = t_SDH_G\<^sub>p.game (stronger_bind_reduction \<A>)"
+    unfolding stronger_bind_reduction.simps 
+    using g_pow_to_int_mod_ring_of_int_mod_ring_pow_t by presburger
+   have "\<dots>= t_SDH_G\<^sub>p.game (stronger_bind_reduction \<A>)"
     using t_SDH_G\<^sub>p.game_alt_def[of "(stronger_bind_reduction \<A>)"] by argo
   show ?thesis
     unfolding t_SDH_G\<^sub>p.game_def
     unfolding stronger_bind_reduction.simps
     sorry
 qed
-
 
 
 end
