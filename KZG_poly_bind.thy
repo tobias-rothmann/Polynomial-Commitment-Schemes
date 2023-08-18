@@ -97,7 +97,7 @@ fun find_\<alpha>_square_free :: "'a \<Rightarrow> 'e mod_ring poly \<Rightarrow
     deg1_polys = filter (\<lambda>f. degree f = 1) polys;
     root_list = map (\<lambda>p. poly.coeff p 0) deg1_polys;
     \<alpha>_roots = filter (\<lambda>r. g_pow_\<alpha> = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> r) root_list
-in \<alpha>_roots!0)"
+in -\<alpha>_roots!0)"
 
 (*TODO finite_field_factorization works only for square-free polys \<rightarrow> add step for non-sf to sf*)
 fun find_\<alpha> :: "'a \<Rightarrow> 'e mod_ring poly \<Rightarrow> 'e mod_ring" where
@@ -117,8 +117,8 @@ fun bind_reduction
 where
   "bind_reduction \<A> PK = do {
   (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> PK;
-  _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>'); \<comment>\<open>TODO shouldn't it be 
-  \<and> Commit \<phi> = Commit \<phi>'?\<close>
+  _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' \<and> (g_pow_PK_Prod PK (of_qr \<phi>) = g_pow_PK_Prod PK (of_qr \<phi>'))); 
+\<comment>\<open>TODO shouldn't it be \<and> Commit \<phi> = Commit \<phi>'? \<rightarrow> Lets try it\<close>
   let \<alpha> = find_\<alpha> (PK!1) (of_qr \<phi> - of_qr \<phi>');
   return_spmf (0::nat, \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/\<alpha>))}"
 end
@@ -197,11 +197,11 @@ lemma helping_1_add_poly_\<phi>_m_\<phi>': "(\<phi> \<noteq> \<phi>' \<and> SCC_
 
 (*TODO*)
 lemma sf_poly_eq0_is_find_\<alpha>_eq_\<alpha>: "\<phi> \<noteq> 0 \<Longrightarrow> square_free \<phi> \<Longrightarrow> 
-  poly \<phi> \<alpha>=0 \<longleftrightarrow> find_\<alpha>_square_free (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = -\<alpha>" 
+  poly \<phi> \<alpha>=0 \<longleftrightarrow> find_\<alpha>_square_free (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>" 
   sorry
 
 (*TODO goal \<Rightarrow> have to implement algorithm that produces square-free polys from non-square-free ones*)
-lemma poly_eq0_is_find_\<alpha>_eq_\<alpha>: "\<phi> \<noteq> 0 \<Longrightarrow> poly \<phi> \<alpha> = 0 \<longleftrightarrow> find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = -\<alpha>"
+lemma poly_eq0_is_find_\<alpha>_eq_\<alpha>: "\<phi> \<noteq> 0 \<Longrightarrow> poly \<phi> \<alpha> = 0 \<longleftrightarrow> find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
   sorry
 
 lemma helping_2_factorize_\<alpha>: "\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
@@ -211,31 +211,21 @@ lemma helping_2_factorize_\<alpha>: "\<phi> \<noteq> \<phi>' \<and> SCC_valid_ms
         \<longleftrightarrow> \<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
         \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) 
         \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
-        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (of_qr \<phi> - of_qr \<phi>') = -(of_int_mod_ring (int \<alpha>)::'e mod_ring))"
-  (is "?lhs = ?rhs")
+        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (of_qr \<phi> - of_qr \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring))"
   by (metis poly_eq0_is_find_\<alpha>_eq_\<alpha> right_minus_eq to_qr_of_qr)
-
-lemma " \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> of_int_mod_ring x =  \<^bold>g [^] x"
-  (is "?lhs = ?rhs")
-proof -
-  have "?lhs =  \<^bold>g [^] (x mod p)"
-    by (simp add: CARD_q of_int_mod_ring.rep_eq to_int_mod_ring.rep_eq)
-  also have "\<dots>=?rhs" using CARD_G\<^sub>p G\<^sub>p.pow_generator_mod_int by presburger
-  finally show ?thesis .
-qed
 
 lemma helping_3_\<alpha>_is_found: "\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
         \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
-        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (of_qr \<phi> - of_qr \<phi>') = -(of_int_mod_ring (int \<alpha>)::'e mod_ring)) 
+        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (of_qr \<phi> - of_qr \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring)) 
 \<longleftrightarrow> \<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
           \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
-          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (((of_int_mod_ring (int \<alpha>)::'e mod_ring)))) (of_qr \<phi> - of_qr \<phi>') = -(of_int_mod_ring (int \<alpha>)::'e mod_ring))   
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (((of_int_mod_ring (int \<alpha>)::'e mod_ring)))) (of_qr \<phi> - of_qr \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring))   
           \<and> \<^bold>g [^] (1/\<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1])!1) (of_qr \<phi> - of_qr \<phi>'))"
   (is "?lhs = ?rhs")
 proof 
   assume ?lhs
   then show ?rhs
-    (*TODO*)
+    (*TODO real? ? ?*)
     sorry
 next 
   assume ?rhs
@@ -315,7 +305,7 @@ proof -
       TRY do {
         _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
         \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = -(?\<alpha> \<alpha>)));
+        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>)));
         return_spmf True
       } ELSE return_spmf False
     } ELSE return_spmf False
@@ -328,7 +318,7 @@ proof -
        TRY do {
        _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
           \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = -(?\<alpha> \<alpha>))   
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>))   
           \<and> \<^bold>g [^] (1/\<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
       return_spmf True } ELSE return_spmf False
       } ELSE return_spmf False 
@@ -341,7 +331,7 @@ proof -
        TRY do {
        _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
           \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = -(?\<alpha> \<alpha>)));   
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>)));   
       _::unit \<leftarrow> assert_spmf (\<^bold>g [^] (1/\<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
       return_spmf True } ELSE return_spmf False
       } ELSE return_spmf False 
@@ -352,7 +342,7 @@ proof -
     (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
      _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
         \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = -(?\<alpha> \<alpha>)));   
+        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>)));   
     _::unit \<leftarrow> assert_spmf (\<^bold>g [^] (1/\<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
     return_spmf True } ELSE return_spmf False " 
     unfolding split_def
@@ -395,6 +385,278 @@ proof -
    also have "\<dots>= t_SDH_G\<^sub>p.game (stronger_bind_reduction \<A>)"
     using t_SDH_G\<^sub>p.game_alt_def[of "(stronger_bind_reduction \<A>)"] by argo
   finally show ?thesis .
+qed
+
+subsection \<open>advantage of stronger bind reduction less or equal to advantage of bind reduction\<close>
+
+subsubsection \<open>helping lemmas\<close>
+
+lemma helping_1_add_poly_\<phi>_m_\<phi>'_bindv: "(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+        \<and> (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>) = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))) 
+        = (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+        \<and> (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>) = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
+        \<and> (poly (of_qr \<phi> - (of_qr \<phi>')) (of_int_mod_ring (int \<alpha>)::'e mod_ring) = 0))"
+  using commit_eq_is_poly_diff_\<alpha>_eq_0 by fast
+
+lemma helping_2_factorize_\<alpha>_bindv: "\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+        \<and> (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)
+           = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
+        \<and> (poly (of_qr \<phi> - (of_qr \<phi>')) (of_int_mod_ring (int \<alpha>)::'e mod_ring) = 0)
+        \<longleftrightarrow> \<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+        \<and> (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>) 
+           = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
+        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (of_qr \<phi> - of_qr \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring))"
+  by (metis poly_eq0_is_find_\<alpha>_eq_\<alpha> right_minus_eq to_qr_of_qr)
+
+lemma helping_3_\<alpha>_is_found_bindv: "\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+        \<and> (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>) = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
+        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (of_qr \<phi> - of_qr \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring)) 
+\<longleftrightarrow> \<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+          \<and> (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>) = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (((of_int_mod_ring (int \<alpha>)::'e mod_ring)))) (of_qr \<phi> - of_qr \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring))   
+          \<and> \<^bold>g [^] (1/\<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1])!1) (of_qr \<phi> - of_qr \<phi>'))"
+  (is "?lhs = ?rhs")
+proof 
+  assume ?lhs
+  then show ?rhs
+    (*TODO copy helping_3_\<alpha>_is_found*)
+    sorry
+next 
+  assume ?rhs
+  then show ?lhs
+    by linarith
+qed
+
+
+subsubsection \<open>less equal reduction\<close>
+
+(*TODO rename*)
+lemma help_lem: "spmf ((\<A>::'x spmf) \<bind> (\<lambda>x. assert_spmf ((f::'x \<Rightarrow> bool) x \<and> (q::'x \<Rightarrow> bool) x) \<bind> (\<lambda>_::unit. return_spmf True))) True 
+  \<le> spmf ((\<A>::'x::finite spmf) \<bind> (\<lambda>x. assert_spmf ((f::'x \<Rightarrow> bool) x) \<bind> (\<lambda>_::unit. return_spmf True))) True"
+  (is "?lhs \<le> ?rhs")
+proof -
+  thm ennreal_spmf_bind
+  have "?lhs = \<integral>\<^sup>+ x. ennreal (spmf (assert_spmf (f x \<and> q x) \<bind> (\<lambda>_::unit. return_spmf True)) True) \<partial>measure_spmf \<A>"
+    by (rule ennreal_spmf_bind[of \<A> "(\<lambda>x. assert_spmf (f x \<and> q x) \<bind> (\<lambda>_::unit. return_spmf True))"])
+  also have "\<dots> \<le> \<integral>\<^sup>+ x. ennreal (spmf (assert_spmf (f x) \<bind> (\<lambda>_::unit. return_spmf True)) True) \<partial>measure_spmf \<A>"
+    by (rule nn_integral_mono_AE)
+   (*TODO replace smt-proof with full proof*)    
+   (smt (verit, best) AE_measure_spmf_iff assert_spmf_simps(1) bernoulli_pmf.rep_eq bernoulli_pmf_1 dual_order.eq_iff ennreal_1 ennreal_le_1 pmf_le_1 return_bind_spmf spmf_of_pmf_return_pmf spmf_spmf_of_pmf)
+  also have "\<dots>=?rhs"
+    using ennreal_spmf_bind[of \<A> "(\<lambda>x. assert_spmf (f x) \<bind> (\<lambda>_::unit. return_spmf True))"] ..
+  finally show ?thesis by simp    
+qed
+
+lemma spmf_reduction: "spmf (do { 
+    \<alpha>::nat \<leftarrow> sample_uniform (order G\<^sub>p);
+    x::'x::finite \<leftarrow> (\<A>::nat \<Rightarrow> 'x spmf) \<alpha>;
+    _ :: unit \<leftarrow> assert_spmf((f::'x \<Rightarrow> bool) x \<and> (q::'x \<Rightarrow> bool) x);
+    return_spmf True }) True 
+  \<le> spmf (do { 
+    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    x::'x::finite \<leftarrow> \<A> \<alpha>;
+    _ :: unit \<leftarrow> assert_spmf(f x);
+    return_spmf True }) True"
+  (is "?lhs \<le> ?rhs")
+proof -
+  have "?lhs =
+  \<integral>\<^sup>+ x. ennreal (spmf (\<A> x \<bind> (\<lambda>x. assert_spmf (f x \<and> q x) \<bind> (\<lambda>_::unit. return_spmf True))) True)
+     \<partial>measure_spmf (sample_uniform (Coset.order G\<^sub>p))"
+    by (rule ennreal_spmf_bind[of "sample_uniform (Coset.order G\<^sub>p)" "(\<lambda>\<alpha>. \<A> \<alpha> \<bind> (\<lambda>x. assert_spmf (f x \<and> q x) \<bind> (\<lambda>_::unit. return_spmf True)))"])
+  also have "\<dots> \<le>  \<integral>\<^sup>+ x. ennreal (spmf (\<A> x \<bind> (\<lambda>x. assert_spmf (f x) \<bind> (\<lambda>_::unit. return_spmf True))) True)
+     \<partial>measure_spmf (sample_uniform (Coset.order G\<^sub>p))"
+    by (rule nn_integral_mono_AE)(simp add: help_lem)
+  also have "\<dots>=?rhs" 
+   using ennreal_spmf_bind[of "sample_uniform (Coset.order G\<^sub>p)" "(\<lambda>\<alpha>. \<A> \<alpha> \<bind> (\<lambda>x. assert_spmf (f x) \<bind> (\<lambda>_::unit. return_spmf True)))"]
+   ..
+  finally show ?thesis by fastforce
+qed
+
+
+
+lemma "t_SDH_G\<^sub>p.advantage (stronger_bind_reduction \<A>) \<le> t_SDH_G\<^sub>p.advantage (bind_reduction \<A>)"
+proof -
+  let ?sr_game = "t_SDH_G\<^sub>p.game (stronger_bind_reduction \<A>)"
+  let ?r_game = "t_SDH_G\<^sub>p.game (bind_reduction \<A>)"
+  let ?\<alpha> = "\<lambda>\<alpha>. (of_int_mod_ring (int \<alpha>)::'e mod_ring)"
+  let ?PK = "\<lambda>\<alpha>. (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>)^t)) [0..<max_deg+1])"
+  note [simp] = Let_def split_def
+
+  text \<open>same proof technique as in the stronger_bind_equivalence. But instead of showing equivalence 
+  we use the spmf_reduction lemma to show less or equal\<close>
+
+  text \<open>part 1 bring ?sr_game into a a the form required for the spmf_reduction lemma.\<close>
+  have "?sr_game = TRY do { 
+    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
+    _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+      \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>')));
+    _::unit \<leftarrow> assert_spmf (\<^bold>g [^] (1/\<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+    return_spmf True } ELSE return_spmf False"
+    apply (simp add: t_SDH_G\<^sub>p.game_alt_def[of "(stronger_bind_reduction \<A>)"])
+    apply (simp add: g_pow_to_int_mod_ring_of_int_mod_ring_pow_t)
+    done
+  also have "\<dots>= TRY do { 
+    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
+     _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+        \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
+        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>)));   
+    _::unit \<leftarrow> assert_spmf (\<^bold>g [^] (1/\<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+    return_spmf True } ELSE return_spmf False "
+    using helping_1_add_poly_\<phi>_m_\<phi>' helping_2_factorize_\<alpha> by presburger
+  also have "\<dots> = TRY do { 
+    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    TRY do {
+    (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
+       TRY do {
+       _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+          \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>)));   
+      _::unit \<leftarrow> assert_spmf (\<^bold>g [^] (1/\<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+      return_spmf True } ELSE return_spmf False
+      } ELSE return_spmf False 
+    } ELSE return_spmf False"
+    unfolding split_def
+    by(fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
+  also have "\<dots> = TRY do { 
+    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    TRY do {
+    (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
+       TRY do {
+       _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+          \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>))   
+          \<and> \<^bold>g [^] (1/\<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+      return_spmf True } ELSE return_spmf False
+      } ELSE return_spmf False 
+    } ELSE return_spmf False"
+    using assert_anding by presburger
+  also have "\<dots>= TRY do { 
+    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
+       _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+          \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>))   
+          \<and> \<^bold>g [^] (1/\<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+      return_spmf True } ELSE return_spmf False"
+    unfolding split_def
+    by(fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
+  finally have sbr_game_ref: "t_SDH_G\<^sub>p.advantage (stronger_bind_reduction \<A>) = spmf (
+    TRY do { 
+      \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+      (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
+         _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+            \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
+            \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>))   
+            \<and> \<^bold>g [^] (1/\<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+        return_spmf True } ELSE return_spmf False
+    ) True"
+    unfolding t_SDH_G\<^sub>p.advantage_def by presburger
+
+  text \<open>part 2 bring ?r_game into the form required for the spmf_reduction lemma.\<close>
+  
+
+   have "?r_game = TRY do { 
+    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
+    _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+      \<and> (g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)= g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>')));
+    _::unit \<leftarrow> assert_spmf (\<^bold>g [^] (1/\<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+    return_spmf True } ELSE return_spmf False"
+    apply(simp add: t_SDH_G\<^sub>p.game_alt_def[of "(bind_reduction \<A>)"])
+    apply (simp add: g_pow_to_int_mod_ring_of_int_mod_ring_pow_t)
+    done
+  also have "\<dots>= TRY do { 
+    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
+     _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+        \<and> (g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>) = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
+        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>)));   
+    _::unit \<leftarrow> assert_spmf (\<^bold>g [^] (1/\<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+    return_spmf True } ELSE return_spmf False "
+    using helping_1_add_poly_\<phi>_m_\<phi>'_bindv helping_2_factorize_\<alpha>_bindv by presburger
+  also have "\<dots> = TRY do { 
+    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    TRY do {
+    (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
+       TRY do {
+       _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+          \<and> (g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>) = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>)));   
+      _::unit \<leftarrow> assert_spmf (\<^bold>g [^] (1/\<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+      return_spmf True } ELSE return_spmf False
+      } ELSE return_spmf False 
+    } ELSE return_spmf False"
+    unfolding split_def
+    by(fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
+  also have "\<dots> = TRY do { 
+    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    TRY do {
+    (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
+       TRY do {
+       _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+          \<and> (g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>) = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>))   
+          \<and> \<^bold>g [^] (1/\<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+      return_spmf True } ELSE return_spmf False
+      } ELSE return_spmf False 
+    } ELSE return_spmf False"
+    using assert_anding by presburger
+  also have "\<dots>= TRY do { 
+    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
+       _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+          \<and> (g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>) = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>))   
+          \<and> \<^bold>g [^] (1/\<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+      return_spmf True } ELSE return_spmf False"
+    unfolding split_def
+    by(fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
+  finally have br_game_ref: "t_SDH_G\<^sub>p.advantage (bind_reduction \<A>) = spmf (
+    TRY do { 
+      \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+      (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
+         _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+            \<and> (g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>) = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
+            \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>))   
+            \<and> \<^bold>g [^] (1/\<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+        return_spmf True } ELSE return_spmf False
+    ) True"
+    unfolding t_SDH_G\<^sub>p.advantage_def by presburger
+
+    text \<open>part 3 apply the spmf_reduction lemma to the results of part 1 & 2. Hence show 
+  less equal..\<close>  
+  
+    show ?thesis
+    proof -
+      note [simp] = Let_def split_def
+      have "t_SDH_G\<^sub>p.advantage (stronger_bind_reduction \<A>) = spmf (
+       do { 
+        \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+        (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
+           _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+              \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
+              \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>))   
+              \<and> \<^bold>g [^] (1/\<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+          return_spmf True }
+      ) True" using sbr_game_ref sorry
+      also have "\<dots> \<le>  spmf (
+      do { 
+        \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+        (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
+           _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+              \<and> (g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>) = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
+              \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>))   
+              \<and> \<^bold>g [^] (1/\<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+          return_spmf True }
+      ) True"
+        using spmf_reduction[of "(\<lambda>\<alpha>. \<A> (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> of_int_mod_ring (int \<alpha>) ^ t) [0..<max_deg + 1]))"]
+        sorry 
+      also have "\<dots> =  t_SDH_G\<^sub>p.advantage (bind_reduction \<A>)"
+        using br_game_ref sorry
+      finally show ?thesis .
+    qed
 qed
 
 
