@@ -428,11 +428,13 @@ next
 qed
 
 
+
+
 subsubsection \<open>less equal reduction\<close>
 
 (*TODO rename*)
 lemma help_lem: "spmf ((\<A>::'x spmf) \<bind> (\<lambda>x. assert_spmf ((f::'x \<Rightarrow> bool) x \<and> (q::'x \<Rightarrow> bool) x) \<bind> (\<lambda>_::unit. return_spmf True))) True 
-  \<le> spmf ((\<A>::'x::finite spmf) \<bind> (\<lambda>x. assert_spmf ((f::'x \<Rightarrow> bool) x) \<bind> (\<lambda>_::unit. return_spmf True))) True"
+  \<le> spmf ((\<A>::'x spmf) \<bind> (\<lambda>x. assert_spmf ((f::'x \<Rightarrow> bool) x) \<bind> (\<lambda>_::unit. return_spmf True))) True"
   (is "?lhs \<le> ?rhs")
 proof -
   thm ennreal_spmf_bind
@@ -447,14 +449,16 @@ proof -
   finally show ?thesis by simp    
 qed
 
-lemma spmf_reduction: "spmf (do { 
+declare [[show_types]]
+lemma spmf_reduction:
+"spmf (do {
     \<alpha>::nat \<leftarrow> sample_uniform (order G\<^sub>p);
-    x::'x::finite \<leftarrow> (\<A>::nat \<Rightarrow> 'x spmf) \<alpha>;
+    x::'x \<leftarrow> (\<A>::nat \<Rightarrow> 'x spmf) \<alpha>;
     _ :: unit \<leftarrow> assert_spmf((f::'x \<Rightarrow> bool) x \<and> (q::'x \<Rightarrow> bool) x);
     return_spmf True }) True 
   \<le> spmf (do { 
     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
-    x::'x::finite \<leftarrow> \<A> \<alpha>;
+    x::'x \<leftarrow> \<A> \<alpha>;
     _ :: unit \<leftarrow> assert_spmf(f x);
     return_spmf True }) True"
   (is "?lhs \<le> ?rhs")
@@ -627,7 +631,7 @@ proof -
 
     text \<open>part 3 apply the spmf_reduction lemma to the results of part 1 & 2. Hence show 
   less equal..\<close>  
-  
+
     show ?thesis
     proof -
       note [simp] = Let_def split_def
@@ -652,7 +656,8 @@ proof -
           return_spmf True }
       ) True"
         using spmf_reduction[of "(\<lambda>\<alpha>. \<A> (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> of_int_mod_ring (int \<alpha>) ^ t) [0..<max_deg + 1]))"]
-        sorry 
+        
+        sorry
       also have "\<dots> =  t_SDH_G\<^sub>p.advantage (bind_reduction \<A>)"
         using br_game_ref sorry
       finally show ?thesis .
