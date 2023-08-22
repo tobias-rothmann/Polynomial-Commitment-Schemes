@@ -461,35 +461,9 @@ proof -
   finally show ?thesis by simp    
 qed
 
-lemma spmf_reduction:
-"spmf (do {
-    \<alpha>::nat \<leftarrow> sample_uniform (order G\<^sub>p);
-    x::'x \<leftarrow> (\<A>::nat \<Rightarrow> 'x spmf) \<alpha>;
-    _ :: unit \<leftarrow> assert_spmf((f::'x \<Rightarrow> bool) x \<and> (q::'x \<Rightarrow> bool) x);
-    return_spmf True }) True 
-  \<le> spmf (do { 
-    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
-    x::'x \<leftarrow> \<A> \<alpha>;
-    _ :: unit \<leftarrow> assert_spmf(f x);
-    return_spmf True }) True"
-  (is "?lhs \<le> ?rhs")
-proof -
-  have "?lhs =
-  \<integral>\<^sup>+ x. ennreal (spmf (\<A> x \<bind> (\<lambda>x. assert_spmf (f x \<and> q x) \<bind> (\<lambda>_::unit. return_spmf True))) True)
-     \<partial>measure_spmf (sample_uniform (Coset.order G\<^sub>p))"
-    by (rule ennreal_spmf_bind[of "sample_uniform (Coset.order G\<^sub>p)" "(\<lambda>\<alpha>. \<A> \<alpha> \<bind> (\<lambda>x. assert_spmf (f x \<and> q x) \<bind> (\<lambda>_::unit. return_spmf True)))"])
-  also have "\<dots> \<le>  \<integral>\<^sup>+ x. ennreal (spmf (\<A> x \<bind> (\<lambda>x. assert_spmf (f x) \<bind> (\<lambda>_::unit. return_spmf True))) True)
-     \<partial>measure_spmf (sample_uniform (Coset.order G\<^sub>p))"
-    by (rule nn_integral_mono_AE)(simp add: help_lem)
-  also have "\<dots>=?rhs" 
-   using ennreal_spmf_bind[of "sample_uniform (Coset.order G\<^sub>p)" "(\<lambda>\<alpha>. \<A> \<alpha> \<bind> (\<lambda>x. assert_spmf (f x) \<bind> (\<lambda>_::unit. return_spmf True)))"]
-   ..
-  finally show ?thesis by fastforce
-qed
-
 lemma spmf_reduction_TRY_ret_spmf_False_ext: 
   assumes "spmf A True \<le> spmf C True"
-shows "spmf (TRY A ELSE return_spmf False) True \<le> spmf (TRY C ELSE return_spmf False) True"
+  shows "spmf (TRY A ELSE return_spmf False) True \<le> spmf (TRY C ELSE return_spmf False) True"
   (is "?lhs\<le>?rhs")
 proof -
   have "?lhs = spmf A True + pmf A None * spmf (return_spmf False) True"
@@ -501,23 +475,7 @@ proof -
   finally show ?thesis .
 qed
 
-corollary spmf_reduction_TRY_version:
-"spmf (TRY do {
-    \<alpha>::nat \<leftarrow> sample_uniform (order G\<^sub>p);
-    x::'x \<leftarrow> (\<A>::nat \<Rightarrow> 'x spmf) \<alpha>;
-    _ :: unit \<leftarrow> assert_spmf((f::'x \<Rightarrow> bool) x \<and> (q::'x \<Rightarrow> bool) x);
-    return_spmf True } ELSE return_spmf False) True 
-  \<le> spmf (TRY do { 
-    \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
-    x::'x \<leftarrow> \<A> \<alpha>;
-    _ :: unit \<leftarrow> assert_spmf(f x);
-    return_spmf True } ELSE return_spmf False) True"
-  (is "?lhs \<le> ?rhs")
-  apply (rule spmf_reduction_TRY_ret_spmf_False_ext)
-  apply (rule spmf_reduction)
-  done
-
-lemma spmf_reduction_ext:
+lemma spmf_reduction:
 "spmf (do {
     \<alpha>::nat \<leftarrow> sample_uniform (order G\<^sub>p);
     x::'x \<leftarrow> (\<A>::nat \<Rightarrow> 'x spmf) \<alpha>;
@@ -528,7 +486,20 @@ lemma spmf_reduction_ext:
     x::'x \<leftarrow> \<A> \<alpha>;
     _ :: unit \<leftarrow> assert_spmf(f x \<alpha>);
     return_spmf True }) True"
-  sorry
+  (is "?lhs \<le> ?rhs")
+proof -
+  have "?lhs =
+  \<integral>\<^sup>+ \<alpha>. ennreal (spmf (\<A> \<alpha> \<bind> (\<lambda>x. assert_spmf (f x \<alpha> \<and> q x \<alpha>) \<bind> (\<lambda>_::unit. return_spmf True))) True)
+     \<partial>measure_spmf (sample_uniform (Coset.order G\<^sub>p))"
+    by (rule ennreal_spmf_bind[of "sample_uniform (Coset.order G\<^sub>p)" "(\<lambda>\<alpha>. \<A> \<alpha> \<bind> (\<lambda>x. assert_spmf (f x \<alpha> \<and> q x \<alpha>) \<bind> (\<lambda>_::unit. return_spmf True)))"])
+  also have "\<dots> \<le>  \<integral>\<^sup>+ \<alpha>. ennreal (spmf (\<A> \<alpha> \<bind> (\<lambda>x. assert_spmf (f x \<alpha>) \<bind> (\<lambda>_::unit. return_spmf True))) True)
+     \<partial>measure_spmf (sample_uniform (Coset.order G\<^sub>p))"
+    by (rule nn_integral_mono_AE)(simp add: help_lem)
+  also have "\<dots>=?rhs" 
+   using ennreal_spmf_bind[of "sample_uniform (Coset.order G\<^sub>p)" "(\<lambda>\<alpha>. \<A> \<alpha> \<bind> (\<lambda>x. assert_spmf (f x \<alpha>) \<bind> (\<lambda>_::unit. return_spmf True)))"]
+   ..
+  finally show ?thesis by fastforce
+qed
 
 text \<open>Actual reduction lemma\<close>
 
@@ -764,7 +735,7 @@ proof -
        return_spmf True } ELSE return_spmf False
       ) True"
         apply (rule spmf_reduction_TRY_ret_spmf_False_ext)
-        using spmf_reduction_ext[of "\<lambda>\<alpha>. \<A> (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> of_int_mod_ring (int \<alpha>) ^ t) [0..<max_deg + 1])"
+        using spmf_reduction[of "\<lambda>\<alpha>. \<A> (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> of_int_mod_ring (int \<alpha>) ^ t) [0..<max_deg + 1])"
              "\<lambda>(C, \<phi>, _, \<phi>', _). ?f (C,\<phi>,\<phi>')" "\<lambda>(C, \<phi>, _, \<phi>', _). ?q (C,\<phi>,\<phi>')"]
         by simp
       also have "\<dots> =  t_SDH_G\<^sub>p.advantage (bind_reduction \<A>)"
