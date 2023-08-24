@@ -6,8 +6,19 @@ begin
 locale KZG_correct = KZG_Def
 begin
 
-subsection \<open>
-Verifying that a correct Setup with a correct commit yields a correct verification\<close>
+section \<open>Correctness proving that the interaction of an honest prover and an honest verifier
+always yields correct results.\<close>
+
+text \<open>The KZG has two stages: 
+1. the polynomial stage, 
+where the prover commits to a polynomial and can open the commitment by revealing the 
+polynomial.
+2. the evaltaion stage,
+where the prover can commit and open commitments to single evaluations of an polynomial, which was 
+already commited to, but which wasn't opened yet. \<close>
+
+subsection \<open>Verifying stage 1:
+that a correct Setup with a correct commit (to a polynomial) yields a correct verification of a polynomial commitment.\<close>
 
 definition Poly_Commit_game:: "'e polynomial \<Rightarrow> bool spmf"
   where "Poly_Commit_game \<phi> = 
@@ -21,6 +32,8 @@ lemma lossless_Setup: "lossless_spmf Setup"
   unfolding Setup_def 
   by (metis (no_types, lifting) G\<^sub>p.order_gt_0 lossless_bind_spmf lossless_return_spmf lossless_sample_uniform)
 
+text \<open>theorem stating the goal of the subsection: 
+Verifying that a correct Setup with a correct commit (to a polynomial) yields a correct verification\<close>
 theorem Poly_Commit_correct: "spmf (Poly_Commit_game \<phi>) True = 1"
 proof -
   have weight_Setup: "weight_spmf Setup = 1" using lossless_spmf_def lossless_Setup by fast
@@ -36,6 +49,10 @@ proof -
   finally show ?thesis by fastforce
 qed
 
+subsection \<open>Verifying stage 2:
+that a correct Setup with a correct commit to a polynomial and a correctly computed 
+evaluation witness, yields a correct verification of the evaluation\<close>
+
 definition Eval_Commit_game:: "'e polynomial \<Rightarrow> 'e eval_position  \<Rightarrow> bool spmf"
   where "Eval_Commit_game \<phi> i = 
     do{
@@ -44,15 +61,6 @@ definition Eval_Commit_game:: "'e polynomial \<Rightarrow> 'e eval_position  \<R
     (i, \<phi>_of_i, w_i) \<leftarrow> CreateWitness PK \<phi> i;
     VerifyEval PK C i \<phi>_of_i w_i
     }"
-
-lemma lossless_Commit: "lossless_spmf (Commit PK \<phi>)"
-  unfolding Commit_def by blast
-
-lemma lossless_CreateWitness: "lossless_spmf (CreateWitness PK \<phi> i)"
-  unfolding CreateWitness_def by (meson lossless_return_spmf)
-
-lemma lossless_VerifyEval: "lossless_spmf (VerifyEval PK C i \<phi>_of_i w_i)"
-  unfolding VerifyEval_def by blast
 
 lemma coeffs_n_length[simp]: "length (coeffs_n \<phi> u q_co n) = n"
   unfolding coeffs_n_def by fastforce
