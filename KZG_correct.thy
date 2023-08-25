@@ -62,6 +62,9 @@ definition Eval_Commit_game:: "'e polynomial \<Rightarrow> 'e eval_position  \<R
     VerifyEval PK C i \<phi>_of_i w_i
     }"
 
+subsubsection \<open>helping lemmas for the computation of \<psi> (function \<psi>_of) in \<phi>(x)-\<phi>(c)=(x-c)*\<psi>(x), 
+which is used to compute \<psi> in CreateWitness and whichs result is used in VerifyEval.\<close> 
+
 lemma coeffs_n_length[simp]: "length (coeffs_n \<phi> u q_co n) = n"
   unfolding coeffs_n_def by fastforce
 
@@ -71,7 +74,7 @@ lemma coeffs_n_add_nth[simp]: "\<forall>i<n. coeffs_n \<phi> u l n ! i = nth_def
 lemma \<psi>_coeffs_length: "length (foldl (coeffs_n \<phi> u) [] [0..<Suc n]) = n"
   by auto
 
-text \<open>this definition cuts out the "of_qr \<phi>" part thus easing lemmas"\<close>
+text \<open>this definition cuts out the "of_qr \<phi>" part, in \<psi>_of, thus easing lemmas"\<close>
 definition \<psi>_of_poly :: "'e mod_ring poly \<Rightarrow> 'e mod_ring \<Rightarrow> 'e mod_ring poly" 
   where "\<psi>_of_poly \<phi> u = (let 
      \<psi>_coeffs = foldl (coeffs_n \<phi> u) [] [0..<Suc (degree \<phi>)] \<comment>\<open>coefficients of \<psi>\<close>
@@ -97,6 +100,7 @@ proof -
   qed
 qed
 
+text \<open>state that the computed polynomial \<psi>, is of degree less equal to \<phi>.\<close>
 lemma degree_q_le_\<phi>: "degree (\<psi>_of_poly \<phi> u) \<le> degree \<phi>"
   unfolding \<psi>_of_poly_def
   by (metis degree_Poly \<psi>_coeffs_length)
@@ -443,11 +447,14 @@ proof -
     using poly_altdef_to_fold[of "degree \<phi>" \<phi> \<alpha>] by fastforce
 qed
 
-(*TODO change assms to lemmas from KZG_Def locale*)
+text \<open>theorem stating the goal of the subsection: 
+that a correct Setup with a correct commit to a polynomial and a correctly computed 
+evaluation witness, yields a correct verification of the evaluation.
+We use the restriction that a polynomial can only be of degree max_deg, which is according to 
+the KZG.\<close>
 theorem Eval_Commit_correct:  
-  assumes t_ge_2: "max_deg\<ge>2"
-  and deg_\<phi>_let: "degree (of_qr \<phi>) \<le> max_deg"
-shows "spmf (Eval_Commit_game \<phi> i) True = 1"
+  assumes deg_\<phi>_let: "degree (of_qr \<phi>) \<le> max_deg"
+  shows "spmf (Eval_Commit_game \<phi> i) True = 1"
 proof -
   let ?\<alpha> = "\<lambda>x. of_int_mod_ring (int x)"
   let ?PK = "\<lambda>x. (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> ?\<alpha> x ^ t) [0..<max_deg+1])"
@@ -482,13 +489,13 @@ proof -
     let ?g_pow_\<psi> = "\<lambda>x. g_pow_PK_Prod (?PK x) (\<psi>_of \<phi> i)"
     let ?g_pow_\<alpha> = "\<lambda>x. (?PK x)!1"
     have g_pow_\<phi>: "?g_pow_\<phi> = (\<lambda>x. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>) (?\<alpha> x)))"
-      using g_pow_PK_Prod_correct[OF assms(2)] by presburger
-    have degree_\<psi>: "degree (\<psi>_of \<phi> i) \<le> max_deg" using assms(2) 
+      using g_pow_PK_Prod_correct[OF assms] by presburger
+    have degree_\<psi>: "degree (\<psi>_of \<phi> i) \<le> max_deg" using assms 
       by (metis \<psi>_of_and_\<psi>_of_poly degree_q_le_\<phi> dual_order.trans)
     have g_pow_\<psi>: "?g_pow_\<psi> = (\<lambda>x. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (\<psi>_of \<phi> i) (?\<alpha> x)))"
       using g_pow_PK_Prod_correct[OF degree_\<psi>] by presburger
     have g_pow_\<alpha>: "?g_pow_\<alpha> = (\<lambda>x. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (?\<alpha> x))"
-      using PK_i assms(1) by simp
+      using PK_i d_pos by auto
     show ?thesis using g_pow_\<phi> g_pow_\<psi> g_pow_\<alpha> by metis
     qed
   also have "\<dots>= spmf ( do {
