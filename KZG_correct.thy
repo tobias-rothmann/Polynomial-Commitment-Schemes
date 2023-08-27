@@ -9,6 +9,12 @@ begin
 section \<open>Correctness proving that the interaction of an honest prover and an honest verifier
 always yields correct results.\<close>
 
+text\<open>The outline for the correctness proof in this file is to be found in section 3.2 of the 
+original paper "Constant-Size Commitments to Polynomials and Their Applications".
+I strongly recommend reading the section 3.2 of the paper before trying to 
+understand this correctness proof. 
+You can find the paper here: https://cacr.uwaterloo.ca/techreports/2010/cacr2010-10.pdf\<close>
+
 text \<open>The KZG has two stages: 
 1. the polynomial stage, 
 where the prover commits to a polynomial and can open the commitment by revealing the 
