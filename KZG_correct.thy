@@ -471,7 +471,7 @@ next
 qed
 
 text \<open>finally pull the last two lemmas together to show that the public parameters can be used 
-to calculate g^\<phi>(\<alpha>) without knowing \<alpha>.
+to calculate g^\<phi>(\<alpha>) from the public parameters, (\<Prod>PK. \<phi>) = g^\<phi>(\<alpha>).
 With lemma g_pow_PK_Prod_to_fold, we form the g_pow_PK_Prod part, which represents (\<Prod>PK. \<phi>), into 
 g * g^(\<alpha> ^ 1st coefficient of \<phi>) * g^((\<alpha>^2) ^ 2nd coefficient of \<phi>) * ... * g^((\<alpha>^t) ^ t-th coefficient of \<phi>).
 Which we further form into g^(\<Sum>i\<le>n. coeff \<phi> i * \<alpha>^i), which is nothing else then g^\<phi>(\<alpha>) (poly_altdef), 
@@ -507,9 +507,11 @@ evaluation witness, yields a correct verification of the evaluation.
 We use the restriction that a polynomial can only be of degree max_deg, which is according to 
 the KZG.\<close>
 theorem Eval_Commit_correct:  
-  assumes deg_\<phi>_let: "degree (of_qr \<phi>) \<le> max_deg"
-  shows "spmf (Eval_Commit_game \<phi> i) True = 1"
+  "spmf (Eval_Commit_game \<phi> i) True = 1"
 proof -
+  have deg_\<phi>_le_max_deg: "degree (of_qr \<phi>) \<le> max_deg" 
+    by (rule degree_of_qr)
+  
   let ?\<alpha> = "\<lambda>x. of_int_mod_ring (int x)"
   let ?PK = "\<lambda>x. (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> ?\<alpha> x ^ t) [0..<max_deg+1])"
   have "spmf (Eval_Commit_game \<phi> i) True 
@@ -543,8 +545,8 @@ proof -
     let ?g_pow_\<psi> = "\<lambda>x. g_pow_PK_Prod (?PK x) (\<psi>_of \<phi> i)"
     let ?g_pow_\<alpha> = "\<lambda>x. (?PK x)!1"
     have g_pow_\<phi>: "?g_pow_\<phi> = (\<lambda>x. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>) (?\<alpha> x)))"
-      using g_pow_PK_Prod_correct[OF assms] by presburger
-    have degree_\<psi>: "degree (\<psi>_of \<phi> i) \<le> max_deg" using assms 
+      using g_pow_PK_Prod_correct[OF deg_\<phi>_le_max_deg] by presburger
+    have degree_\<psi>: "degree (\<psi>_of \<phi> i) \<le> max_deg" using deg_\<phi>_le_max_deg 
       by (metis \<psi>_of_and_\<psi>_of_poly degree_q_le_\<phi> dual_order.trans)
     have g_pow_\<psi>: "?g_pow_\<psi> = (\<lambda>x. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (\<psi>_of \<phi> i) (?\<alpha> x)))"
       using g_pow_PK_Prod_correct[OF degree_\<psi>] by presburger
@@ -560,7 +562,7 @@ proof -
     using bind_spmf_const by metis
   also have "\<dots> = 1" by (simp add: G\<^sub>p.order_gt_0)
   finally show ?thesis .
-qed  
+qed
 
 end
 
