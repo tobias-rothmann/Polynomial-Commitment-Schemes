@@ -9,7 +9,7 @@ locale crypto_primitives =
 G\<^sub>p : cyclic_group G\<^sub>p + G\<^sub>T : cyclic_group G\<^sub>T 
 for G\<^sub>p  (structure) and G\<^sub>T  (structure) +
 fixes "type_a" :: "('q :: qr_spec) itself"
-  and d p::int
+  and p::int
   and e
 and max_deg::nat
 assumes
@@ -23,11 +23,10 @@ e_bilinear: "\<forall>a b::'q mod_ring . \<forall>P Q. P \<in> carrier G\<^sub>p
    e (P [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring a)) (Q [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring b)) 
 = (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring (a*b))" and 
 (*$(\mathbb{Z}_p[x])^{<d}$ Assumptions*)
-d_pos: "d > 0" and
+d_pos: "max_deg > 0" and
 CARD_q: "int (CARD('q)) = p" and
-qr_poly'_eq: "qr_poly' TYPE('q) = Polynomial.monom 1 (nat d) - 1" and
-max_deg_le_p: "max_deg \<le> p" 
-\<comment>\<open>and t_SDH_GP: "t_SDH GP" TODO\<close>
+qr_poly'_eq: "qr_poly' TYPE('q) = Polynomial.monom 1 (nat (max_deg+1)) - 1"
+\<comment>\<open>TODO and t_SDH_GP: "t_SDH GP" TODO\<close>
 begin
 
 abbreviation pow_mod_ring_G\<^sub>p :: "'a \<Rightarrow>'q mod_ring \<Rightarrow> 'a" (infixr "^\<^bsub>G\<^sub>p\<^esub>" 75)
@@ -99,6 +98,42 @@ proof -
                = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring (a * b)" .
 qed
 
+lemma to_int_mod_ring_ge_0: "to_int_mod_ring x \<ge> 0" 
+  using range_to_int_mod_ring by fastforce
+
+lemma pow_on_eq_card: "(\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) = (x=y)"
+proof 
+  assume assm: "\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> y"
+  then have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring y"
+    using assm by blast
+  then have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> nat (to_int_mod_ring x) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> nat (to_int_mod_ring y)" 
+    using to_int_mod_ring_ge_0[of "x"] to_int_mod_ring_ge_0[of "y"] by fastforce
+  then have "[nat (to_int_mod_ring x) = nat (to_int_mod_ring y)] (mod order G\<^sub>p)"
+    using G\<^sub>p.pow_generator_eq_iff_cong G\<^sub>p.finite_carrier by fast
+  then have "[to_int_mod_ring x = to_int_mod_ring y] (mod order G\<^sub>p)" 
+    using to_int_mod_ring_ge_0[of "x"] to_int_mod_ring_ge_0[of "y"]
+    by (metis cong_int_iff int_nat_eq)
+  then have "[to_int_mod_ring x = to_int_mod_ring y] (mod p)" 
+    using CARD_G\<^sub>p by fast
+  then have "to_int_mod_ring x = to_int_mod_ring y" using range_to_int_mod_ring CARD_q
+    by (metis cong_def of_int_mod_ring.rep_eq of_int_mod_ring_to_int_mod_ring to_int_mod_ring.rep_eq)
+  then show "x = y" by force
+next 
+  assume "x = y"
+  then show "\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> y" by fast
+qed
+
+lemma g_pow_to_int_mod_ring_of_int_mod_ring: " \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> of_int_mod_ring x =  \<^bold>g [^] x"
+proof -
+  have "\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> of_int_mod_ring x =  \<^bold>g [^] (x mod p)"
+    by (simp add: CARD_q of_int_mod_ring.rep_eq to_int_mod_ring.rep_eq)
+  also have "\<dots>= \<^bold>g [^] x" using CARD_G\<^sub>p G\<^sub>p.pow_generator_mod_int by presburger
+  finally show ?thesis .
+qed
+
+lemma g_pow_to_int_mod_ring_of_int_mod_ring_pow_t: "\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> of_int_mod_ring x ^ (t::nat) =  \<^bold>g [^] x ^ t"
+  by (metis g_pow_to_int_mod_ring_of_int_mod_ring of_int_of_int_mod_ring of_int_power)
+
 subsubsection\<open>mod_ring operations on pow of GT\<close>
 
 lemma pow_mod_order_G\<^sub>T: "g \<in> carrier G\<^sub>T \<Longrightarrow> g [^]\<^bsub>G\<^sub>T\<^esub> x = g [^]\<^bsub>G\<^sub>T\<^esub> (x mod p)" 
@@ -155,6 +190,23 @@ have "e P (Q [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a) = e (P [^]\<^bsub>G
   also have "... = (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring ((1::'q mod_ring)*a))" using assms e_bilinear by fast
   also have "\<dots>=(e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring a)" by simp
   finally show "e P (Q [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a) = e P Q [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring a" .
+qed
+
+subsubsection \<open>polynomial lemmas\<close>
+
+lemma deg_qr_n: 
+  "deg_qr TYPE('q) = max_deg+1"
+  unfolding deg_qr_def using qr_poly'_eq
+  by (metis deg_qr'_pos degree_1 degree_add_eq_left degree_monom_eq diff_add_cancel nat_int semiring_norm(159))
+
+lemma degree_of_qr: "degree (of_qr (x ::'q qr)) \<le> max_deg"
+proof -
+  have "degree (of_qr (x ::'q qr)) < deg_qr TYPE('q)"
+    by (metis deg_qr_pos degree_0 degree_mod_less degree_qr_poly nless_le of_qr.rep_eq)
+  also have "\<dots>=max_deg+1"  
+   unfolding deg_qr_def using qr_poly'_eq
+   by (metis deg_qr'_pos degree_1 degree_add_eq_left degree_monom_eq diff_add_cancel nat_int semiring_norm(159))
+  finally show ?thesis by fastforce
 qed
 
 end

@@ -13,8 +13,8 @@ text \<open>The KZG has two stages:
 1. the polynomial stage, 
 where the prover commits to a polynomial and can open the commitment by revealing the 
 polynomial.
-2. the evaltaion stage,
-where the prover can commit and open commitments to single evaluations of an polynomial, which was 
+2. the evaluation stage,
+where the prover can commit and open commitments to single evaluations of the polynomial, which was 
 already commited to, but which wasn't opened yet. \<close>
 
 subsection \<open>Verifying stage 1:
@@ -63,7 +63,7 @@ definition Eval_Commit_game:: "'e polynomial \<Rightarrow> 'e eval_position  \<R
     }"
 
 subsubsection \<open>helping lemmas for the computation of \<psi> (function \<psi>_of) in \<phi>(x)-\<phi>(c)=(x-c)*\<psi>(x), 
-which is used to compute \<psi> in CreateWitness and whichs result is used in VerifyEval.\<close> 
+which is used to compute \<psi> in CreateWitness.\<close> 
 
 lemma coeffs_n_length[simp]: "length (coeffs_n \<phi> u q_co n) = n"
   unfolding coeffs_n_def by fastforce
@@ -105,7 +105,27 @@ lemma degree_q_le_\<phi>: "degree (\<psi>_of_poly \<phi> u) \<le> degree \<phi>"
   unfolding \<psi>_of_poly_def
   by (metis degree_Poly \<psi>_coeffs_length)
 
-lemma sum_horiz_to_vert: "n\<le>degree (\<phi>::'e mod_ring poly) \<Longrightarrow> (\<Sum>i\<le>n. poly.coeff \<phi> i * (\<Sum>j<i. u ^ (i - Suc j) * x ^ j)) 
+text \<open>This lemma is essentially resorting the summation according to the idea given in KZG_def 
+above the CreateWitness definition.
+
+The left-hand side co computes the coefficients horizontal, in the sense that it computes 
+the coefficients from 0 to degree \<phi> = n, and adds (or could add) to each coefficient in every iteration:
+0: 0 +
+1: f1 +
+2: f2*u + f2*x +
+3: f3*u^2 + f3*u*x + f3*x^2
+...
+n: fn*u^(n-1) + ... fn*u^((n-1)-i)*x^i ...  + fn*x^(n-1)
+
+The right-hand side captures the vertical summation in a sum in the sum. Hence computing the 
+coefficient in the inner sum first, before multiplying it with x^i. Illustrated:
+0: (0 + f1 + f2*u + f3*u^2 + ... + fn*u^(n-1))*x^0 + 
+1: (0 + 0  + f2   + f3*u   + ... + fn*u^(n-2))*x^1
+...
+n: (0 +  0 +  0   +  0     + ... + fn)*x^(n-1)
+\<close>
+lemma sum_horiz_to_vert: "n\<le>degree (\<phi>::'e mod_ring poly) \<Longrightarrow> 
+       (\<Sum>i\<le>n. poly.coeff \<phi> i * (\<Sum>j<i. u ^ (i - Suc j) * x ^ j)) 
      = (\<Sum>i\<le>n. (\<Sum>j\<in>{i<..<Suc n}. poly.coeff \<phi> j * u ^ (j - Suc i)) * x^i)"
 proof (induction n arbitrary: \<phi>)
   case 0
@@ -169,7 +189,9 @@ next
   ultimately show ?case using Suc.prems Suc_leD by argo
 qed
 
-lemma extract_q_coeffs_nth_sum: "i<n \<Longrightarrow> foldl (coeffs_n \<phi> u) [] [0..<Suc n] ! i
+text \<open>We now show that the inner sum from the last lemma, which calculates the i-th coefficient for \<psi>, 
+is equal to the i-th coefficient calculated from the \<psi>_of function.\<close>
+lemma \<psi>_of_ith_coeff_eq_sum_ith_coeff: "i<n \<Longrightarrow> foldl (coeffs_n \<phi> u) [] [0..<Suc n] ! i
                                         = (\<Sum>j\<in>{i<..<Suc n}. poly.coeff \<phi> j * u ^ (j - Suc i))"
 proof (induction n arbitrary: i)
   case 0
@@ -231,7 +253,15 @@ next
   qed
 qed
 
-lemma f_eq_xu_extrqx: "\<forall>\<phi>::'e mod_ring poly. poly \<phi> x - poly \<phi> u = (x-u) * poly (\<psi>_of_poly \<phi> u) x"
+
+text \<open>We now take together the last few lemmas and definitions and show that \<psi>_of_poly 
+calculates the correct \<psi>. 
+With the sum_horiz_to_vert lemma, we restructure the left-hand side to calculate the 
+coefficients of \<psi> before multiplying with x^i. 
+With the \<psi>_of_ith_coeff_eq_sum_ith_coeff lemma, show the coefficients of the result of 
+sum_horiz_to_vert equal to the coefficients calculated by \<psi>_of_poly and thus showing 
+poly (\<psi>_of_poly \<phi> u) x equal to the result sum of sum_horiz_to_vert.\<close>
+lemma \<phi>x_m_\<phi>u_eq_xmu_\<psi>x: "\<forall>\<phi>::'e mod_ring poly. poly \<phi> x - poly \<phi> u = (x-u) * poly (\<psi>_of_poly \<phi> u) x"
 proof
   fix \<phi>::"'e mod_ring poly"
   fix u x :: "'e mod_ring"
@@ -301,7 +331,7 @@ proof
               then have "nth_default 0 ?q_coeffs i 
                   = ?q_coeffs ! i"
                 by (simp add: True nth_default_nth)
-              then show ?thesis using True extract_q_coeffs_nth_sum by presburger
+              then show ?thesis using True \<psi>_of_ith_coeff_eq_sum_ith_coeff by presburger
             next
               case False
               then have "i=degree \<phi>" using asmp by fastforce
@@ -325,9 +355,13 @@ proof
   qed
 qed
 
+text \<open>Use \<psi>_of_poly \<psi>_of (almost) equivalence to show \<psi>_of computes the correct \<psi>\<close>
 corollary f_eq_xu_compute_qx: "\<forall>\<phi>::'e qr. poly (of_qr \<phi>) x - poly (of_qr \<phi>) u = (x-u) * poly (\<psi>_of \<phi> u ) x"
-  using \<psi>_of_and_\<psi>_of_poly f_eq_xu_extrqx by presburger
+  using \<psi>_of_and_\<psi>_of_poly \<phi>x_m_\<phi>u_eq_xmu_\<psi>x by presburger
 
+text \<open>Taking the result to the bilinear function. 
+We know \<phi>(x)-\<phi>(u)=(x-u)\<psi>(x) from the previous corollary, now we show the equality is also valid with 
+the billinear function e.\<close>
 lemma eq_on_e: "(e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (\<psi>_of \<phi> i) \<alpha>))  (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) 
       \<otimes>\<^bsub>G\<^sub>T\<^esub> (e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>)^\<^bsub>G\<^sub>T\<^esub> (poly (of_qr \<phi>) i) 
       = e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>) \<alpha>)) \<^bold>g\<^bsub>G\<^sub>p\<^esub>"
@@ -349,6 +383,11 @@ proof -
     .
 qed
 
+subsubsection \<open>helping lemmas about the public parameters PK\<close>
+
+text \<open>Lemma that proves that the construction to calculate the public parameters in Isabelle 
+actually computes the public parameters. 
+Shwoing that the ith public parameter is actually the ith wṕublic parameter (g^(\<alpha>^i))\<close>
 lemma PK_i: "i\<le>t \<Longrightarrow> map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<t + 1] ! i =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^i)"
 proof (induction t)
   case 0
@@ -367,7 +406,10 @@ next
   qed
 qed
 
-lemma g_pow_PK_Prod_inserted[simp]: "degree \<phi> \<le> t \<Longrightarrow> g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<t + 1]) \<phi> 
+text \<open>show 
+(\<Prod>PK. \<phi>) = g * g^(\<alpha> ^ 1st coefficient of \<phi>) * g^((\<alpha>^2) ^ 2nd coefficient of \<phi>) * ... * g^((\<alpha>^t) ^ t-th coefficient of \<phi>)
+Which is the first prestep to showing (\<Prod>PK. \<phi>) = g^\<phi>(\<alpha>).\<close>
+lemma g_pow_PK_Prod_to_fold[simp]: "degree \<phi> \<le> t \<Longrightarrow> g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<t + 1]) \<phi> 
   = fold (\<lambda>pk g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^pk)) ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> pk)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>"
 proof -
   let ?PK = "map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<t + 1]"
@@ -397,6 +439,10 @@ proof -
     by argo
 qed
 
+text \<open>show 
+g^(\<Sum>i\<le>n. coeff \<phi> i * \<alpha>^i)
+= g * g^(\<alpha> ^ 1st coefficient of \<phi>) * g^((\<alpha>^2) ^ 2nd coefficient of \<phi>) * ... * g^((\<alpha>^t) ^ t-th coefficient of \<phi>)
+Which is the first prestep to showing (\<Prod>PK. \<phi>) = g^\<phi>(\<alpha>).\<close>
 lemma poly_altdef_to_fold[symmetric]: "n\<le>degree \<phi>  \<Longrightarrow> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<Sum>i\<le>n. poly.coeff \<phi> i * \<alpha> ^ i) 
                           = fold (\<lambda>n g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> n * \<alpha> ^ n)) [0..<Suc n] \<one>\<^bsub>G\<^sub>p\<^esub>"
 proof (induction n)
@@ -424,6 +470,12 @@ next
   finally show ?case .
 qed
 
+text \<open>finally pull the last two lemmas together to show that the public parameters can be used 
+to calculate g^\<phi>(\<alpha>) without knowing \<alpha>.
+With lemma g_pow_PK_Prod_to_fold, we form the g_pow_PK_Prod part, which represents (\<Prod>PK. \<phi>), into 
+g * g^(\<alpha> ^ 1st coefficient of \<phi>) * g^((\<alpha>^2) ^ 2nd coefficient of \<phi>) * ... * g^((\<alpha>^t) ^ t-th coefficient of \<phi>).
+Which we further form into g^(\<Sum>i\<le>n. coeff \<phi> i * \<alpha>^i), which is nothing else then g^\<phi>(\<alpha>) (poly_altdef), 
+with the poly_altdef_to_fold lemma\<close>
 lemma g_pow_PK_Prod_correct: "degree \<phi> \<le> t 
   \<Longrightarrow> g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<t + 1]) \<phi> 
       = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly \<phi> \<alpha>)"
@@ -435,7 +487,7 @@ proof -
   moreover have "?g_pow_PK = fold (\<lambda>n g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> n * \<alpha> ^ n)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>"
   proof -
     have "?g_pow_PK = fold (\<lambda>pk g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^pk)) ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> pk)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>"
-      using g_pow_PK_Prod_inserted asmpt by blast
+      using g_pow_PK_Prod_to_fold asmpt by blast
     moreover have "\<forall>n g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^n)) ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> n) 
               = g \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> n * \<alpha> ^ n)"
       by (simp add: mod_ring_pow_pow_G\<^sub>p mult.commute G\<^sub>p.int_pow_pow)
@@ -446,6 +498,8 @@ proof -
   ultimately show "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<t + 1]) \<phi> = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly \<phi> \<alpha>" 
     using poly_altdef_to_fold[of "degree \<phi>" \<phi> \<alpha>] by fastforce
 qed
+
+subsubsection \<open>The actual theorem\<close>
 
 text \<open>theorem stating the goal of the subsection: 
 that a correct Setup with a correct commit to a polynomial and a correctly computed 
