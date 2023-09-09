@@ -1,52 +1,53 @@
 theory tSDH_assumption
 
-imports "Sigma_Commit_Crypto.Commitment_Schemes"
+imports "Sigma_Commit_Crypto.Commitment_Schemes" "Berlekamp_Zassenhaus.Finite_Field"
 
 begin
 
-locale t_SDH = G\<^sub>p : cyclic_group G
-for G (structure) and t::nat
+locale t_SDH = G : cyclic_group G
+  for G:: "('a, 'b) cyclic_group_scheme" (structure) 
+  and t::nat  
+  and to_type :: "nat \<Rightarrow> ('c::prime_card) mod_ring"
+  and exp :: "'a \<Rightarrow> 'c mod_ring \<Rightarrow> 'a"
 begin
 
-(*type_synonym 'grp' t_SDH_adversary = "'grp' list \<Rightarrow> ('q mod_ring *'grp') spmf"*)
-type_synonym 'grp adversary = "'grp list \<Rightarrow> (nat *'grp) spmf"
+type_synonym ('grp,'mr) adversary = "'grp list \<Rightarrow> ('mr mod_ring *'grp) spmf"
 
-
-definition game :: "'a adversary \<Rightarrow> bool spmf" where 
+definition game :: "('a,'c) adversary \<Rightarrow> bool spmf" where 
   "game \<A> = TRY do { 
-    \<alpha> \<leftarrow> sample_uniform (order G);
-    (c, g) \<leftarrow> \<A> (map (\<lambda>t'. \<^bold>g [^] (int \<alpha>^t')) [0..<t+1]);
-    return_spmf (\<^bold>g [^] (1/((\<alpha>+c))) = g) 
+    \<alpha> \<leftarrow> sample_uniform (Coset.order G);
+    (c, g) \<leftarrow> \<A> (map (\<lambda>t'. exp \<^bold>g ((to_type \<alpha>)^t')) [0..<t+1]);
+    return_spmf (exp \<^bold>g (1/((to_type \<alpha>)+c)) = g) 
   } ELSE return_spmf False"
 
+definition advantage :: " ('a,'c) adversary \<Rightarrow> real"
+  where "advantage \<A> = spmf (game \<A>) True" 
 
-definition advantage :: " 'a adversary \<Rightarrow> real"
-  where "advantage \<A> = spmf (game \<A>) True" \<comment>\<open>subtract Pr random (\<alpha>+c)\<close>
-
-(* adapted proof from Sigma_Commit_Crypto.Commitment_Schemes bind_game_alt_def  *)
+text \<open>adapted proof from Sigma_Commit_Crypto.Commitment_Schemes bind_game_alt_def\<close>
 lemma game_alt_def:
   "game \<A> = TRY do { 
-    \<alpha> \<leftarrow> sample_uniform (order G);
-    (c, g) \<leftarrow> \<A> (map (\<lambda>t'. \<^bold>g [^] (int \<alpha>^t')) [0..<t+1]);
-    _::unit \<leftarrow> assert_spmf (\<^bold>g [^] (1/((\<alpha>+c))) = g);
-    return_spmf (True) } ELSE return_spmf False"
+    \<alpha> \<leftarrow> sample_uniform (Coset.order G);
+    (c, g) \<leftarrow> \<A> (map (\<lambda>t'. exp \<^bold>g ((to_type \<alpha>)^t')) [0..<t+1]);
+    _::unit \<leftarrow> assert_spmf (exp \<^bold>g (1/((to_type \<alpha>)+c)) = g);
+    return_spmf True 
+  } ELSE return_spmf False"
   (is "?lhs = ?rhs")
 proof -
    have "?lhs = TRY do {
-      \<alpha> \<leftarrow> sample_uniform (order G);
+      \<alpha> \<leftarrow> sample_uniform (Coset.order G);
       TRY do {
-        (c, g) \<leftarrow> \<A> (map (\<lambda>t'. \<^bold>g [^] (int \<alpha>^t')) [0..<t+1]);
-          TRY return_spmf (\<^bold>g [^] (1/((\<alpha>+c))) = g) ELSE return_spmf False
+        (c, g) \<leftarrow> \<A> (map (\<lambda>t'. exp \<^bold>g ((to_type \<alpha>)^t')) [0..<t+1]);
+          TRY return_spmf (exp \<^bold>g (1/((to_type \<alpha>)+c)) = g) ELSE return_spmf False
       } ELSE return_spmf False
     } ELSE return_spmf False"
     unfolding split_def game_def
     by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
   also have "\<dots> = TRY do {
-      \<alpha> \<leftarrow> sample_uniform (order G);
+      \<alpha> \<leftarrow> sample_uniform (Coset.order G);
       TRY do {
-        (c, g) \<leftarrow> \<A> (map (\<lambda>t'. \<^bold>g [^] (int \<alpha>^t')) [0..<t+1]);
+        (c, g) \<leftarrow> \<A> (map (\<lambda>t'. exp \<^bold>g ((to_type \<alpha>)^t')) [0..<t+1]);
           TRY do {
-            _ :: unit \<leftarrow> assert_spmf (\<^bold>g [^] (1/((\<alpha>+c))) = g);
+            _ :: unit \<leftarrow> assert_spmf (exp \<^bold>g (1/((to_type \<alpha>)+c)) = g);
             return_spmf True
         } ELSE return_spmf False
       } ELSE return_spmf False
@@ -59,5 +60,5 @@ proof -
 qed
 
 end
- 
+
 end
