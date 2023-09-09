@@ -6,7 +6,7 @@ imports KZG_correct "Sigma_Commit_Crypto.Commitment_Schemes" tSDH_assumption
 begin
 
 section \<open>polynomial binding\<close>
-text \<open>We show that the KZG is polynomial binding for every polynomial of degree <= deg_t.
+text \<open>We show that the KZG is polynomial binding for every polynomial of degree <= max_deg.
 We use the Sigma_Commit_Crypto template to prove the binding game.
 The proof is adapted from the Appendix C.1 in the original paper:
 A. Kate, G. Zaverucha, and I. Goldberg. Polynomial commitments. Technical report, 2010. 
@@ -43,9 +43,6 @@ where
     return_spmf (g_pow_PK_Prod PK (of_qr \<phi>), \<phi>)
   }" 
 
-lemma "spmf (VerifyPoly PK C \<phi>) True = (if C = g_pow_PK_Prod PK (of_qr \<phi>) then 1 else 0)"
-  unfolding VerifyPoly_def by simp
-
 text \<open>3. the Verify function, that verifies that the commitment was actually made to the plain-text, 
 using the opening, which in the KZG case is equivalent to the plain-text. Since the opening is 
 cryptographic irrelevant (i.e. binding is evaluated on commitments to plain texts) and equivalent 
@@ -55,6 +52,9 @@ Furthermore, it does not return a bool spmf, like in the KZG_Def, but a just a b
 are still equivalent though as the bool spmf is depended on C and \<phi> either {1} or {0} 
 (for spmf _ True).
 \<close>
+lemma "spmf (VerifyPoly PK C \<phi>) True = (if C = g_pow_PK_Prod PK (of_qr \<phi>) then 1 else 0)"
+  unfolding VerifyPoly_def by simp
+
 definition SCC_verify :: "'a pk \<Rightarrow> 'e polynomial \<Rightarrow> 'a commit \<Rightarrow> 'e polynomial \<Rightarrow> bool"
 where 
   "SCC_verify PK \<phi> C _ \<equiv> (C = g_pow_PK_Prod PK (of_qr \<phi>))"
@@ -80,7 +80,7 @@ sublocale t_SDH_G\<^sub>p: t_SDH G\<^sub>p max_deg "of_int_mod_ring \<circ> int"
 
 text \<open>bind_commit.bind_game is the binding game we will reduce to the t-SDH assumption, thus showing 
 that cracking the KZG's polynomial binding is at least as hard as solving the t-SDH problem. Hence 
-proving the security of the KZG in groups where the t-SDH is difficult. \<close>
+proving the security of the KZG for groups where the t-SDH is difficult.\<close>
 
 subsection \<open>Defining a reduction game to t-SDH\<close>
 
@@ -108,9 +108,9 @@ text \<open>The reduction:
 An adversary for the KZG polynomial binding can output two polynomials \<phi> and \<phi>' that have the same 
 commitment, i.e g^\<phi>(\<alpha>) = g^\<phi>(\<alpha>), which is equivalent to \<phi>(\<alpha>) = \<phi>'(\<alpha>) (same argument as in the 
 function above). Hence (\<phi>-\<phi>')(\<alpha>) = 0, so (\<phi>-\<phi>') has a root at \<alpha>. Furthermore we have g^\<alpha> in the 
-public key at position 1. Hence we can use the find_\<alpha>_square_free function to compute \<alpha> in 
+public key at position 1. Hence we can use the find_\<alpha> function to compute \<alpha> in 
 polynomial time. Given \<alpha> we can easily compute a c and a g' such that g^(1/((\<alpha>+c))) = g'.
-E.g. c=0 and g' = (1/\<alpha>)
+E.g. c=0 and g' = g^(1/\<alpha>)
 Hence we can break the t-SDH assumption, as we have a polynomial-time algorithm to compute (c,g).
 \<close>
 fun bind_reduction
@@ -119,7 +119,7 @@ where
   "bind_reduction \<A> PK = do {
   (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> PK;
   _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' \<and> (g_pow_PK_Prod PK (of_qr \<phi>) = g_pow_PK_Prod PK (of_qr \<phi>'))); 
-\<comment>\<open>TODO shouldn't it be \<and> Commit \<phi> = Commit \<phi>'? \<rightarrow> Lets try it\<close>
+  \<comment>\<open>\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' \<and> Commit \<phi> = Commit \<phi>'\<close>
   let \<alpha> = find_\<alpha> (PK!1) (of_qr \<phi> - of_qr \<phi>');
   return_spmf (0::'e mod_ring, \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/\<alpha>))}"
 end
@@ -137,7 +137,8 @@ show to be at least as hard as the real reduction game.\<close>
 subsection\<open>reducing KZG poy bind game to stronger reduction game\<close>
 
 text \<open>This function ensures additionally that the commitment C the poly bind Adversary made is 
-actually the Commitment of \<phi> and \<phi>'\<close>
+actually the Commitment of \<phi> and \<phi>' (so not only that the Commit of \<phi> equals the Commit of \<phi>', but 
+also the Commitment C that was outputed.)\<close>
 fun stronger_bind_reduction
   :: "('a pk, 'e polynomial, 'a commit, 'e polynomial)  bind_adversary \<Rightarrow> ('a,'e) t_SDH.adversary"                     
 where
@@ -163,6 +164,7 @@ lemma assert_anding: "TRY do {
       } ELSE return_spmf False"
   by (simp add: try_bind_assert_spmf)
 
+text \<open>g^\<phi>(\<alpha>)=g^\<phi>'(\<alpha>) is equivalent to (\<phi>-\<phi>')(\<alpha>)=0\<close>
 lemma commit_eq_is_poly_diff_\<alpha>_eq_0: "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (of_qr \<phi>) 
 = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (of_qr \<phi>')
   \<longleftrightarrow> poly (of_qr \<phi> - of_qr \<phi>') \<alpha> = 0"
@@ -189,13 +191,7 @@ next
 qed
 
 
-lemma helping_1_add_poly_\<phi>_m_\<phi>': "(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))) 
-        = (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
-        \<and> (poly (of_qr \<phi> - (of_qr \<phi>')) (of_int_mod_ring (int \<alpha>)::'e mod_ring) = 0))"
-  using commit_eq_is_poly_diff_\<alpha>_eq_0 by fast
-
+text \<open>TODO document\<close>
 lemma finite_field_factorization_roots:
 fixes \<phi>::"'e mod_ring poly"
   assumes sf_f: "square_free \<phi>"
@@ -232,9 +228,28 @@ next
 qed
 
 (*TODO goal \<Rightarrow> have to implement algorithm that produces square-free polys from non-square-free ones*)
+text \<open>show find_\<alpha> correctly finds \<alpha>, if \<alpha> is a root and \<phi> is not a zero-polynomial.\<close>
 lemma poly_eq0_is_find_\<alpha>_eq_\<alpha>: "\<phi> \<noteq> 0 \<Longrightarrow> poly \<phi> \<alpha> = 0 \<longleftrightarrow> find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
   sorry
 
+subsubsection \<open>literal helping lemmas\<close>
+
+text \<open>From here on we define literal helping lemmas, with name-pattern: helping_*number*_*content-reference*. 
+These lemmas are literal logic blocks that are used in the actual equivalence proof. 
+They all capture one step in the transition (from poly_bind game to t-SDH reduction game logic), that is either 
+too complicated for Isabelle to prove in the monadic/game-based form or requires some additional proving steps 
+that would complicate the equivalence proof.
+Basically extracted logical reasoning.\<close>
+
+text \<open>The logical addition of (\<phi>-\<phi>')(\<alpha>)=0, which is implied by \<phi>(\<alpha>)=\<phi>'(\<alpha>), which we derive from C=g^\<phi>(\<alpha>) \<and> C=g^\<phi>'(\<alpha>)\<close>
+lemma helping_1_add_poly_\<phi>_m_\<phi>': "(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))) 
+        = (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
+        \<and> (poly (of_qr \<phi> - (of_qr \<phi>')) (of_int_mod_ring (int \<alpha>)::'e mod_ring) = 0))"
+  using commit_eq_is_poly_diff_\<alpha>_eq_0 by fast
+
+text\<open>\<close>
 lemma helping_2_factorize_\<alpha>: "\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
         \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) 
         \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
@@ -245,6 +260,7 @@ lemma helping_2_factorize_\<alpha>: "\<phi> \<noteq> \<phi>' \<and> SCC_valid_ms
         \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (of_qr \<phi> - of_qr \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring))"
   by (metis poly_eq0_is_find_\<alpha>_eq_\<alpha> right_minus_eq to_qr_of_qr)
 
+text \<open>\<close>
 lemma helping_3_\<alpha>_is_found: "\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
         \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
         \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (of_qr \<phi> - of_qr \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring)) 
@@ -267,18 +283,23 @@ next
   then show ?lhs by linarith
 qed
 
-subsubsection \<open>KZG poly bind game to strong reduction game - reducing lemma\<close>
+subsubsection \<open>KZG poly bind game to strong reduction game - equivalence theorem\<close>
 
-text \<open>showing the equivalence of the KZG poly bind game to a stronger bind_reduction game, which we 
+text \<open>showing the equivalence of the KZG poly bind game to the stronger bind_reduction game, which we 
 show to be at least as hard as the real reduction game in the next subsection.\<close>
 
-lemma poly_bind_game_eq_t_SDH_strong_red: 
+theorem poly_bind_game_eq_t_SDH_strong_red: 
   shows "bind_commit.bind_game \<A> = t_SDH_G\<^sub>p.game (stronger_bind_reduction \<A>)"
 proof -
   note [simp] = Let_def split_def
+
+  text \<open>abbreviations for the mod_ring version of sample uniform nat 
+  and the public key\<close>
   let ?\<alpha> = "\<lambda>\<alpha>. (of_int_mod_ring (int \<alpha>)::'e mod_ring)"
   let ?PK = "\<lambda>\<alpha>. (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>)^t)) [0..<max_deg+1])"
-  
+
+  text \<open>We start with the poly bind game and perform logical 
+  transitions until we obtain the t-SDH game with the (stronger-)reduction\<close>
   have "bind_commit.bind_game \<A> = TRY do {
     (ck,vk) \<leftarrow> SCC_key_gen;
     (c, m, d, m', d') \<leftarrow> \<A> ck;
@@ -427,7 +448,15 @@ subsection \<open>advantage of stronger bind reduction less or equal to advantag
 
 text \<open>showing the stronger bind_reduction game to be at least as hard as the real reduction game.\<close>
 
-subsubsection \<open>helping lemmas\<close>
+subsubsection \<open>literal helping lemmas\<close>
+
+text \<open>Similar to the equivalence proof, we define literal helping lemmas, 
+with name-pattern: helping_*number*_*content-reference*. 
+These lemmas are literal logic blocks that are used in the actual reduction proof. 
+They all capture one step in the transition (from stronger-reduction to reduction logic), that is either 
+too complicated for Isabelle to prove in the monadic/game-based form or requires some additional proving steps 
+that would complicate the equivalence proof.
+Basically extracted logical reasoning.\<close>
 
 lemma helping_1_add_poly_\<phi>_m_\<phi>'_bindv: "(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
         \<and> (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>) = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))) 
@@ -460,12 +489,14 @@ lemma helping_3_g_powPK_eq: "\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi>
             \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(of_int_mod_ring (int \<alpha>)::'e mod_ring)) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1])!1) (of_qr \<phi> - of_qr \<phi>'))"
   by meson
 
-subsubsection \<open>less equal reduction\<close>
+subsubsection \<open>generalized less equal reduction\<close>
 
-text \<open>generalized lemmas\<close>
+text \<open>We build a generalized less equal lemma that captures the general structure of the actual 
+reduction lemma. We start with a more simple lemma and built upon it.\<close>
 
-(*TODO rename*)
-lemma help_lem: "spmf ((\<A>::'x spmf) \<bind> (\<lambda>x. assert_spmf ((f::'x \<Rightarrow> bool) x \<and> (q::'x \<Rightarrow> bool) x) \<bind> (\<lambda>_::unit. return_spmf True))) True 
+text \<open>This is the simple lemma we build the more complex generalized version upon.
+It basically expresses, that given an arbitrary spmf instance x, assert(f x \<and> q x) \<le> assert(f x).\<close>
+lemma simple_le_on_assert: "spmf ((\<A>::'x spmf) \<bind> (\<lambda>x. assert_spmf ((f::'x \<Rightarrow> bool) x \<and> (q::'x \<Rightarrow> bool) x) \<bind> (\<lambda>_::unit. return_spmf True))) True 
   \<le> spmf ((\<A>::'x spmf) \<bind> (\<lambda>x. assert_spmf ((f::'x \<Rightarrow> bool) x) \<bind> (\<lambda>_::unit. return_spmf True))) True"
   (is "?lhs \<le> ?rhs")
 proof -
@@ -481,20 +512,8 @@ proof -
   finally show ?thesis by simp    
 qed
 
-lemma spmf_reduction_TRY_ret_spmf_False_ext: 
-  assumes "spmf A True \<le> spmf C True"
-  shows "spmf (TRY A ELSE return_spmf False) True \<le> spmf (TRY C ELSE return_spmf False) True"
-  (is "?lhs\<le>?rhs")
-proof -
-  have "?lhs = spmf A True + pmf A None * spmf (return_spmf False) True"
-    by (rule spmf_try_spmf[of A "return_spmf False" True])
-  also have "\<dots> \<le> spmf C True + pmf C None * spmf (return_spmf False) True"
-    using assms by force
-  also have "\<dots> = spmf (TRY C ELSE return_spmf False) True"
-    using spmf_try_spmf[of C "return_spmf False" True] ..
-  finally show ?thesis .
-qed
-
+text \<open>Upon the simple less equal lemma we introduce the sample uniform construct, which we use as a
+parameter for the spmf instance x.\<close>
 lemma spmf_reduction:
 "spmf (do {
     \<alpha>::nat \<leftarrow> sample_uniform (order G\<^sub>p);
@@ -514,11 +533,29 @@ proof -
     by (rule ennreal_spmf_bind[of "sample_uniform (Coset.order G\<^sub>p)" "(\<lambda>\<alpha>. \<A> \<alpha> \<bind> (\<lambda>x. assert_spmf (f x \<alpha> \<and> q x \<alpha>) \<bind> (\<lambda>_::unit. return_spmf True)))"])
   also have "\<dots> \<le>  \<integral>\<^sup>+ \<alpha>. ennreal (spmf (\<A> \<alpha> \<bind> (\<lambda>x. assert_spmf (f x \<alpha>) \<bind> (\<lambda>_::unit. return_spmf True))) True)
      \<partial>measure_spmf (sample_uniform (Coset.order G\<^sub>p))"
-    by (rule nn_integral_mono_AE)(simp add: help_lem)
+    by (rule nn_integral_mono_AE)(simp add: simple_le_on_assert)
   also have "\<dots>=?rhs" 
    using ennreal_spmf_bind[of "sample_uniform (Coset.order G\<^sub>p)" "(\<lambda>\<alpha>. \<A> \<alpha> \<bind> (\<lambda>x. assert_spmf (f x \<alpha>) \<bind> (\<lambda>_::unit. return_spmf True)))"]
    ..
   finally show ?thesis by fastforce
+qed
+
+text \<open>Showing the rule that less equal on spmf (TRY ... ELSE return_spmf False) True constructs depends 
+only on the contents less equalness (the ...'s). 
+This will allow to transform the real games into a form to which we can apply the spmf_reduction 
+lemma (basically eliminating the TRY ELSE blocks for the spmf_reduction lemma).\<close>
+lemma spmf_reduction_TRY_ret_spmf_False_ext: 
+  assumes "spmf A True \<le> spmf C True"
+  shows "spmf (TRY A ELSE return_spmf False) True \<le> spmf (TRY C ELSE return_spmf False) True"
+  (is "?lhs\<le>?rhs")
+proof -
+  have "?lhs = spmf A True + pmf A None * spmf (return_spmf False) True"
+    by (rule spmf_try_spmf[of A "return_spmf False" True])
+  also have "\<dots> \<le> spmf C True + pmf C None * spmf (return_spmf False) True"
+    using assms by force
+  also have "\<dots> = spmf (TRY C ELSE return_spmf False) True"
+    using spmf_try_spmf[of C "return_spmf False" True] ..
+  finally show ?thesis .
 qed
 
 text \<open>Actual reduction lemma\<close>
