@@ -540,10 +540,10 @@ proof -
   finally show ?thesis by fastforce
 qed
 
-text \<open>Showing the rule that less equal on spmf (TRY ... ELSE return_spmf False) True constructs depends 
+text \<open>Showing the rule that less equal on "spmf (TRY ... ELSE return_spmf False) True"-constructs depends 
 only on the contents less equalness (the ...'s). 
-This will allow to transform the real games into a form to which we can apply the spmf_reduction 
-lemma (basically eliminating the TRY ELSE blocks for the spmf_reduction lemma).\<close>
+This will allow to transform the real games in the reduction-proof into a form to which we can apply 
+the spmf_reduction lemma (basically eliminating the TRY ELSE blocks for the spmf_reduction lemma).\<close>
 lemma spmf_reduction_TRY_ret_spmf_False_ext: 
   assumes "spmf A True \<le> spmf C True"
   shows "spmf (TRY A ELSE return_spmf False) True \<le> spmf (TRY C ELSE return_spmf False) True"
@@ -558,8 +558,10 @@ proof -
   finally show ?thesis .
 qed
 
-text \<open>Actual reduction lemma\<close>
+subsubsection \<open>less equal reduction lemma\<close>
 
+text \<open>we show that the t-SDH game's advantage for the stronger reduction is less equal than the
+t-SDH game's advantage for the "normal" reduction.\<close>
 lemma t_SDH_advantage_stronger_red_le_red: "t_SDH_G\<^sub>p.advantage (stronger_bind_reduction \<A>) \<le> t_SDH_G\<^sub>p.advantage (bind_reduction \<A>)"
 proof -
   let ?sr_game = "t_SDH_G\<^sub>p.game (stronger_bind_reduction \<A>)"
@@ -571,7 +573,8 @@ proof -
   text \<open>same proof technique as in the stronger_bind_equivalence. But instead of showing equivalence 
   we use the spmf_reduction lemma to show less or equal\<close>
 
-  text \<open>part 1 bring ?sr_game into a a the form required for the spmf_reduction lemma.\<close>
+  text \<open>part 1 bring ?sr_game, the t-SDH game for the stronger reduction, into the form required for
+  the spmf_reduction lemma.\<close>
   have "?sr_game = TRY do { 
     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
@@ -649,9 +652,9 @@ proof -
     ) True"
     unfolding t_SDH_G\<^sub>p.advantage_def by presburger
 
-  text \<open>part 2 bring ?r_game into the form required for the spmf_reduction lemma.\<close>
-  
 
+  text \<open>part 2 bring ?r_game, the t-SDH game for the "normal" reduction, into the form required for
+  the spmf_reduction lemma.\<close>
    have "?r_game = TRY do { 
     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
@@ -718,12 +721,16 @@ proof -
     ) True"
     unfolding t_SDH_G\<^sub>p.advantage_def by presburger
 
-    text \<open>part 3 apply the spmf_reduction lemma to the results of part 1 & 2. Hence show 
-  less equal..\<close>  
     
+  text \<open>part 3 put the results from part 1 & 2 together and apply the spmf_reduction lemma. 
+  Hence show the t-SDH game's advantage for the stronger reduction is less equal than the
+  t-SDH game's advantage for the "normal" reduction.\<close>  
     show ?thesis
     proof -
-      note [simp] = Let_def split_def
+
+      text \<open>To apply the spmf_reduction lemma we have to divide the logical conjunctions into two 
+      functions f and q that depend on the input from the Adversary. This division allows us to 
+      later on use spmf_reduction lemma to conclude less equalness (adv(f \<and> q) \<le> adv(f))\<close>
       let ?f_n_q = "\<lambda>(C, \<phi>, \<phi>') . \<lambda>\<alpha>. \<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
             \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
             \<and> (g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>) = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
@@ -735,6 +742,8 @@ proof -
             \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>'))"
       let ?q = "\<lambda>(C, \<phi>, \<phi>') . \<lambda>\<alpha>. 
           (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))"
+      text \<open>We show that the "f \<and> q" definition is equal to the conjuncted definitions of f and q.
+      (Basically "f \<and> q" = "f" \<and> "q")\<close>
       have f_n_q_conv : "\<forall>C \<phi> \<phi>' \<alpha>. ?f_n_q (C,\<phi>,\<phi>') \<alpha> \<longleftrightarrow> ?f (C,\<phi>,\<phi>') \<alpha> \<and> ?q (C,\<phi>, \<phi>') \<alpha>"
       proof (intro allI)
         fix C::'a
@@ -790,7 +799,7 @@ proof -
         apply (rule spmf_reduction_TRY_ret_spmf_False_ext)
         using spmf_reduction[of "\<lambda>\<alpha>. \<A> (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> of_int_mod_ring (int \<alpha>) ^ t) [0..<max_deg + 1])"
              "\<lambda>(C, \<phi>, _, \<phi>', _). ?f (C,\<phi>,\<phi>')" "\<lambda>(C, \<phi>, _, \<phi>', _). ?q (C,\<phi>,\<phi>')"]
-        by simp
+        by force
       also have "\<dots> =  t_SDH_G\<^sub>p.advantage (bind_reduction \<A>)"
         using br_game_ref[symmetric] by fast
       finally show ?thesis .
