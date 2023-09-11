@@ -4,6 +4,10 @@ imports "Sigma_Commit_Crypto.Commitment_Schemes" "Berlekamp_Zassenhaus.Finite_Fi
 
 begin
 
+text\<open>The t-SDH game and advantage as in the section 2.3 of the original paper 
+"Constant-Size Commitments to Polynomials and Their Applications".
+You can find the paper here: https://cacr.uwaterloo.ca/techreports/2010/cacr2010-10.pdf\<close>
+
 locale t_SDH = G : cyclic_group G
   for G:: "('a, 'b) cyclic_group_scheme" (structure) 
   and t::nat  
@@ -13,6 +17,8 @@ begin
 
 type_synonym ('grp,'mr) adversary = "'grp list \<Rightarrow> ('mr mod_ring *'grp) spmf"
 
+text \<open>The t-SDH game states that given a t+1-long tuple in the form of (g,g^\<alpha>,g^\<alpha>^2,...,g^\<alpha>^t)
+the Adversary has to return an element c and g^(1/(c+\<alpha>)).\<close>
 definition game :: "('a,'c) adversary \<Rightarrow> bool spmf" where 
   "game \<A> = TRY do { 
     \<alpha> \<leftarrow> sample_uniform (Coset.order G);
@@ -20,10 +26,14 @@ definition game :: "('a,'c) adversary \<Rightarrow> bool spmf" where
     return_spmf (exp \<^bold>g (1/((to_type \<alpha>)+c)) = g) 
   } ELSE return_spmf False"
 
+text \<open>The advantage is that the Adversary wins the game. 
+For the t-SDH assumption to hold this advantage should be negligible.\<close>
 definition advantage :: " ('a,'c) adversary \<Rightarrow> real"
   where "advantage \<A> = spmf (game \<A>) True" 
 
-text \<open>adapted proof from Sigma_Commit_Crypto.Commitment_Schemes bind_game_alt_def\<close>
+text \<open>An alternative but equivalent game for the t-SDH-game. This alternative game capsulates the 
+event that the Adversary wins in the assert_spmf statement.
+adapted proof from Sigma_Commit_Crypto.Commitment_Schemes bind_game_alt_def\<close>
 lemma game_alt_def:
   "game \<A> = TRY do { 
     \<alpha> \<leftarrow> sample_uniform (Coset.order G);
