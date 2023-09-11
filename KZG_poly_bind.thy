@@ -558,11 +558,11 @@ proof -
   finally show ?thesis .
 qed
 
-subsubsection \<open>less equal reduction lemma\<close>
+subsubsection \<open>less equal reduction theorem\<close>
 
 text \<open>we show that the t-SDH game's advantage for the stronger reduction is less equal than the
 t-SDH game's advantage for the "normal" reduction.\<close>
-lemma t_SDH_advantage_stronger_red_le_red: "t_SDH_G\<^sub>p.advantage (stronger_bind_reduction \<A>) \<le> t_SDH_G\<^sub>p.advantage (bind_reduction \<A>)"
+theorem t_SDH_advantage_stronger_red_le_red: "t_SDH_G\<^sub>p.advantage (stronger_bind_reduction \<A>) \<le> t_SDH_G\<^sub>p.advantage (bind_reduction \<A>)"
 proof -
   let ?sr_game = "t_SDH_G\<^sub>p.game (stronger_bind_reduction \<A>)"
   let ?r_game = "t_SDH_G\<^sub>p.game (bind_reduction \<A>)"
@@ -729,8 +729,11 @@ proof -
     proof -
 
       text \<open>To apply the spmf_reduction lemma we have to divide the logical conjunctions into two 
-      functions f and q that depend on the input from the Adversary. This division allows us to 
-      later on use spmf_reduction lemma to conclude less equalness (adv(f \<and> q) \<le> adv(f))\<close>
+      functions f and q that take the input from the Adversary. This division allows us to 
+      later on use the spmf_reduction lemma to conclude less equalness (adv(f \<and> q) \<le> adv(f)).
+      Furthermore we define the f_n_q function, that mirrors the logical conjunctions from the t-SDH-
+      game for the stronger bind reduction. And we show that we can split this f_n_q function into 
+      the conjunction of f and q.\<close>
       let ?f_n_q = "\<lambda>(C, \<phi>, \<phi>') . \<lambda>\<alpha>. \<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
             \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
             \<and> (g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>) = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
@@ -761,6 +764,13 @@ proof -
         qed
       qed
 
+      text \<open>Show the advantage for the t-SDH-game for the stronger reduction(sr_game) is less equal the 
+      advantage for the t-SDH-game for the "normal" reduction(r_game).
+      sr_game and r_game differ only in their logical expressions in the assert_spmf statement, where 
+      the sr_game asserts additional properties to those of the r_game. We chose f and q such that 
+      q mirrors these additional properties and f mirros the properties of r_game. Hence sr_game 
+      asserts f \<and> q and r_game asserts only f. Therefore we can apply the spmf_reduction lemma to 
+      show adv. (sr_game) \<le> adv. (r_game).\<close>
       have "t_SDH_G\<^sub>p.advantage (stronger_bind_reduction \<A>) = spmf (
        TRY do { 
        \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
@@ -806,6 +816,12 @@ proof -
     qed
   qed
 
+subsection \<open>show the advantage of the binding game less or equal to the advantage of bind reduction\<close>
+
+text \<open>Pull the equivalence theorem (bind_game = t-SDH.game for stronger reduction) and 
+the less equal reduction theorem (adv. (t-SDH.game for stronger reduction) \<le> 
+adv. (t-SDH.game for "normal" reduction) ) together to show 
+adv. (bind_game) \<le> adv. (t-SDH.game for "normal" reduction)\<close>
 theorem polynomial_binding: "bind_commit.bind_advantage \<A> \<le> t_SDH_G\<^sub>p.advantage (bind_reduction \<A>)"
   unfolding bind_commit.bind_advantage_def 
   proof (subst poly_bind_game_eq_t_SDH_strong_red)
