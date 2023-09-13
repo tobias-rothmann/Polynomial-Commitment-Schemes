@@ -227,9 +227,52 @@ next
   qed
 qed
 
+lemma root_imp_deg_1:
+  assumes "monic (u::'e mod_ring poly) \<and> irreducible u"
+  shows "(\<exists>x. poly u x = 0) \<longleftrightarrow> degree u = 1"
+proof 
+  assume asm: "\<exists>x. poly u x = 0"
+  show "degree u = 1"
+  proof (rule ccontr)
+    assume deg_ne_1: "degree u \<noteq> 1"
+    obtain c where c: "poly u c = 0" using asm by blast
+    with synthetic_div_correct' [of c u] have split_u: "u = [:-c, 1:] * synthetic_div u c" by simp
+    from c deg_ne_1 have deg_u_pos: "degree u \<ge> 2"
+      by (metis One_nat_def assms leading_coeff_0_iff less_2_cases not_le poly_zero rel_simps(93))
+    then have "degree (synthetic_div u c) \<ge> 1" using degree_synthetic_div[of u c] by linarith  
+    then have "\<not>(synthetic_div u c) dvd 1" by auto
+    moreover have "\<not>[:-c, 1:] dvd 1" by auto
+    ultimately show "False"
+      using irreducible_def[of u] split_u assms by blast  
+  qed
+next
+  assume asm: "degree u = 1"  
+  have poly_deg_1: "\<forall>x. poly u x = poly.coeff u 0 + x"
+  proof 
+    fix x 
+    have "poly u x = (\<Sum>i\<le>degree u. poly.coeff u i * x ^ i)"
+      using poly_altdef by fast
+    also have "\<dots> = poly.coeff u 0 + poly.coeff u 1 * x"
+      using asm by force
+    also have "\<dots> = poly.coeff u 0 + x"
+    proof -
+      have "poly.coeff u 1 = 1"
+        using asm assms by force
+      then show ?thesis  by fastforce
+    qed
+    finally show "poly u x = poly.coeff u 0 + x" .
+  qed    
+  show "\<exists>x. poly u x = 0"
+  proof
+    show "poly u (-poly.coeff u 0) = 0"
+      using poly_deg_1 by fastforce
+  qed
+qed
+
 (*TODO goal \<Rightarrow> have to implement algorithm that produces square-free polys from non-square-free ones*)
-text \<open>show find_\<alpha> correctly finds \<alpha>, if \<alpha> is a root and \<phi> is not a zero-polynomial.\<close>
+text \<open>show find_\<alpha> correctly finds(factorizes) \<alpha>, if \<alpha> is a root and \<phi> is not a zero-polynomial.\<close>
 lemma poly_eq0_is_find_\<alpha>_eq_\<alpha>: "\<phi> \<noteq> 0 \<Longrightarrow> poly \<phi> \<alpha> = 0 \<longleftrightarrow> find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
+  unfolding find_\<alpha>.simps find_\<alpha>_square_free.simps
   sorry
 
 subsubsection \<open>literal helping lemmas\<close>
