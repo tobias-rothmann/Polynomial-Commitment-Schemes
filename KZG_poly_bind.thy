@@ -269,11 +269,64 @@ next
   qed
 qed
 
+
+lemma poly_eq0_is_find_\<alpha>_eq_\<alpha>_sf: 
+  assumes "\<phi> \<noteq> 0 \<and> square_free \<phi>" 
+  shows "poly \<phi> \<alpha> = 0 \<longleftrightarrow> find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
+proof
+  assume asm: "poly \<phi> \<alpha> = 0"
+  obtain c polys where c_polys: "(c, polys) = finite_field_factorization \<phi>"
+    by (metis prod.exhaust)
+  then have "c\<noteq>0" using assms
+    by (metis finite_field_factorization_explicit smult_0_left)
+  then have "\<exists>u \<in> set polys. poly u \<alpha> = 0" using c_polys asm
+    by (metis assms finite_field_factorization_roots)
+  then obtain u where u: "u \<in> set polys \<and> poly u \<alpha> = 0" by blast
+  then have "degree u = 1" using root_imp_deg_1 
+    by (metis (mono_tags, lifting) assms c_polys finite_field_factorization_explicit)
+  moreover have "monic u" using u c_polys
+    by (metis assms finite_field_factorization_explicit)
+  ultimately have "poly.coeff u 0 = -\<alpha>" using u
+    (*TODO better proof*)
+    by (metis (no_types, lifting) One_nat_def add_0_right coeff_pCons_0 coeff_pCons_Suc degree1_coeffs degree_1 mpoly_base_conv(2) mult_cancel_left1 one_pCons pCons_0_hom.hom_zero synthetic_div_correct' synthetic_div_eq_0_iff synthetic_div_pCons)
+  then show "find_\<alpha> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
+  proof -
+    have "find_\<alpha> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> 
+    = (- (filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g [^] r) (map (\<lambda>p. poly.coeff p 0) (filter (\<lambda>f. degree f = 1) (snd (finite_field_factorization \<phi>))))) ! 0)"
+      unfolding find_\<alpha>.simps find_\<alpha>_square_free.simps by (simp add: split_def)
+    also have "\<dots> = (- (filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g [^] r) (map (\<lambda>p. poly.coeff p 0) (filter (\<lambda>f. degree f = 1) (polys)))) ! 0)"
+      using c_polys by (smt (verit, best) snd_conv)
+    also have "\<dots> = \<alpha>"
+    proof -
+      have "(filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g [^] r) (map (\<lambda>p. poly.coeff p 0) (filter (\<lambda>f. degree f = 1) (polys)))) \<noteq> []"
+        sorry
+      moreover have "\<forall>xs. \<forall>r\<in>set (filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g [^] r) xs). r=-\<alpha>"
+      proof (intro allI)
+        fix xs
+        show "\<forall>r\<in>set (filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g [^] r) xs). r = - \<alpha>" 
+        proof 
+          fix r
+          assume asm: "r \<in> set (filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g [^] r) xs)"
+          show " r = - \<alpha>"
+            sorry
+        qed
+      qed
+      ultimately show ?thesis sorry
+    qed
+    finally show ?thesis . 
+  qed
+next 
+  assume "find_\<alpha> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
+  show "poly \<phi> \<alpha> = 0"
+    sorry
+qed
+
 (*TODO goal \<Rightarrow> have to implement algorithm that produces square-free polys from non-square-free ones*)
 text \<open>show find_\<alpha> correctly finds(factorizes) \<alpha>, if \<alpha> is a root and \<phi> is not a zero-polynomial.\<close>
 lemma poly_eq0_is_find_\<alpha>_eq_\<alpha>: "\<phi> \<noteq> 0 \<Longrightarrow> poly \<phi> \<alpha> = 0 \<longleftrightarrow> find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
   unfolding find_\<alpha>.simps find_\<alpha>_square_free.simps
-  sorry
+    sorry
+
 
 subsubsection \<open>literal helping lemmas\<close>
 
