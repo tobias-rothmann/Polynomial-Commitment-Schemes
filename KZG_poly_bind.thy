@@ -97,7 +97,7 @@ fun find_\<alpha>_square_free :: "'a \<Rightarrow> 'e mod_ring poly \<Rightarrow
   "find_\<alpha>_square_free g_pow_\<alpha> \<phi> = (let (c, polys) = finite_field_factorization \<phi>;
     deg1_polys = filter (\<lambda>f. degree f = 1) polys;
     root_list = map (\<lambda>p. poly.coeff p 0) deg1_polys;
-    \<alpha>_roots = filter (\<lambda>r. g_pow_\<alpha> = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> r) root_list
+    \<alpha>_roots = filter (\<lambda>r. g_pow_\<alpha> = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> -r) root_list
 in -\<alpha>_roots!0)"
 
 (*TODO finite_field_factorization works only for square-free polys \<rightarrow> add step for non-sf to sf*)
@@ -269,7 +269,6 @@ next
   qed
 qed
 
-
 lemma poly_eq0_is_find_\<alpha>_eq_\<alpha>_sf: 
   assumes "\<phi> \<noteq> 0 \<and> square_free \<phi>" 
   shows "poly \<phi> \<alpha> = 0 \<longleftrightarrow> find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
@@ -286,33 +285,32 @@ proof
     by (metis (mono_tags, lifting) assms c_polys finite_field_factorization_explicit)
   moreover have "monic u" using u c_polys
     by (metis assms finite_field_factorization_explicit)
-  ultimately have "poly.coeff u 0 = -\<alpha>" using u
+  ultimately have u_coeff0: "poly.coeff u 0 = -\<alpha>" using u
     (*TODO better proof*)
     by (metis (no_types, lifting) One_nat_def add_0_right coeff_pCons_0 coeff_pCons_Suc degree1_coeffs degree_1 mpoly_base_conv(2) mult_cancel_left1 one_pCons pCons_0_hom.hom_zero synthetic_div_correct' synthetic_div_eq_0_iff synthetic_div_pCons)
   then show "find_\<alpha> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
   proof -
     have "find_\<alpha> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> 
-    = (- (filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g [^] r) (map (\<lambda>p. poly.coeff p 0) (filter (\<lambda>f. degree f = 1) (snd (finite_field_factorization \<phi>))))) ! 0)"
+    = (- (filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> -r) (map (\<lambda>p. poly.coeff p 0) (filter (\<lambda>f. degree f = 1) (snd (finite_field_factorization \<phi>))))) ! 0)"
       unfolding find_\<alpha>.simps find_\<alpha>_square_free.simps by (simp add: split_def)
-    also have "\<dots> = (- (filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g [^] r) (map (\<lambda>p. poly.coeff p 0) (filter (\<lambda>f. degree f = 1) (polys)))) ! 0)"
+    also have "\<dots> = (- (filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> -r) (map (\<lambda>p. poly.coeff p 0) (filter (\<lambda>f. degree f = 1) (polys)))) ! 0)"
       using c_polys by (smt (verit, best) snd_conv)
     also have "\<dots> = \<alpha>"
     proof -
-      have "(filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g [^] r) (map (\<lambda>p. poly.coeff p 0) (filter (\<lambda>f. degree f = 1) (polys)))) \<noteq> []"
-        sorry
-      moreover have "\<forall>xs. \<forall>r\<in>set (filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g [^] r) xs). r=-\<alpha>"
-      proof (intro allI)
-        fix xs
-        show "\<forall>r\<in>set (filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g [^] r) xs). r = - \<alpha>" 
-        proof 
-          fix r
-          assume asm: "r \<in> set (filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g [^] r) xs)"
-          show " r = - \<alpha>"
-            sorry
-        qed
+      have "u \<in> set (filter (\<lambda>f. degree f = 1) polys)"
+        by (simp add: \<open>degree u = 1\<close> u)
+      then have "-\<alpha> \<in> set (map (\<lambda>p. poly.coeff p 0) (filter (\<lambda>f. degree f = 1) polys))"
+        using u_coeff0 \<open>degree u = 1\<close> by force
+      then have "-\<alpha> \<in> set (filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> - r) (map (\<lambda>p. poly.coeff p 0) (filter (\<lambda>f. degree f = 1) polys)))"
+        by fastforce
+      moreover have "\<forall>xs. -\<alpha> \<in> set xs \<longrightarrow> set (filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> - r) xs) = {-\<alpha>}"
+        by (auto simp: pow_on_eq_card)
+      ultimately have "set (filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> - r) (map (\<lambda>p. poly.coeff p 0) (filter (\<lambda>f. degree f = 1) polys))) = {-\<alpha>}"
+        by fastforce
+      then have "filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> - r) (map (\<lambda>p. poly.coeff p 0) (filter (\<lambda>f. degree f = 1) polys)) ! 0 = -\<alpha>"
+        by (metis length_pos_if_in_set nth_mem singleton_iff)
+      then show ?thesis by force
       qed
-      ultimately show ?thesis sorry
-    qed
     finally show ?thesis . 
   qed
 next 
