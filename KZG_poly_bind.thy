@@ -269,10 +269,11 @@ next
   qed
 qed
 
-lemma poly_eq0_is_find_\<alpha>_eq_\<alpha>_sf: 
+
+lemma poly_eq0_is_find_\<alpha>_sf_eq_\<alpha>: 
   assumes "\<phi> \<noteq> 0 \<and> square_free \<phi>" 
-  shows "poly \<phi> \<alpha> = 0 \<longleftrightarrow> find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
-proof
+  shows "poly \<phi> \<alpha> = 0 \<Longrightarrow> find_\<alpha>_square_free (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
+proof -
   assume asm: "poly \<phi> \<alpha> = 0"
   obtain c polys where c_polys: "(c, polys) = finite_field_factorization \<phi>"
     by (metis prod.exhaust)
@@ -288,11 +289,11 @@ proof
   ultimately have u_coeff0: "poly.coeff u 0 = -\<alpha>" using u
     (*TODO better proof*)
     by (metis (no_types, lifting) One_nat_def add_0_right coeff_pCons_0 coeff_pCons_Suc degree1_coeffs degree_1 mpoly_base_conv(2) mult_cancel_left1 one_pCons pCons_0_hom.hom_zero synthetic_div_correct' synthetic_div_eq_0_iff synthetic_div_pCons)
-  then show "find_\<alpha> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
+  then show "find_\<alpha>_square_free (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
   proof -
-    have "find_\<alpha> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> 
+    have "find_\<alpha>_square_free (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> 
     = (- (filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> -r) (map (\<lambda>p. poly.coeff p 0) (filter (\<lambda>f. degree f = 1) (snd (finite_field_factorization \<phi>))))) ! 0)"
-      unfolding find_\<alpha>.simps find_\<alpha>_square_free.simps by (simp add: split_def)
+      unfolding find_\<alpha>_square_free.simps by (simp add: split_def)
     also have "\<dots> = (- (filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> -r) (map (\<lambda>p. poly.coeff p 0) (filter (\<lambda>f. degree f = 1) (polys)))) ! 0)"
       using c_polys by (smt (verit, best) snd_conv)
     also have "\<dots> = \<alpha>"
@@ -313,18 +314,12 @@ proof
       qed
     finally show ?thesis . 
   qed
-next 
-  assume "find_\<alpha> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
-  show "poly \<phi> \<alpha> = 0"
-    sorry
 qed
 
 (*TODO goal \<Rightarrow> have to implement algorithm that produces square-free polys from non-square-free ones*)
 text \<open>show find_\<alpha> correctly finds(factorizes) \<alpha>, if \<alpha> is a root and \<phi> is not a zero-polynomial.\<close>
-lemma poly_eq0_is_find_\<alpha>_eq_\<alpha>: "\<phi> \<noteq> 0 \<Longrightarrow> poly \<phi> \<alpha> = 0 \<longleftrightarrow> find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
-  unfolding find_\<alpha>.simps find_\<alpha>_square_free.simps
-    sorry
-
+lemma poly_eq0_imp_find_\<alpha>_eq_\<alpha>: "\<phi> \<noteq> 0 \<Longrightarrow> poly \<phi> \<alpha> = 0 \<Longrightarrow> find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
+  sorry
 
 subsubsection \<open>literal helping lemmas\<close>
 
@@ -337,9 +332,11 @@ Basically extracted logical reasoning.\<close>
 
 text \<open>The logical addition of (\<phi>-\<phi>')(\<alpha>)=0, which is implied by \<phi>(\<alpha>)=\<phi>'(\<alpha>), which we derive from C=g^\<phi>(\<alpha>) \<and> C=g^\<phi>'(\<alpha>)\<close>
 lemma helping_1_add_poly_\<phi>_m_\<phi>': "(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))) 
+        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) 
+        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))) 
         = (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
+        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) 
+        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
         \<and> (poly (of_qr \<phi> - (of_qr \<phi>')) (of_int_mod_ring (int \<alpha>)::'e mod_ring) = 0))"
   using commit_eq_is_poly_diff_\<alpha>_eq_0 by fast
 
@@ -352,8 +349,16 @@ lemma helping_2_factorize_\<alpha>: "\<phi> \<noteq> \<phi>' \<and> SCC_valid_ms
         \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) 
         \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
         \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (of_qr \<phi> - of_qr \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring))"
-  by (metis poly_eq0_is_find_\<alpha>_eq_\<alpha> right_minus_eq to_qr_of_qr)
-
+  (is "?lhs = ?rhs")
+proof
+  assume ?lhs
+  then show ?rhs using poly_eq0_imp_find_\<alpha>_eq_\<alpha>
+    by (metis right_minus_eq to_qr_of_qr)
+next 
+  assume ?rhs
+  then show ?lhs using commit_eq_is_poly_diff_\<alpha>_eq_0 by fast
+qed
+                                
 text \<open>\<close>
 lemma helping_3_\<alpha>_is_found: "\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
         \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
@@ -567,7 +572,15 @@ lemma helping_2_factorize_\<alpha>_bindv: "\<phi> \<noteq> \<phi>' \<and> SCC_va
         \<and> (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>) 
            = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
         \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (of_qr \<phi> - of_qr \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring))"
-  by (metis poly_eq0_is_find_\<alpha>_eq_\<alpha> right_minus_eq to_qr_of_qr)
+  (is "?lhs = ?rhs")
+proof
+  assume ?lhs
+  then show ?rhs using poly_eq0_imp_find_\<alpha>_eq_\<alpha>
+    by (metis right_minus_eq to_qr_of_qr)
+next 
+  assume ?rhs
+  then show ?lhs using commit_eq_is_poly_diff_\<alpha>_eq_0 by fast
+qed
 
 lemma helping_3_g_powPK_eq: "\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
             \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) 
