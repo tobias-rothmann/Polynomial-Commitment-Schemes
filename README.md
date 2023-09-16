@@ -20,8 +20,10 @@ The security properties are the same as in the [paper](https://cacr.uwaterloo.ca
 They are shown via game-based proofs, see the [CryptHOL tutorial](https://eprint.iacr.org/2018/941.pdf) for details.
 
 ### Polynomial Binding
-In the reduction to the t-strong Diffie Hellmann game, the factorization of polynomials over finite fields is needed, which is not completely supported in Isabelle as of now (only for square-free polynomials). The current task, therefore, is to formalize the factorization. Other than factorization, the property is proven.
-#### Almost proven.
+In the reduction to the t-strong Diffie Hellmann game, the factorization of polynomials over finite fields is needed, which is not entirely supported in Isabelle as of now (only for square-free polynomials).
+The property is proven for square-free polynomials. The only remaining task to also prove it, in Isabelle, for non-square-free polynomials is to formalize an algorithm that splits a non-square free polynomial into square-free parts
+(with preserving the roots).
+ #### Almost proven.
 
 ### Evaluation Binding
 #### Open.
