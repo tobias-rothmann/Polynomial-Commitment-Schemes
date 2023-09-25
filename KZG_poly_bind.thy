@@ -1,7 +1,7 @@
 theory KZG_poly_bind
 
-imports KZG_correct "Sigma_Commit_Crypto.Commitment_Schemes" tSDH_assumption
-(*maybe*)  "Berlekamp_Zassenhaus.Finite_Field_Factorization"
+imports KZG_correct "Sigma_Commit_Crypto.Commitment_Schemes" "tSDH_assumption"
+ "Berlekamp_Zassenhaus.Finite_Field_Factorization"
 
 begin
 
@@ -939,4 +939,5 @@ theorem polynomial_binding: "bind_commit.bind_advantage \<A> \<le> t_SDH_G\<^sub
   qed
 
 end
+
 end
