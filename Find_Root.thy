@@ -1,12 +1,45 @@
 theory Find_Root
 
 imports "Berlekamp_Zassenhaus.Finite_Field_Factorization" KZG_Def
+"Mason_Stothers.Mason_Stothers"
 
 begin
+
+
+definition root_poly :: "( 'a :: zero \<Rightarrow> 'a) \<Rightarrow> nat \<Rightarrow> 'a poly \<Rightarrow> 'a poly" where
+  "root_poly rt n p = Abs_poly (\<lambda>i. rt (poly.coeff p (i * n)))"
+
+lemma coeff_root_poly [simp]: "poly.coeff (root_poly rt n p) i = rt (poly.coeff p (i * n))"
+  sorry
+
+definition root_poly' :: "nat \<Rightarrow> 'a :: zero poly \<Rightarrow> _ poly" where
+  "root_poly' n p = Abs_poly (\<lambda>i. poly.coeff p (i * n))"
+
+definition root_poly'_impl :: "nat \<Rightarrow> 'a :: zero list \<Rightarrow> 'a list" where
+  "root_poly'_impl n cs = undefined"
+
+lemma root_poly'_code [code]:
+  "coeffs (root_poly' n p) = root_poly'_impl n (coeffs p)"
+sorry
 
 context
 assumes "SORT_CONSTRAINT('e::prime_card)"
 begin
+
+lemma root_poly'_power:
+  assumes "is_nth_power CARD('e) p"
+  shows   "root_poly' CARD('e) p ^ CARD('e) = p"
+  sorry
+
+(*
+definition root_poly' :: "'e mod_ring poly \<Rightarrow> 'e mod_ring poly" where
+  "root_poly' = root_poly (\<lambda>_ x. x) CARD('e)"
+*)
+
+lemma CHAR_mod_ring [simp]: "CHAR('e mod_ring) = CARD('e)"
+apply (rule CHAR_eqI)
+apply auto
+using of_nat_0_mod_ring_dvd by blast
 
 (*
 definition is_rootable :: "nat \<Rightarrow> 'e mod_ring poly \<Rightarrow> bool" where
@@ -29,7 +62,7 @@ next
   then show ?case using assms by auto
 qed
 *)
-
+(*
 definition is_square :: "nat \<Rightarrow> bool" where
 "is_square n = ((Discrete.sqrt n)^2 = n)"
 
@@ -45,11 +78,13 @@ lemma not_is_square_2[simp]:
 "\<not> (is_square (Suc (Suc 0)))"
 unfolding is_square_def 
 by (metis One_nat_def bot_nat_0.extremum less_exp not_less_eq_eq numerals(2) power_one sqrt_unique)
+*)
+(*
 
 fun take_root_coeffs :: "nat \<Rightarrow> 'e mod_ring list \<Rightarrow> 'e mod_ring list" where
 "take_root_coeffs n [] = []" |
 "take_root_coeffs n (c # cs) = 
-  (if is_square (length cs) then c # (take_root_coeffs n cs) else take_root_coeffs n cs)"
+  (if (length cs) then c # (take_root_coeffs n cs) else take_root_coeffs n cs)"
 
 definition take_root ::"nat \<Rightarrow> 'e mod_ring poly \<Rightarrow> 'e mod_ring poly" where
 "take_root n f = Poly (take_root_coeffs n (coeffs f))"
@@ -81,7 +116,7 @@ next
   have "take_root_coeffs n (cCons a (coeffs as)) = take_root_coeffs n (coeffs as)"
   proof (cases "coeffs as = [] \<and> a = 0")
     case False
-    then show ?thesis using \<open>\<not> local.is_square (degree (pCons a as))\<close> 
+    then show ?thesis using \<open>\<not> is_square (degree (pCons a as))\<close> 
       is_square_length_degree[OF False] by auto
   qed auto
   then show ?thesis using False unfolding take_root_def by auto
@@ -107,7 +142,7 @@ unfolding take_root_def using degree_Poly
 by (smt (verit, best) One_nat_def Poly.simps(1) add_less_mono1 assms degree_0 degree_Poly' 
 le_simps(2) length_coeffs length_coeffs_degree length_take_root_coeffs nat_1_add_1 not_less_eq 
 order_less_imp_not_less order_trans_rules(21))
-
+*)
 
 (*
 lemma poly_power_sum:
@@ -180,11 +215,12 @@ proof -
     by (rule sum.cong[OF refl]) (auto simp add: algebra_simps pderiv_fi)
 qed
 
+(*
 lemma dvd_prod_mset:
 assumes "\<And>x::'e mod_ring poly. x\<in># fs \<Longrightarrow> (irreducible x \<and> monic x)" "e dvd \<Prod>\<^sub># fs"
 shows "\<exists>es. (es \<subseteq># fs \<and> e = \<Prod>\<^sub># es)"
 proof -
-  have "monic (\<Prod>\<^sub># fs)"  sorry
+  have "monic (\<Prod>\<^sub># fs)" sorry
   have "monic e" sorry
 using assms proof (induct fs rule: multiset_induct)
   case empty
@@ -199,11 +235,67 @@ qed
 proof -
   obtain g where "e*g = \<Prod>\<^sub># fs" using assms by fastforce
   then have "e = (\<Prod>\<^sub># fs) div g" 
-  by (metis assms(1) mult_zero_right nonzero_mult_div_cancel_right not_prime_0 prod_mset_zero_iff)
-  then have "e = (\<Prod>fi\<in># fs. (fi^(count fs fi) div g))" sledgehammer sorry
+(*
+  by (metis assms(1) mult_zero_right nonzero_mult_div_cancel_right not_prime_0 prod_mset_zero_iff) *)
+  then have "e = (\<Prod>fi\<in># fs. (fi^(count fs fi) div g))"  sorry
   
   then show ?thesis
+qed*)
+
+term normalize
+
+definition aux ::"'e mod_ring poly \<Rightarrow> _" where
+  "aux f = (if degree f = 0 then None else (let
+     f_mono = normalize f;
+     p = CARD ('e);
+     u = gcd f_mono (pderiv f_mono);
+     n = degree f
+  in (if u = 1 then None else let
+    v = f_mono div u;
+    w = u div gcd u (v^n);
+    z = root_poly' p w
+    in Some (v, z)
+  )
+))"
+
+
+lemma square_free_part_of_correct_aux:
+  assumes "aux f = Some (v, z)"                                
+  shows   "radical f = v * radical z"
+          "squarefree v"
+          "z ^ CARD('e) dvd f"
+          (* "prime_factors f = prime_factors v \<union> prime_factors z" (* alt. form of "radical f = v * radical z"; probably unnecessary *)*)
+proof -
+  define f' where "f' = normalize f"
+  define p where "p = CARD('e)"
+  define u where "u = gcd f' (pderiv f')"
+  define n where "n = degree f"
+
+  consider "degree f = 0" | "degree f > 0" "u = 1" | "degree f > 0" "u \<noteq> 1"
+    by blast
+  then have "radical f = v * radical z \<and> squarefree v \<and> z ^ CARD('e) dvd f" (is "?th1 \<and> ?th2 \<and> ?th3")
+  proof cases
+  case 1
+    then show ?thesis sorry
+  next
+  case 2
+    then show ?thesis sorry
+  next
+  case 3
+    then show ?thesis sorry
+  qed
+  thus ?th1 ?th2 ?th3
+    by blast+
 qed
+
+lemma degree_aux_less [termination_simp]:
+  assumes "aux f = Some (v, z)"
+  shows   "degree z < degree f"
+using square_free_part_of_correct_aux
+sorry
+
+lemma is_measure_degree [measure_function]: "is_measure Polynomial.degree"
+  by (rule is_measure_trivial)
 
 text \<open>This algorithm output only the square-free part of a polynomial. 
   It is also called Elimination of Repeated Factors (ERF).
@@ -214,24 +306,38 @@ For prime powers we run into the dependent type problem: Our algorithm depends o
 characteristic which is only embedded in the type 'e. 
 Fortunately for the usecase of the KZG, thie field we use is of the form \<bbbF>_p with p prime.
 \<close>
-function square_free_part_of ::"'e mod_ring poly \<Rightarrow> 'e mod_ring poly" where
-  "square_free_part_of f = (if degree f = 0 then f else let
-     a = lead_coeff f;
-     f_mono = smult (inverse a) f;
-     p = CARD ('e);
-     u = gcd f_mono (pderiv f_mono);
-     n = degree f
-  in (if u = 1 then f else let
-    v = f_mono div u;
-    w = u div (gcd u (v^n));
-    z = take_root p w
-    in v * (square_free_part_of z)
-  )
-)"
-by pat_completeness auto
+fun square_free_part_of ::"'e mod_ring poly \<Rightarrow> 'e mod_ring poly list" where
+  "square_free_part_of f = (
+     case aux f of
+       None \<Rightarrow> if degree f = 0 then [] else [f]
+     | Some (v, z) \<Rightarrow> v # square_free_part_of z)"
 
-termination
+lemma square_free_part_of_correct:
+  assumes "f \<noteq> 0"
+  shows   "prod_list (square_free_part_of f) = radical f"
+          "p \<in> set (square_free_part_of f) \<Longrightarrow> squarefree p"
+using square_free_part_of_correct_aux
+sorry
+
+
+thm multiplicity_gcd
+thm gcd_eq_factorial'
+thm prime_power_dvd_pderiv
+
+
+notepad
+begin
+  fix f :: "'e mod_ring poly"
+  fix p :: nat
+  write multiplicity ("\<natural>[_]")
+  define Pf1 where "Pf1 = {x\<in>prime_factors f. p dvd multiplicity x f}"
+  define Pf2 where "Pf2 = {x\<in>prime_factors f. \<not>p dvd multiplicity x f}"
+end
+  
+
 proof (relation "Wellfounded.measure (\<lambda> f. degree f)", goal_cases)
+qed auto
+
   case (2 f a f_mono p u n v w z)
 (*
   have "degree f > 1" 
