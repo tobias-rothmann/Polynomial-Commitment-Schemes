@@ -26,9 +26,13 @@ The property is proven for square-free polynomials. The only remaining task to a
  #### Almost proven.
 
 ### Evaluation Binding
-#### Open.
+#### In progress..
 
 ### Hiding
+#### Open.
+
+### Knowledge Soundness in the Algebraic Group Model (AGM)
+Though this property is not explicitly stated in the original paper, it is commonly referred to and needed for zk-SNARK protocols, such as PLONK and Sonic.
 #### Open.
 
 
