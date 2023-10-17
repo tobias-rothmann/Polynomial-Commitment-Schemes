@@ -30,6 +30,7 @@ definition aux ::"'e mod_ring poly \<Rightarrow> _" where
 ))"
 
 
+
 lemma square_free_part_of_correct_aux:
   assumes "aux f = Some (v, z)"                                
   shows   "radical f = v * radical z"
@@ -37,14 +38,28 @@ lemma square_free_part_of_correct_aux:
           "z ^ CARD('e) dvd f"
           (* "prime_factors f = prime_factors v \<union> prime_factors z" (* alt. form of "radical f = v * radical z"; probably unnecessary *)*)
 proof -
-  define fm where "fm = normalize f"
   define p where "p = CARD('e)"
+
+  have [simp]: "degree f \<noteq> 0" using assms unfolding aux_def by (metis not_None_eq)
+
+  interpret finite_field_poly_factorization "TYPE('e)" f p
+  proof (unfold_locales)
+    show "p = CARD('e)" by (rule p_def)
+    show "degree f \<noteq> 0" by auto
+  qed
+
   define u where "u = gcd fm (pderiv fm)"
   define n where "n = degree f"
   define w where "w = u div (gcd u (v^n))"
 
+(*
+  define fm where "fm = normalize f"
+
+
+
   have [simp]: "degree f \<noteq> 0" using assms unfolding aux_def by (metis not_None_eq)
   have [simp]: "degree f > 0" using assms unfolding aux_def by (metis gr0I not_None_eq)
+  have [simp]: "f\<noteq>0" using \<open>degree f \<noteq> 0\<close> degree_0 by blast
   have [simp]: "u \<noteq> 1" using assms unfolding aux_def 
     by (smt (verit, del_insts) fm_def option.simps(3) u_def)
 
@@ -93,8 +108,8 @@ proof -
     have *: "fm = (\<Prod>fj\<in>fac_set. fj^(ex fj))" unfolding f_fac unfolding fac_def fac_set_def
     by (smt (verit, best) count_prime_factorization_prime ex_def in_prime_factors_imp_prime 
       prod.cong prod_mset_multiplicity)
-    show ?thesis unfolding * using \<open>fac_set = P1 \<union> P2\<close>
-    prod.union_disjoint[OF \<open>finite P1\<close> \<open>finite P2\<close> \<open>P1\<inter>P2={}\<close>] by blast
+    show ?thesis unfolding * using fac_set_P1_P2
+    prod.union_disjoint[OF finites(2) finites(3) \<open>P1\<inter>P2={}\<close>] by blast
   qed
 
   let ?deriv = "(\<lambda>y. Polynomial.smult (of_nat (ex y)) (pderiv y * y ^ (ex y - Suc 0) *
@@ -111,8 +126,8 @@ proof -
   unfolding P2_def p_def by (intro sum.neutral, auto)
 
   have pderiv_fm': "pderiv fm = (\<Sum>f\<in>P1. ?deriv f)" 
-    by (subst pderiv_fm, subst (2) \<open>fac_set = P1 \<union> P2\<close>, 
-        subst sum.union_disjoint[OF _ _ \<open>P1 \<inter> P2 = {}\<close>]) 
+    by (subst pderiv_fm, subst (2) fac_set_P1_P2, 
+        subst sum.union_disjoint[OF _ _ P1_P2_intersect]) 
        (use sumP2_deriv_zero in \<open>auto\<close>)
 
   let ?deriv_P1 = "(\<lambda>y. Polynomial.smult (of_nat (ex y)) (pderiv y * y ^ (ex y - Suc 0) *
@@ -121,15 +136,15 @@ proof -
   have pderiv_fm'': "pderiv fm = (\<Prod>f\<in>P2. f^ex f) * (\<Sum>x\<in>P1. ?deriv_P1 x)"
   proof (subst pderiv_fm', subst sum_distrib_left, intro sum.cong, simp, goal_cases)
     case (1 x)
-    have *: "fac_set -{x} = P2 \<union> (P1-{x})" unfolding \<open>fac_set = P1 \<union> P2\<close> 
-      using 1 \<open>P1 \<inter> P2 = {}\<close> by blast
-    have **: "P2 \<inter> (P1 - {x}) = {}" using 1 \<open>P1 \<inter> P2 = {}\<close> by blast
+    have *: "fac_set -{x} = P2 \<union> (P1-{x})" unfolding fac_set_P1_P2 
+      using 1 P1_P2_intersect by blast
+    have **: "P2 \<inter> (P1 - {x}) = {}" using 1 P1_P2_intersect by blast
     have "(\<Prod>fj\<in>fac_set - {x}. fj ^ ex fj) = (\<Prod>f\<in>P2. f ^ ex f) * (\<Prod>fj\<in>P1 - {x}. fj ^ ex fj)"
-      unfolding * by (intro prod.union_disjoint, auto simp add: **)
+      unfolding * by (intro prod.union_disjoint, auto simp add: ** )
     then show ?case by (auto simp add: algebra_simps)
   qed 
   
-(* no!  have "\<not> x dvd (\<Sum>x\<in>P1. ?deriv_P1 x)" if "x\<in>P2" for x sorry *)
+
   
   have P1_P2_coprime: "algebraic_semidom_class.coprime x (\<Prod>f\<in>P2. f^ex f)" if "x\<in>P1" for x
   by (smt (verit) P1_def P2_def as_ufd.prime_elem_iff_irreducible fac_set_def 
@@ -182,18 +197,18 @@ proof -
     then have *: "y dvd pderiv y * (\<Prod>fj\<in>P1 - {y}. fj ^ ex fj)"
      unfolding dvd_mult_cancel_right dvd_smult_cancel by auto
     then have "y dvd (\<Prod>fj\<in>P1 - {y}. fj ^ ex fj)" 
-      using deriv_coprime[THEN coprime_dvd_mult_right_iff] \<open>y\<in>P1\<close> \<open>fac_set = P1 \<union> P2\<close> by blast
+      using deriv_coprime[THEN coprime_dvd_mult_right_iff] \<open>y\<in>P1\<close> fac_set_P1_P2 by blast
     then obtain fj where fj_def: "y dvd fj ^ ex fj" "fj\<in>P1 - {y}" using prime_dvd_prod_iff
-    by (metis (no_types, lifting) P1_def \<open>finite P1\<close> \<open>y \<in> P1\<close> fac_set_def finite_Diff 
+    by (metis (no_types, lifting) P1_def finites(2) \<open>y \<in> P1\<close> fac_set_def finite_Diff 
       in_prime_factors_iff mem_Collect_eq)
     then have "y dvd fj" using prime_dvd_power
-      by (metis UnCI \<open>fac_set = P1 \<union> P2\<close> fac_set_def in_prime_factors_iff that)
+      by (metis UnCI fac_set_P1_P2 fac_set_def in_prime_factors_iff that)
     then have "coprime y fj" using fj_def(2) 
     by (metis (no_types, lifting) DiffD1 DiffD2 P1_def coprime_iff_coprime fac_set_def 
       fac_set_monic in_prime_factors_iff is_unit_left_imp_coprime mem_Collect_eq poly_dvd_antisym 
       prime_factors_prime singletonI that)
     then show False 
-    by (metis UnCI \<open>fac_set = P1 \<union> P2\<close> \<open>y dvd fj\<close> coprime_absorb_left coprime_iff_coprime 
+    by (metis UnCI fac_set_P1_P2 \<open>y dvd fj\<close> coprime_absorb_left coprime_iff_coprime 
       fac_set_def in_prime_factors_iff not_prime_unit that)
   qed
 
@@ -265,7 +280,7 @@ proof -
             show ?thesis by (subst prod.remove[OF fin \<open>x\<in>P1-{xa}\<close>]) 
                (smt (verit, del_insts) Diff_insert2 Groups.mult_ac(3) insert_commute)
           qed
-          show ?thesis by (auto simp add: sum_distrib_left *)
+          show ?thesis by (auto simp add: sum_distrib_left * )
         qed
         finally have "x ^ ex x dvd ?deriv_P1 x + (x^ex x) * (\<Sum>y\<in>P1 - {x}. smult (of_nat (ex y))
         (pderiv y * y ^ (ex y - Suc 0) * (\<Prod>fj\<in>(P1 - {x})- {y}. fj ^ ex fj)))" by auto
@@ -320,6 +335,7 @@ proof -
       then show ?case by (intro Max_ge, auto simp add: fin)
     qed
   qed
+*)
 
   have "u =(\<Prod>fj\<in>fac_set. let ej = ex fj in (if p dvd ej then  fj ^ ej else fj ^(ej-1)))"
     if "pderiv fm = 0"
@@ -368,13 +384,13 @@ proof -
         (intro prod.cong, simp, unfold Let_def,
          auto simp add: ex_def mult_deriv[OF _ \<open>pderiv fm \<noteq> 0\<close>])
     qed (auto simp add: fac_set_def)  
-  qed (auto simp add: \<open>fm\<noteq>0\<close> that)
+  qed (auto simp add: fm_nonzero that)
   
   ultimately have u: "u =(\<Prod>fj\<in>fac_set. let ej = ex fj in (if p dvd ej then  fj ^ ej else fj ^(ej-1)))"
     by blast
   then have u': "u = (\<Prod>fj\<in>P1. fj^(ex fj -1)) * (\<Prod>fj\<in>P2. fj^(ex fj))"
-    unfolding u Let_def by (smt (verit) P1_def P2_def \<open>P1 \<inter> P2 = {}\<close> \<open>fac_set = P1 \<union> P2\<close> 
-      \<open>finite P1\<close> \<open>finite P2\<close> mem_Collect_eq prod.cong prod.union_disjoint)
+    unfolding u Let_def by (smt (verit) P1_def P2_def P1_P2_intersect fac_set_P1_P2 
+      finites(2) finites(3) mem_Collect_eq prod.cong prod.union_disjoint)
 
   have v_def: "v = fm div u" unfolding fm_def u_def using assms unfolding aux_def 
     by (auto split: if_splits simp add: Let_def)
@@ -383,7 +399,7 @@ proof -
     have "v = ((\<Prod>fj\<in>P1. fj^(ex fj)) * (\<Prod>fj\<in>P2. fj^(ex fj))) div u" 
       unfolding v_def fm_P1_P2 by auto
     also have "\<dots> = (\<Prod>fj\<in>P1. fj^(ex fj)) div (\<Prod>fj\<in>P1. fj^(ex fj-1))" unfolding u Let_def
-    by (metis (no_types, lifting) \<open>fm \<noteq> 0\<close> div_div_div_same dvd_triv_right fm_P1_P2 mult_not_zero 
+    by (metis (no_types, lifting) fm_nonzero div_div_div_same dvd_triv_right fm_P1_P2 mult_not_zero 
       nonzero_mult_div_cancel_right semiring_gcd_class.gcd_dvd1 u u' u_def)
     also have "\<dots> = \<Prod>P1"
     proof -
@@ -397,9 +413,9 @@ proof -
 
 
   have prime_factors_v: "prime_factors v = P1" unfolding v 
-  proof (subst prime_factors_prod[OF \<open>finite P1\<close>], goal_cases)
+  proof (subst prime_factors_prod[OF finites(2)], goal_cases)
     case 1
-    then show ?case using \<open>fac_set = P1 \<union> P2\<close> nonzero by blast
+    then show ?case using fac_set_P1_P2 nonzero by blast
   next
     case 2
     have prime: "prime x" if "x\<in>P1" for x using P1_def fac_set_def that by blast
@@ -409,10 +425,10 @@ proof -
 
   show "squarefree v" proof (subst squarefree_factorial_semiring', safe, goal_cases)
     case (2 p)
-    have "0 \<notin> (\<lambda>x. x) ` P1" using prime_factors_v by force
+    have "0 \<notin> (\<lambda>x. x) ` P1" using prime_factors_v P1_prime_elem by fastforce
     moreover have "prime_elem p" using "2" in_prime_factors_imp_prime by blast 
     moreover have "sum (multiplicity p) P1 = 1"
-      by (metis "2" \<open>finite P1\<close> calculation(2) in_prime_factors_imp_prime multiplicity_prime 
+      by (metis "2" finites(2) calculation(2) in_prime_factors_imp_prime multiplicity_prime 
       prime_factors_v prime_multiplicity_other sum_eq_1_iff)
     ultimately show ?case using 2 unfolding prime_factors_v unfolding v 
       by (subst prime_elem_multiplicity_prod_distrib) auto
@@ -425,17 +441,17 @@ proof -
   next
     case 2
     have nonzero1: "(\<Prod>fj\<in>P1. fj ^ (ex fj - 1)) \<noteq> 0"
-      by (metis (no_types, lifting) \<open>fm \<noteq> 0\<close> dvd_mult_div_cancel mult_eq_0_iff 
+      by (metis (no_types, lifting) fm_nonzero dvd_mult_div_cancel mult_eq_0_iff 
        semiring_gcd_class.gcd_dvd1 u' u_def) 
-    have nonzero2: "\<Prod>P1 ^ n \<noteq> 0" using prime_factors_v by fastforce
-    have null: "0 \<notin> (\<lambda>fj. fj ^ (ex fj - Suc 0)) ` P1" using prime_factors_v by fastforce
-    have null': "0 \<notin> (\<lambda>x. x) ` P1" using prime_factors_v by force
+    have nonzero2: "\<Prod>P1 ^ n \<noteq> 0" using prime_factors_v v v_def by fastforce
+    have null: "0 \<notin> (\<lambda>fj. fj ^ (ex fj - Suc 0)) ` P1" using prime_factors_v nonzero1 by force
+    have null': "0 \<notin> (\<lambda>x. x) ` P1" using prime_factors_v P1_irreducible by blast
     have P1: "prime_factors (\<Prod>fj\<in>P1. fj ^ (ex fj - Suc 0)) \<inter> prime_factors (\<Prod>P1 ^ n) = 
       {x\<in>P1. ex x > 1}"
     proof (unfold n_def,
-           subst prime_factors_prod[OF \<open>finite P1\<close> null],
-           subst prime_factors_power[OF \<open>0<degree f\<close>],
-           subst prime_factors_prod[OF \<open>finite P1\<close> null'],
+           subst prime_factors_prod[OF finites(2) null],
+           subst prime_factors_power[OF deg_f_gr_0],
+           subst prime_factors_prod[OF finites(2) null'],
            unfold comp_def, safe, goal_cases)
       case (1 x xa xb) then show ?case by (metis dvd_trans in_prime_factors_iff prime_factors_v) 
     next
@@ -456,8 +472,11 @@ proof -
     have n: "ex fj \<le> n" if "fj\<in>P1" for fj
     proof -
       have "fj \<noteq> 0" using that unfolding P1_def by auto
-      have "degree fj * ex fj \<le> degree f" by (subst degree_power_eq[OF \<open>fj\<noteq>0\<close>, symmetric],
-        unfold ex_def) (use divides_degree[OF multiplicity_dvd] \<open>fm \<noteq> 0\<close> fm_def in \<open>auto\<close>)
+      have "degree (fj ^ multiplicity fj fm) \<le> degree f" 
+        using divides_degree[OF multiplicity_dvd] fm_nonzero 
+        by (subst degree_normalize[of f, symmetric], unfold fm_def[symmetric]) auto
+      then have "degree fj * ex fj \<le> degree f" by (subst degree_power_eq[OF \<open>fj\<noteq>0\<close>, symmetric],
+        unfold ex_def) 
       then show ?thesis unfolding n_def
       by (metis Missing_Polynomial.is_unit_field_poly \<open>fj \<noteq> 0\<close> bot_nat_0.not_eq_extremum 
         dual_order.trans dvd_imp_le dvd_triv_right empty_iff in_prime_factors_iff 
@@ -470,7 +489,7 @@ proof -
       have "prime_elem g" using in_prime_factors_imp_prime prime_factors_v that by blast
       have "multiplicity g (\<Prod>fj\<in>P1. fj ^ (ex fj - Suc 0)) = 
             multiplicity g (g^(ex g -1) * (\<Prod>fj\<in>P1-{g}. fj ^ (ex fj - Suc 0)))"
-        by (subst prod.remove[OF \<open>finite P1\<close> \<open>g\<in>P1\<close>], auto)
+        by (subst prod.remove[OF finites(2) \<open>g\<in>P1\<close>], auto)
       also have "\<dots> = multiplicity g ((\<Prod>fj\<in>P1-{g}. fj ^ (ex fj - Suc 0)) * g^(ex g -1))"
         by (auto simp add: algebra_simps)
       also have "\<dots> = multiplicity g (g^(ex g -1))" 
@@ -492,11 +511,11 @@ proof -
     have mult2: "multiplicity g (\<Prod>P1 ^ n) = n" if "g\<in>P1" for g  
     proof -
       have "\<Prod>P1\<noteq>0" unfolding P1_def 
-      using P1_def in_prime_factors_iff prime_factors_v that v by blast
+      using P1_def in_prime_factors_iff prime_factors_v that v by simp
       have "prime_elem g" using in_prime_factors_imp_prime prime_factors_v that by blast
       have "multiplicity g (\<Prod>P1 ^ n) = n * (multiplicity g (\<Prod>P1))" 
         by (subst prime_elem_multiplicity_power_distrib[OF \<open>prime_elem g\<close> \<open>\<Prod>P1\<noteq>0\<close>], auto)
-      also have "\<dots> = n * multiplicity g (g * \<Prod>(P1-{g}))" by (metis \<open>finite P1\<close> prod.remove that)
+      also have "\<dots> = n * multiplicity g (g * \<Prod>(P1-{g}))" by (metis finites(2) prod.remove that)
       also have "\<dots> = n * multiplicity g (\<Prod>(P1-{g}) * g)" by (auto simp add: algebra_simps)
       also have "\<dots> = n" 
       proof (subst multiplicity_prime_elem_times_other[OF \<open>prime_elem g\<close>]) 
@@ -520,7 +539,7 @@ proof -
   qed
   
   have w: "w = (\<Prod>fj\<in>P2. fj^(ex fj))" unfolding w_def gcd_u_v unfolding u'
-  by (metis (no_types, lifting) \<open>fm \<noteq> 0\<close> gcd_eq_0_iff gcd_u_v nonzero_mult_div_cancel_left u_def)
+  by (metis (no_types, lifting) fm_nonzero gcd_eq_0_iff gcd_u_v nonzero_mult_div_cancel_left u_def)
 
   have w_power: "w = (\<Prod>fj\<in>P2. fj^(ex fj div p))^p" 
   proof -
@@ -539,7 +558,31 @@ proof -
   show "z ^ CARD('e) dvd f" unfolding zw w 
   by (metis (full_types) dvd_mult_right dvd_normalize_iff dvd_refl fm_P1_P2 fm_def)
 
-  show "radical f = v * radical z"  sorry
+  have "z\<noteq>0" by (simp add: fac_set_P1_P2 z)
+  
+  have prime_factors_z: "\<Prod>(prime_factors z) = \<Prod>P2" unfolding z 
+  proof (subst prime_factors_prod)
+    show "finite P2" by auto
+    show "0 \<notin> (\<lambda>x. x ^ (ex x div p)) ` P2" using fac_set_P1_P2 by force
+    have pos: "0 < ex x div p" if "x\<in>P2" for x 
+    by (metis (no_types, lifting) P2_def count_prime_factorization_prime dvd_div_eq_0_iff 
+        ex_def fac_set_def gr0I in_prime_factors_imp_prime mem_Collect_eq not_in_iff that)
+    have "prime_factors (x ^ (ex x div p)) = {x}" if "x\<in>P2" for x 
+      unfolding prime_factors_power[OF pos[OF that]] using that by (simp add: prime_prime_factors)
+    then have *: "(\<Union>x\<in>P2. prime_factors (x ^ (ex x div p))) = P2" by auto
+    show "\<Prod>(\<Union> ((prime_factors \<circ> (\<lambda>x. x ^ (ex x div p))) ` P2)) = \<Prod>P2" 
+      unfolding comp_def * by auto
+  qed
+
+  show "radical f = v * radical z"
+  proof -
+    have factors: "prime_factors f = fac_set" unfolding fac_set_def fm_def by auto
+    have "\<Prod>(prime_factors f) = \<Prod>P1 * \<Prod>P2" unfolding factors fac_set_P1_P2 
+      by (subst prod.union_disjoint, auto)
+    also have "\<dots> = v * \<Prod>(prime_factors z)" unfolding v using \<open>z\<noteq>0\<close> prime_factors_z by auto
+    finally have "\<Prod>(prime_factors f) = v * \<Prod>(prime_factors z)" by auto
+    then show ?thesis  unfolding radical_def using \<open>z\<noteq>0\<close> f_nonzero by auto
+  qed
 
 qed
 
