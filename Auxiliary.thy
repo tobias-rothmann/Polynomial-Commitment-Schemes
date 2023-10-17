@@ -247,4 +247,40 @@ qed
 
 end
 
+lemma radical_squarefree:
+assumes "f\<noteq>0" "monic f"
+shows "radical f = f \<longleftrightarrow> squarefree f"
+using assms unfolding radical_def squarefree_def proof (safe, goal_cases)
+  case (1 x)
+  then show ?case by (metis in_prime_factors_iff multiplicity_radical_prime radical_nonzero 
+    squarefree_def squarefree_factorial_semiring')
+next
+  case 2
+  have f: "f = (\<Prod>x \<in> (prime_factors f). x^(multiplicity x f))"
+  by (smt (verit, ccfv_SIG) "2"(1) "2"(2) count_prime_factorization_prime in_prime_factors_imp_prime 
+    normalize_monic normalize_prime normalized_prod_msetI prod.cong prod_mset_multiplicity 
+    prod_mset_prime_factorization_weak)
+  have "multiplicity fj f = 1" if "fj\<in>prime_factors f" for fj
+  proof (rule ccontr)
+    assume "multiplicity fj f \<noteq> 1"
+    then have "multiplicity fj f > 1" 
+    by (metis in_prime_factors_iff less_one linorder_neqE_nat multiplicity_eq_zero_iff 
+      prime_factorization_0 prime_factorization_1 semiring_norm(160) that)
+    then have "fj^2 dvd fj ^ (multiplicity fj f)" 
+    by (metis (no_types, lifting) BitM.simps(1) Suc_leI algebraic_semidom_class.unit_imp_dvd 
+      dvd_0_right in_prime_factors_iff is_unit_power_iff le_numeral_Suc multiplicity_dvd' 
+      multiplicity_gt_zero_iff multiplicity_same_power order.refl power_eq_0_iff power_le_dvd 
+      pred_numeral_simps(2) semiring_norm(172) that)
+    moreover have "fj^(multiplicity fj f) dvd f" using multiplicity_dvd by blast
+    ultimately have "fj^2 dvd f" using dvd_trans by blast
+    moreover have "\<not>is_unit fj" using that 
+      by (metis in_prime_factors_iff one_neq_zero prime_factorization_0 prime_factorization_1)
+    ultimately show False using 2 by auto
+  qed
+  then have "\<Prod>(prime_factors f) = f" by (subst (2) f, intro prod.cong)  auto
+  then show ?case by auto
+qed
+
+
+
 end
