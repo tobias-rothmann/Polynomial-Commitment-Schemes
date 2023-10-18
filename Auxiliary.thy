@@ -247,6 +247,8 @@ qed
 
 end
 
+text \<open>Properties of the radical.\<close>
+
 lemma radical_squarefree:
 assumes "f\<noteq>0" "monic f"
 shows "radical f = f \<longleftrightarrow> squarefree f"
@@ -281,6 +283,53 @@ next
   then show ?case by auto
 qed
 
+lemma prime_factorization_degree0:
+fixes f :: "'a :: {factorial_ring_gcd,semiring_gcd_mult_normalize,field} poly"
+assumes "degree f = 0" "f\<noteq>0"
+shows "prime_factorization f = {#}"
+proof -
+  have "multiplicity p f = 0" if "prime p" for p 
+  proof -
+    have "degree p >0" by (rule prime_degree_gt_zero[OF that])
+    then show ?thesis by (simp add: assms(1) assms(2) multiplicity_unit_right)
+  qed
+  then show ?thesis by (simp add: assms(1) prime_factorization_empty_iff)
+qed
 
+
+lemma prime_factors_degree0:
+fixes f :: "'a :: {factorial_ring_gcd,semiring_gcd_mult_normalize,field} poly"
+assumes "degree f = 0" "f\<noteq>0"
+shows "prime_factors f = {}"
+using prime_factorization_degree0 assms by auto
+
+lemma radical_degree0:
+fixes f :: "'a :: {factorial_ring_gcd,semiring_gcd_mult_normalize,field} poly"
+assumes "degree f = 0" "f\<noteq>0"
+shows "radical f = 1"
+unfolding radical_def using prime_factors_degree0[OF assms(1) assms(2)] by (auto simp add: assms)
+
+
+lemma squarefree_normalize:
+"squarefree f \<longleftrightarrow> squarefree (normalize f)"
+by (simp add: squarefree_def)
+
+lemma same_zeros_radical:
+"(poly f a = 0) = (poly (radical f) a = 0)"
+proof (cases "f = 0")
+  case True show ?thesis unfolding True radical_def by auto
+next
+  case False
+  have fin: "finite (prime_factors f)" by simp
+  have f: "f = unit_factor f * prod_mset (prime_factorization f)"
+  by (metis False in_prime_factors_imp_prime normalize_prime normalized_prod_msetI 
+    prod_mset_prime_factorization_weak unit_factor_mult_normalize)
+  have "poly (unit_factor f) a\<noteq>0" using False poly_zero by fastforce
+  moreover have "((\<Prod>p\<in>#prime_factorization f. poly p a) = 0)=((\<Prod>k\<in>prime_factors f. poly k a) = 0)"
+    by (subst prod_mset_zero_iff,subst prod_zero_iff[OF fin]) auto
+  ultimately have "(poly f a = 0) = (poly (\<Prod>(prime_factors f)) a = 0)" 
+    by (subst f, subst poly_prod, subst poly_mult, subst poly_hom.hom_prod_mset) auto
+  then show ?thesis unfolding radical_def using False by auto
+qed
 
 end

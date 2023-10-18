@@ -29,6 +29,14 @@ definition aux ::"'e mod_ring poly \<Rightarrow> _" where
   )
 ))"
 
+lemma aux_0:
+"aux 0 = None"
+unfolding aux_def by auto
+
+lemma aux_const:
+assumes "degree f = 0" shows "aux f = None"
+using assms unfolding aux_def by auto
+
 lemma  u_characterization :
 fixes f::"'e mod_ring poly"
 assumes "degree f \<noteq> 0" 
@@ -318,6 +326,7 @@ lemma square_free_part_of_correct_aux:
   shows   "radical f = v * radical z"
           "squarefree v"
           "z ^ CARD('e) dvd f"
+          "z\<noteq>0"
           (* "prime_factors f = prime_factors v \<union> prime_factors z" (* alt. form of "radical f = v * radical z"; probably unnecessary *)*)
 proof -
   define p where "p = CARD('e)"
@@ -380,7 +389,7 @@ proof -
   show "z ^ CARD('e) dvd f" unfolding zw w 
   by (metis (full_types) dvd_mult_right dvd_normalize_iff dvd_refl fm_P1_P2 fm_def)
 
-  have "z\<noteq>0" by (simp add: fac_set_P1_P2 z)
+  show "z\<noteq>0" by (simp add: fac_set_P1_P2 z)
   
   have prime_factors_z: "\<Prod>(prime_factors z) = \<Prod>P2" unfolding z 
   proof (subst prime_factors_prod)
@@ -410,15 +419,51 @@ qed
 
 lemma square_free_part_of_correct_aux_None:
 assumes "aux f = None"
-shows "degree f = 0 \<or> radical f = normalize f" "squarefree f"
+shows "degree f = 0 \<or> radical f = normalize f" 
+      "f\<noteq>0 \<longrightarrow> squarefree f" 
 proof -
-  define u where "u = gcd (normalize f) (pderiv (normalize f))"
+  define p where "p = CARD('e)"
+  define fm' where "fm' = normalize f"
+  define u where "u = gcd fm' (pderiv fm')"
   have or: "degree f = 0 \<or> u = 1" using assms unfolding aux_def 
-    by (smt (verit, best) option.simps(3) u_def)
-  have rad: "radical f = normalize f" if "u =1"   sorry
-  
+    by (smt (verit, best) option.simps(3) u_def fm'_def)
+  have rad: "radical f = normalize f" if "u =1" "degree f\<noteq>0"
+  proof -
+    interpret finite_field_poly_factorization "TYPE('e)" f p
+    proof (unfold_locales)
+      show "p = CARD('e)" by (rule p_def)
+      show "degree f \<noteq> 0" using that(2) by auto
+    qed
+    have u_def': "u = gcd (normalize f) (pderiv (normalize f))" unfolding u_def fm'_def by auto
+    have u': "u = (\<Prod>fj\<in>P1. fj^(ex fj -1)) * (\<Prod>fj\<in>P2. fj^(ex fj))" 
+      using u_characterization(2)[OF \<open>degree f \<noteq> 0\<close> u_def'] unfolding fm_def[symmetric] Let_def 
+        fac_set_def[symmetric] ex_def[symmetric] p_def[symmetric]
+      using P1_def P2_def ex_def by presburger
+    have P2_1: "(\<Prod>fj\<in>P2. fj^(ex fj)) = 1"  using u' \<open>u=1\<close>
+    by (smt (verit, best) class_cring.finprod_all1 dvd_def dvd_mult2 dvd_prod dvd_refl 
+      dvd_triv_right ex_power_not_dvd finite_field_poly_factorization.P2_def 
+      finite_field_poly_factorization_axioms finites(3) idom_class.unit_imp_dvd mem_Collect_eq) 
+    then have "P2 = {}"
+    by (smt (verit, ccfv_threshold) Collect_cong Collect_mem_eq UnCI dvd_prodI empty_iff 
+      ex_power_not_dvd fac_set_P1_P2 finites(3) idom_class.unit_imp_dvd) 
+    moreover have mult: "multiplicity fj fm = 1" if "fj\<in>P1" for fj
+    by (metis (no_types, lifting) One_nat_def P1_ex_power_not_dvd Suc_pred 
+      P2_1 \<open>u = 1\<close> algebraic_semidom_class.unit_imp_dvd dvd_prod dvd_refl 
+      finite_field_poly_factorization.ex_def finite_field_poly_factorization_axioms finites(2) 
+      gr0I is_unit_power_iff mult_1_right that u') 
+    ultimately have "fm = \<Prod>P1" unfolding fm_P1_P2 \<open>(\<Prod>fj\<in>P2. fj ^ ex fj) = 1\<close> unfolding ex_def
+      by (subst mult_1_right, intro prod.cong, simp) (auto simp add: mult)
+    also have "\<dots> = radical f" 
+    by (metis P1_P2_intersect \<open>P2 = {}\<close> f_nonzero fac_set_P1_P2 fac_set_def finites(2) finites(3) 
+      fm_def one_neq_zero prime_factorization_1 prime_factorization_normalize prod.union_disjoint 
+      radical_1 radical_def set_mset_empty verit_prod_simplify(2))
+    finally show ?thesis unfolding fm_def by auto
+  qed
   show "degree f = 0 \<or> radical f = normalize f" using or rad by auto
-  show "squarefree f" using radical_squarefree sorry
+  show "f\<noteq>0 \<longrightarrow> squarefree f" by (smt (verit) Missing_Polynomial.is_unit_field_poly 
+    \<open>degree f = 0 \<or> factorial_semiring_class.radical f = normalize f\<close> associated_iff_dvd 
+    monic_normalize normalize_eq_0_iff normalize_idem prime_factorization_normalize radical_def 
+    radical_squarefree squarefree_mono squarefree_unit)
 qed
 
 lemma degree_aux_less [termination_simp]:
@@ -450,36 +495,95 @@ Fortunately for the usecase of the KZG, thie field we use is of the form \<bbbF>
 fun square_free_part_of ::"'e mod_ring poly \<Rightarrow> 'e mod_ring poly list" where
   "square_free_part_of f = (
      case aux f of
-       None \<Rightarrow> if degree f = 0 then [] else [f]
+       None \<Rightarrow> if degree f = 0 then [] else [normalize f]
      | Some (v, z) \<Rightarrow> v # square_free_part_of z)"
+print_theorems
+(* None \<Rightarrow> if degree f = 0 then [] else [f] *)
 
+lemma square_free_part_of_0:
+"square_free_part_of 0 = []"
+by (auto simp add: aux_0)
+
+lemma square_free_part_of_const:
+assumes "degree f = 0" shows "square_free_part_of f = []"
+by (auto simp add: aux_const[OF assms] assms)
 
 lemma square_free_part_of_correct:
   assumes "f \<noteq> 0"
   shows   "prod_list (square_free_part_of f) = radical f"
-          "p \<in> set (square_free_part_of f) \<Longrightarrow> squarefree p"
+          "g \<in> set (square_free_part_of f) \<Longrightarrow> squarefree g"
 proof -
   show "prod_list (square_free_part_of f) = radical f"
-  proof (cases "aux f")
-    case None
-    then show ?thesis apply (subst square_free_part_of.simps) apply auto sorry
-  next
-    case (Some a)
-    then show ?thesis sorry
+  using assms proof (induction f rule: square_free_part_of.induct)
+  case (1 f) then show ?case proof (cases "aux f")
+      case None
+      have "prod_list (square_free_part_of f) = (if degree f = 0 then 1 else normalize f)"
+        using None by auto
+      moreover have "radical f = 1" if "degree f = 0" using radical_degree0[OF that \<open>f\<noteq>0\<close>] 
+        by simp
+      moreover have "radical f = normalize f" if "degree f \<noteq> 0" 
+        using square_free_part_of_correct_aux_None[OF None] that by auto 
+      ultimately show ?thesis by auto
+    next
+      case (Some a)
+      obtain v z where vz: "(v,z) = a" by (metis surj_pair)
+      then have Some': "aux f = Some (v,z)" using Some by auto
+      have "prod_list (square_free_part_of f) = v * prod_list(square_free_part_of z)" 
+        by (auto simp add: Some')
+      also have "\<dots> = v * radical z" 
+        by (subst 1)(auto simp add: Some vz[symmetric] square_free_part_of_correct_aux(4)[OF Some'])
+      also have "\<dots> = radical f" using square_free_part_of_correct_aux(1)[OF Some', symmetric] by auto 
+      finally show ?thesis by auto
+    qed
   qed
-  show "p \<in> set (square_free_part_of f) \<Longrightarrow> squarefree p"
-  proof (cases "aux f")
-    case None
-    then show ?thesis sorry
-  next
-    case (Some a)
-    then show ?thesis sorry
+
+  show "g \<in> set (square_free_part_of f) \<Longrightarrow> squarefree g"
+  using assms proof (induction f rule: square_free_part_of.induct)
+  case (1 f) then show ?case proof (cases "aux f")
+      case None
+      have "set (square_free_part_of f) = (if degree f = 0 then {} else {normalize f})"
+        using None by auto
+      moreover have "degree f \<noteq> 0" by (metis "1.prems"(1) calculation emptyE)
+      moreover have "squarefree (normalize f)" if "degree f \<noteq> 0" 
+        using square_free_part_of_correct_aux_None(2)[OF None] that squarefree_normalize 
+        "1"(3) by blast 
+      ultimately show ?thesis using 1 by auto
+    next
+      case (Some a)
+      obtain v z where vz: "(v,z) = a" by (metis surj_pair)
+      then have Some': "aux f = Some (v,z)" using Some by auto
+      have "set (square_free_part_of f) = {v} \<union>  set (square_free_part_of z)" 
+        by (auto simp add: Some')
+      moreover have "squarefree g" if "g\<in>{v}" using square_free_part_of_correct_aux(2)[OF Some'] 
+        that by auto
+      moreover have "squarefree g" if "g\<in>set (square_free_part_of z)"
+        using 1 square_free_part_of_correct_aux(4)[OF Some'] that Some' by blast
+      ultimately show ?thesis using 1(2) by blast
+    qed
   qed
 qed
-using square_free_part_of_correct_aux
-sorry
+
+text \<open>ERF algorithm as function\<close>
+
+definition ERF :: "'e mod_ring poly \<Rightarrow> 'e mod_ring poly" where 
+"ERF f = (if f = 0 then 0 else prod_list (square_free_part_of f))"
+
+text \<open>To show:\<close>
+
+lemma same_zeros_in_square_free_part:
+"poly f a = 0 \<longleftrightarrow> poly (ERF f) a = 0"
+proof (cases "f=0")
+  case True
+  show ?thesis unfolding True poly_0 ERF_def by auto
+next
+  case False
+  have "(poly f a = 0) = (poly (prod_list (local.square_free_part_of f)) a = 0)"
+    unfolding square_free_part_of_correct[OF False] by (rule same_zeros_radical)
+  then show ?thesis unfolding ERF_def using False by auto
+qed
 
 
+(*
 thm multiplicity_gcd
 thm gcd_eq_factorial'
 thm prime_power_dvd_pderiv
@@ -493,235 +597,10 @@ begin
   define Pf1 where "Pf1 = {x\<in>prime_factors f. p dvd multiplicity x f}"
   define Pf2 where "Pf2 = {x\<in>prime_factors f. \<not>p dvd multiplicity x f}"
 end
-  
-
-proof (relation "Wellfounded.measure (\<lambda> f. degree f)", goal_cases)
-qed auto
-
-  case (2 f a f_mono p u n v w z)
-(*
-  have "degree f > 1" 
-  proof (rule ccontr)
-    assume "\<not> 1 < degree f"
-    then consider (zero)"degree f = 0" | (one) "degree f = 1" by arith
-    then show False proof (cases)
-      case zero
-      then show ?thesis using 2(1) by auto
-    next
-      case one
-      then obtain a0 a1 where "f = [:a0,a1:]" "a1\<noteq>0" using degree1_coeffs by blast
-      then have f_mono: "f_mono = [:a0 * (inverse a1), 1:]" unfolding 2(2,3) by auto
-      have pderiv: "pderiv f_mono = [:1:]" unfolding f_mono by (auto simp add: pderiv_pCons)
-      have "u = 1" unfolding 2(5) pderiv unfolding f_mono by auto
-      then show ?thesis using 2(7) by auto
-    qed
-  qed
 *)
-  have "degree f = degree f_mono" unfolding 2 by auto
-  have "f \<noteq> 0" using 2(1) by auto
-  obtain c fs where factor_f: "f = smult c (prod_mset fs)" 
-    and irred_monic: "(set_mset fs \<subseteq> Irr_Mon)" 
-    using exactly_one_factorization[OF \<open>f\<noteq>0\<close>] unfolding factorization_def by auto
-  (* f_i = set_mset   e_i = count fs fi*)
-  have "monic f_mono" unfolding 2(3) 2(2) using 2(1) by auto
-  have "f = smult a f_mono" unfolding 2(3) by (simp add: "2"(2) \<open>f \<noteq> 0\<close>)
-  then have "smult c (prod_mset fs) = smult a f_mono" unfolding factor_f[symmetric] by auto
-  have non_zero: "a\<noteq>0" "c\<noteq>0" using \<open>f \<noteq> 0\<close> factor_f \<open>f = smult a f_mono\<close> by auto
-  have "monic (\<Prod>\<^sub># fs)" using irred_monic unfolding Irr_Mon_def
-    by (simp add: monic_prod_mset subset_iff)
-  have "c = a" by (rule decompose_monic_part_and_coefficient(1)[OF \<open>monic (\<Prod>\<^sub># fs)\<close> \<open>monic f_mono\<close> 
-    \<open>smult c (prod_mset fs) = smult a f_mono\<close> non_zero(2) non_zero(1)])
-  have f_mono_factor: "prod_mset fs = f_mono" by (rule decompose_monic_part_and_coefficient(2)[OF \<open>monic (\<Prod>\<^sub># fs)\<close> 
-    \<open>monic f_mono\<close> \<open>smult c (prod_mset fs) = smult a f_mono\<close> non_zero(2) non_zero(1)])
-  
-  
-  have pderiv_fmono: "pderiv f_mono = (\<Sum> f\<in>(set_mset fs). 
-    Polynomial.smult (of_nat (count fs f)) (pderiv f) * f ^ (count fs f - 1) *
-     (\<Prod>fj\<in>set_mset fs - {f}. fj ^ count fs fj))"
-  using pderiv_exp_prod_monic[OF f_mono_factor[symmetric]] unfolding Let_def by auto
-
-  have "(\<Prod>fj\<in>set_mset fs. let ej = count fs fj in 
-    (if p dvd ej then  fj ^ ej else fj ^(ej-1))) = u"
-    unfolding 2(5) pderiv_fmono unfolding f_mono_factor[symmetric] 
-  proof (subst gcd_unique[symmetric], safe, goal_cases)
-    case 1
-    then show ?case unfolding Let_def prod_mset_multiplicity 
-      by (rule prod_dvd_prod, auto simp add: le_imp_power_dvd)
-  next
-    case 2
-    then show ?case unfolding Let_def prod_mset_multiplicity 
-    proof (rule dvd_sum, goal_cases)
-      case (1 a)
-      define f where 
-        " f = (\<lambda>fj. if p dvd count fs fj then fj ^ count fs fj else fj ^ (count fs fj - 1))"
-      let ?left = "(\<Prod>fj\<in>set_mset fs. f fj)"
-      let ?right = "(Polynomial.smult (of_nat (count fs a)) (pderiv a) * a ^ (count fs a - 1) *
-         (\<Prod>fj\<in>set_mset fs - {a}. fj ^ count fs fj)) "
-      let ?A = "f ` (set_mset fs)"
-      let ?multifs = "set_mset fs - {fi. fi \<in># fs \<and> f fi = 1}"
-      have "?left = (\<Prod>fj\<in>?multifs. f fj)" 
-        by (smt (verit, del_insts) DiffD1 DiffD2 DiffI Diff_subset finite_set_mset mem_Collect_eq 
-        prod.mono_neutral_cong_left)
-      also have "\<dots> = \<Prod> (f ` ?multifs)"
-      proof (rule prod.image_eq[of f, symmetric])
-        have "x = y" if "x\<in>?multifs" "y\<in>?multifs" "f x = f y" for x y
-        proof -
-          have irred_norm: "irreducible x" "irreducible y" "normalize x = x" "normalize y = y"
-            using irred_monic 1 normalize_monic that unfolding Irr_Mon_def by auto
-          have prime: "prime x" "prime y" using 1 unfolding normalization_semidom_class.prime_def 
-            by (auto simp add: irred_norm)
-          show ?thesis 
-          proof (cases "p dvd count fs x")
-            case True
-            have zero: "0 < count fs x" using that by simp
-            show ?thesis  by (cases "p dvd count fs y") 
-              (use True that prime_power_eq_imp_eq[OF prime(1) prime(2) zero] f_def in \<open>auto\<close>)
-          next
-            case False 
-            have zero: "0 < count fs x - Suc 0" using that  by (metis (mono_tags, lifting) 
-              DiffD1 DiffD2 False One_nat_def f_def gr0I mem_Collect_eq power_0)
-            then show ?thesis by (cases "p dvd count fs y") 
-              (use False that prime_power_eq_imp_eq[OF prime(1) prime(2) zero] f_def in \<open>auto\<close>)
-          qed
-        qed
-        then show  "inj_on f ?multifs" unfolding inj_on_def by auto
-      qed
-      also have "\<dots> = \<Prod> ?A"
-      proof -
-        have *: "set_mset fs = ?multifs \<union> {fi. fi \<in># fs \<and> f fi = 1}" by auto
-        have eval_1: "\<Prod>((\<lambda>x. 1) ` {fi. fi \<in># fs \<and> f fi = 1}) = 1" by (meson imageE prod.neutral)
-        then show ?thesis by (subst (3) *, subst image_Un, subst prod.union_disjoint) auto
-      qed
-      finally have rew_left: "?left = \<Prod> ?A" by auto
-      have finite: "finite ?A" using finite_set_mset[of fs] by auto
-      have coprime_factors:
-        " \<forall>c1 c2. c1 \<in> ?A \<and> c2 \<in> ?A \<and> c1 \<noteq> c2 \<longrightarrow> comm_monoid_mult_class.coprime c1 c2"
-      proof (safe, goal_cases)
-        case (1 c1 c2 fi fj)
-        define ei where "ei = count fs fi"
-        define ej where "ej = count fs fj"
-        have "fi \<noteq> fj" using 1(2) by auto
-        have "coprime fi fj" by (rule coprime_polynomial_factorization[of "set_mset fs"])
-          (use 1  irred_monic in \<open>unfold Irr_Mon_def, auto\<close>) 
-        then show ?case unfolding ei_def[symmetric] ej_def[symmetric] f_def by auto
-      qed
-      have dvd: "\<forall>c\<in>?A. c dvd ?right" proof (safe, goal_cases)
-        case (1 c fj)
-        let ?ej = "count fs fj"
-        let ?ea = "count fs a"
-        show ?case proof (cases "p dvd ?ea")
-          case True
-          then have "(of_nat ?ea :: 'e mod_ring) = 0" using \<open>p = CARD('e)\<close> by auto
-          then have zero: "?right = 0" by auto
-          show ?thesis unfolding zero by auto
-        next
-          case False
-          then show ?thesis proof (cases "p dvd ?ej")
-            case True
-            then have "fj \<noteq> a" using \<open>\<not> p dvd ?ea\<close> by auto
-            then have "fj\<in>set_mset fs - {a}" using \<open>fj\<in># fs\<close> by auto
-            then show ?thesis using True f_def by (intro dvd_mult, auto)
-          next
-            case False
-            then show ?thesis proof (cases "a = fj")
-              case True
-              then show ?thesis using \<open>\<not> p dvd count fs fj\<close> f_def
-              by (subst dvd_mult2[where c="(\<Prod>fj\<in>set_mset fs - {a}. fj ^ count fs fj)"]) 
-                 (subst dvd_mult, auto)
-            next
-              case False
-              then have "fj\<in>set_mset fs - {a}" using \<open>fj\<in># fs\<close> by auto
-              then have "fj ^ (?ej - Suc 0) dvd (\<Prod>fj\<in>set_mset fs - {a}. fj ^ count fs fj)"
-                by (meson diff_le_self dvd_prod finite_Diff finite_set_mset le_imp_power_dvd) 
-              then show ?thesis using \<open>\<not> p dvd count fs fj\<close> f_def by (subst dvd_mult, auto)
-            qed
-          qed
-        qed
-      qed
-      show ?case unfolding f_def[symmetric] unfolding rew_left 
-        using divides_prod2[OF finite dvd coprime_factors] by auto
-    qed
-  next
-    case 3
-    then show ?case by (rule normalize_monic, rule monic_prod) 
-      (use Irr_Mon_def irred_monic monic_power in \<open>auto simp add: Let_def\<close>)
-  next
-    case (4 e)
-    obtain es where "es \<subseteq># fs" "e = \<Prod>\<^sub># es" using 4(1) prod_mset_primes_dvd_imp_subset
-    let ?u = "(\<Prod>fj\<in>set_mset fs. let ej = count fs fj in if p dvd ej then fj ^ ej 
-      else fj ^ (ej - 1))"
-    let ?deriv = "(\<Sum>f\<in>set_mset fs. smult (of_nat (count fs f)) (pderiv f) *
-           f ^ (count fs f - 1) * (\<Prod>fj\<in>set_mset fs - {f}. fj ^ count fs fj))"
-    
-    show ?case proof (rule contrapos_pp[OF conjI[OF 4(1) 4(2)]], goal_cases)
-      case 1
-
-      have u_dvd_all: "?u dvd \<Prod>\<^sub># fs" unfolding Let_def prod_mset_multiplicity 
-        by (rule prod_dvd_prod)(auto simp add: le_imp_power_dvd)
-      have "\<not> e dvd ?deriv" if "e dvd \<Prod>\<^sub># fs"
-      proof -
-        have *: "False" if "fi ^ count fs fi dvd e \<Longrightarrow> fi\<in># fs \<Longrightarrow> p dvd count fs fi" for fi
-        proof -
-          have "fi ^ count fs fi dvd ?u" using that  using 1 \<open>e dvd \<Prod>\<^sub># fs\<close> u_dvd_all
-           sorry
-          show ?thesis sorry
-        qed
-        then obtain fi where fi_def: "fi\<in># fs" "fi ^(count fs fi) dvd e" "\<not> p dvd (count fs fi)"
-          by blast
-        have "\<not> fi ^(count fs fi) dvd ?u" sorry
-
-        then show ?thesis using swap sorry
-      qed
-      then show ?case by auto
-    qed
-  qed
-
-  have "p dvd (degree w)" sorry
-  moreover have "p>1" unfolding 2(4) using nontriv by blast
-  ultimately have "degree w > 1" unfolding 2(9) using 2 sorry
-  have "degree w \<le> degree f" sorry
-  have "degree z < degree f" unfolding 2(10) using degree_take_root_decr[OF \<open>degree w > 1\<close>]
-    by auto
-  then show ?case by auto
-qed auto
-
-
-
 
 
 
 end
 
-context bind_game_def
-begin
-text \<open>This functions purpose is to extract \<alpha> based on the inputs g^\<alpha> and \<phi>, where \<phi> has a root at \<alpha>. 
-The function factorizes \<phi> and filters for all roots. Since \<alpha>'s mod_ring is of the same cardinality 
-as g's group's order, we can conclude that if g^r = g^\<alpha> then r=\<alpha>\<close>
-fun find_\<alpha>_square_free :: "'a \<Rightarrow> 'e mod_ring poly \<Rightarrow> 'e mod_ring" where
-  "find_\<alpha>_square_free g_pow_\<alpha> \<phi> = (let (c, polys) = finite_field_factorization \<phi>;
-    deg1_polys = filter (\<lambda>f. degree f = 1) polys;
-    root_list = map (\<lambda>p. poly.coeff p 0) deg1_polys;
-    \<alpha>_roots = filter (\<lambda>r. g_pow_\<alpha> = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> r) root_list
-in -\<alpha>_roots!0)"
-
-(*TODO finite_field_factorization works only for square-free polys \<rightarrow> add step for non-sf to sf*)
-fun find_\<alpha> :: "'a \<Rightarrow> 'e mod_ring poly \<Rightarrow> 'e mod_ring" where
-  "find_\<alpha> g_pow_\<alpha> \<phi> = find_\<alpha>_square_free g_pow_\<alpha> (square_free_part_of \<phi>)"
-
-lemma poly_eq0_is_find_\<alpha>_eq_\<alpha>: "\<phi> \<noteq> 0 \<Longrightarrow> poly \<phi> \<alpha> = 0 \<longleftrightarrow> find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
-unfolding find_\<alpha>.simps find_\<alpha>_square_free.simps Let_def
-proof (safe, goal_cases)
-  case 1
-  obtain c polys where polys: "(c,polys) = finite_field_factorization \<phi>" by (metis prod.exhaust)
-  then have "- filter (\<lambda>r. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> = \<^bold>g [^] r) 
-    (map (\<lambda>p. poly.coeff p 0) (filter (\<lambda>f. degree f = 1) polys)) ! 0 = \<alpha>"
-     sorry
-  then show ?case sorry by (metis polys prod.simps(2))
-next
-  case 2
-  then show ?case sorry
-qed
-
-
-end
 end
