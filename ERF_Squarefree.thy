@@ -1,4 +1,4 @@
-theory Find_Root
+theory ERF_Squarefree
 
 imports "Berlekamp_Zassenhaus.Finite_Field_Factorization" KZG_Def
 "Mason_Stothers.Mason_Stothers" 
