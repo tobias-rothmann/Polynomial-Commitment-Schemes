@@ -3,38 +3,26 @@ theory Factorization_Over_Finite_Field_Poly
 imports Auxiliary
 
 begin
-
+text \<open>Here we subsume properties of the factorization of a polynomial and its derivative in 
+$\mathbb{F}_p[x]$ where $p$ is prime.\<close>
 locale finite_field_poly_factorization =
 fixes e :: "'e :: prime_card itself"
 and f :: "'e :: prime_card mod_ring poly"
 and p :: nat
-(* and v :: "'e ::prime_card mod_ring poly"*)
 assumes p_def: "p = CARD('e)"
-(* and v_def: "v = (let fm = normalize f in fm div (gcd fm (pderiv fm)))" *)
 and deg: "degree f \<noteq> 0"
-(* and u_ass: "gcd (normalize f) (pderiv (normalize f)) \<noteq> 1" *)
 begin
-text \<open>Definitions\<close>
+text \<open>Definitions to shorten the terms\<close>
 definition fm where "fm = normalize f"
 definition fac where "fac = prime_factorization fm"
 definition fac_set where "fac_set = prime_factors fm"
 definition ex where "ex = (\<lambda>p. multiplicity p fm)"
 definition P1 where "P1 = {f\<in>fac_set. \<not> p dvd ex f}"
 definition P2 where "P2 = {f\<in>fac_set. p dvd ex f}"
-(*
-definition u where "u = gcd fm (pderiv fm)"
-definition n where "n = degree f"
-definition w where "w = u div (gcd u (v^n))"
 
-lemma v: "v = fm div u" unfolding v_def fm_def u_def Let_def by auto
-*)
-
-text \<open>Assumptions on the degree of f and u rewritten\<close>
+text \<open>Assumptions on the degree of f rewritten\<close>
 lemma deg_f_gr_0[simp]: "degree f > 0" using deg by auto
 lemma f_nonzero[simp]: "f\<noteq>0" using deg degree_0 by blast
-(*
-lemma u_not_1[simp]: "u \<noteq> 1" using u_ass by (smt (verit, del_insts) fm_def option.simps(3) u_def)
-*)
 lemma fm_nonzero: "fm \<noteq> 0" using deg_f_gr_0  fm_def by auto
 
 

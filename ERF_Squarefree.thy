@@ -586,6 +586,12 @@ lemma f_ne_0_imp_ERF_ne_0: "f \<noteq> 0 \<Longrightarrow> ERF f \<noteq> 0"
   unfolding ERF_def
   by (meson not_squarefree_0 semidom_class.prod_list_zero_iff square_free_part_of_correct(2))
 
+lemma squarefree_ERF:
+assumes "f\<noteq>0"
+shows "squarefree (ERF f)"
+using assms unfolding ERF_def square_free_part_of_correct(1)[OF assms] 
+by (auto simp add: squarefree_radical)
+
 (*
 thm multiplicity_gcd
 thm gcd_eq_factorial'
