@@ -1,7 +1,7 @@
 theory KZG_poly_bind
 
 imports KZG_correct "Sigma_Commit_Crypto.Commitment_Schemes" "tSDH_assumption"
- "Berlekamp_Zassenhaus.Finite_Field_Factorization"
+ "Berlekamp_Zassenhaus.Finite_Field_Factorization" "ERF_Squarefree"
 
 begin
 
@@ -102,7 +102,7 @@ in -\<alpha>_roots!0)"
 
 (*TODO finite_field_factorization works only for square-free polys \<rightarrow> add step for non-sf to sf*)
 fun find_\<alpha> :: "'a \<Rightarrow> 'e mod_ring poly \<Rightarrow> 'e mod_ring" where
-  "find_\<alpha> g_pow_\<alpha> \<phi> = find_\<alpha>_square_free g_pow_\<alpha> \<phi>"
+  "find_\<alpha> g_pow_\<alpha> \<phi> = find_\<alpha>_square_free g_pow_\<alpha> (ERF \<phi>)"
 
 text \<open>The reduction: 
 An adversary for the KZG polynomial binding can output two polynomials \<phi> and \<phi>' that have the same 
@@ -319,7 +319,17 @@ qed
 (*TODO goal \<Rightarrow> have to implement algorithm that produces square-free polys from non-square-free ones*)
 text \<open>show find_\<alpha> correctly finds(factorizes) \<alpha>, if \<alpha> is a root and \<phi> is not a zero-polynomial.\<close>
 lemma poly_eq0_imp_find_\<alpha>_eq_\<alpha>: "\<phi> \<noteq> 0 \<Longrightarrow> poly \<phi> \<alpha> = 0 \<Longrightarrow> find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
-  sorry
+proof -
+  assume \<phi>_ne_0: "\<phi> \<noteq> 0"
+  assume \<alpha>_root: "poly \<phi> \<alpha> = 0"
+  have "(ERF \<phi>) \<noteq> 0"
+    using f_ne_0_imp_ERF_ne_0[OF \<phi>_ne_0] .
+  moreover have "poly (ERF \<phi>) \<alpha> = 0" 
+    using \<alpha>_root same_zeros_in_square_free_part by blast
+  moreover have "square_free (ERF \<phi>)" unfolding ERF_def sorry
+  ultimately show "find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
+    unfolding find_\<alpha>.simps using poly_eq0_is_find_\<alpha>_sf_eq_\<alpha> by blast
+qed
 
 subsubsection \<open>literal helping lemmas\<close>
 
