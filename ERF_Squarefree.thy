@@ -470,8 +470,9 @@ lemma degree_aux_less [termination_simp]:
   assumes "aux f = Some (v, z)"
   shows   "degree z < degree f"
 proof -
-  have "z\<noteq>0" by (metis Find_Root.square_free_part_of_correct_aux(1) assms aux_def degree_0 
-    mult_poly_0(2) option.simps(3) radical_eq_0_iff)
+  have "z\<noteq>0" 
+    sledgehammer
+    using assms square_free_part_of_correct_aux(4) by blast
   have "f\<noteq>0" using assms unfolding aux_def by auto
   then have "degree z * CARD('e) \<le> degree f" 
     using divides_degree[OF square_free_part_of_correct_aux(3)[OF assms]] 
@@ -582,6 +583,9 @@ next
   then show ?thesis unfolding ERF_def using False by auto
 qed
 
+lemma f_ne_0_imp_ERF_ne_0: "f \<noteq> 0 \<Longrightarrow> ERF f \<noteq> 0"
+  unfolding ERF_def
+  by (meson not_squarefree_0 semidom_class.prod_list_zero_iff square_free_part_of_correct(2))
 
 (*
 thm multiplicity_gcd
