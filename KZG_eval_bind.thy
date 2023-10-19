@@ -36,6 +36,10 @@ where
   "verify PK C i \<phi>_of_i w_i =
     (e w_i (PK!1  \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> \<phi>_of_i) = e C \<^bold>g\<^bsub>G\<^sub>p\<^esub>) 
     \<comment>\<open>e(g^\<psi>(\<alpha>), g^\<alpha> / g^i) \<otimes> e(g,g)^\<phi>(i) = e(C, g)\<close>"
+
+definition valid_msg :: "'e eval_value \<Rightarrow> 'a eval_witness \<Rightarrow> bool" where 
+  "valid_msg \<phi>_i w_i = (w_i \<in> carrier G\<^sub>p)"
+
                     
 subsection \<open>Game definition\<close>
 
@@ -47,7 +51,8 @@ definition bind_game :: "('a, 'e) adversary \<Rightarrow> bool spmf"
   where "bind_game \<A> = TRY do {
   PK \<leftarrow> key_gen;
   (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
-  _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i); \<comment>\<open>maybe \<or>?\<close>
+  _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i); 
+    \<comment>\<open>maybe \<or> for w_i or no w_i at all?\<close>
   let b = verify PK C i \<phi>_i w_i;
   let b' = verify PK C i \<phi>'_i w'_i;
   return_spmf (b \<and> b')} ELSE return_spmf False"
@@ -60,12 +65,11 @@ sublocale t_SDH_G\<^sub>p: t_SDH G\<^sub>p max_deg "of_int_mod_ring \<circ> int"
   unfolding t_SDH_def 
   by (rule G\<^sub>p.cyclic_group_axioms)
 
-text \<open>bind_commit.bind_game is the binding game we will reduce to the t-SDH assumption, thus showing 
+text \<open>TODO update: bind_commit.bind_game is the binding game we will reduce to the t-SDH assumption, thus showing 
 that cracking the KZG's evaluation binding is at least as hard as solving the t-SDH problem. Hence 
 proving the security of the KZG for groups where the t-SDH is difficult.\<close>
 
 subsection \<open>Defining a reduction game to t-SDH\<close>
-
 
 text \<open>TODO update: Intuetively what we want to show is that if we have an adversary that can compute two 
 polynomials such that they have the same commitment in polynomial time, we can construct an 
@@ -87,8 +91,11 @@ where
   "bind_reduction \<A> PK = do {
   (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> PK;
   _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 
+                            \<and> valid_msg \<phi>_of_i w_i
+                            \<and> valid_msg \<phi>'_of_i w'_i
                             \<and> verify PK C i \<phi>_of_i w_i 
-                            \<and> verify PK C i \<phi>'_of_i w'_i); 
+                            \<and> verify PK C i \<phi>'_of_i w'_i
+                            ); 
   \<comment>\<open>maybe \<or>? or w uneq not even necessary?\<close>
   return_spmf (-i::'e mod_ring, (w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i)) )}"
 end
@@ -98,7 +105,7 @@ begin
 
 subsubsection \<open>helping lemmas\<close>
 
-text \<open>An alternative but equivalent game for the ealuation binding game. 
+text \<open>An alternative but equivalent game for the evaluation binding game. 
 This alternative game capsulates the 
 event that the Adversary wins in the assert_spmf statement.
 It's a closely adapted proof from Sigma_Commit_Crypto.Commitment_Schemes bind_game_alt_def\<close>
@@ -106,7 +113,7 @@ lemma bind_game_alt_def:
   "bind_game \<A> = TRY do {
   PK \<leftarrow> key_gen;
   (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
-  _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i);
+  _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
   let b = verify PK C i \<phi>_i w_i;
   let b' = verify PK C i \<phi>'_i w'_i;
   _ :: unit \<leftarrow> assert_spmf (b \<and> b');
@@ -118,7 +125,7 @@ proof -
       TRY do {
         (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
         TRY do {
-          _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i);
+          _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
           TRY return_spmf (verify PK C i \<phi>_i w_i \<and> verify PK C i \<phi>'_i w'_i) ELSE return_spmf False
         } ELSE return_spmf False
       } ELSE return_spmf False
@@ -130,7 +137,7 @@ proof -
       TRY do {
         (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
         TRY do {
-          _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i);
+          _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
           TRY do {
             _ :: unit \<leftarrow> assert_spmf (verify PK C i \<phi>_i w_i \<and> verify PK C i \<phi>'_i w'_i);
             return_spmf True
@@ -156,21 +163,86 @@ lemma assert_anding: "TRY do {
       } ELSE return_spmf False"
   by (simp add: try_bind_assert_spmf)
 
+declare [[show_types]]
+lemma pow_on_eq_card_GT: "(\<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> x = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> y) = (x=y)"
+proof
+  assume assm: "\<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> x = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> y"
+  then have "\<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring x = \<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring y"
+    using assm by blast
+  then have "\<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> nat (to_int_mod_ring x) = \<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> nat (to_int_mod_ring y)" 
+    using to_int_mod_ring_ge_0[of "x"] to_int_mod_ring_ge_0[of "y"] by fastforce
+  then have "[nat (to_int_mod_ring x) = nat (to_int_mod_ring y)] (mod order G\<^sub>T)"
+    using G\<^sub>T.pow_generator_eq_iff_cong G\<^sub>T.finite_carrier by fast
+  then have "[to_int_mod_ring x = to_int_mod_ring y] (mod order G\<^sub>T)" 
+    using to_int_mod_ring_ge_0[of "x"] to_int_mod_ring_ge_0[of "y"]
+    by (metis cong_int_iff int_nat_eq)
+  then have "[to_int_mod_ring x = to_int_mod_ring y] (mod p)" 
+    using CARD_G\<^sub>T by fast
+  then have "to_int_mod_ring x = to_int_mod_ring y" using range_to_int_mod_ring CARD_q
+    by (metis cong_def of_int_mod_ring.rep_eq of_int_mod_ring_to_int_mod_ring to_int_mod_ring.rep_eq)
+  then show "x = y" by force
+next 
+  assume "x = y"
+  then show "\<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> x = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> y" by fast
+qed
+
+lemma pow_on_eq_card_GT_carrier_ext': "g \<in> carrier G\<^sub>T \<Longrightarrow> g^\<^bsub>G\<^sub>T\<^esub> x = g^\<^bsub>G\<^sub>T\<^esub> y \<longleftrightarrow> x=y"
+proof 
+  assume asm: "g \<in> carrier G\<^sub>T"
+  assume g_pow_x_eq_g_pow_y: "g ^\<^bsub>G\<^sub>T\<^esub> x = g ^\<^bsub>G\<^sub>T\<^esub> y"
+  from asm obtain g_exp::nat where "g = \<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> g_exp"
+    using G\<^sub>T.generatorE by blast
+  then have g_exp: "g = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> (of_int_mod_ring (int g_exp))"
+    by (metis CARD_G\<^sub>T G\<^sub>T.pow_generator_mod_int crypto_primitives.CARD_q crypto_primitives_axioms int_pow_int of_int_mod_ring.rep_eq to_int_mod_ring.rep_eq)
+  let ?g_exp = "of_int_mod_ring (int g_exp)"
+  have "g^\<^bsub>G\<^sub>T\<^esub> x =  \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> (of_int_mod_ring (int g_exp) * x)"
+    using g_exp
+    by (metis CARD_G\<^sub>T G\<^sub>T.generator_closed G\<^sub>T.int_pow_pow G\<^sub>T.pow_generator_mod_int crypto_primitives.CARD_q crypto_primitives_axioms times_mod_ring.rep_eq to_int_mod_ring.rep_eq)
+  moreover have "g^\<^bsub>G\<^sub>T\<^esub> y = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> (of_int_mod_ring (int g_exp) * y)"
+    using g_exp
+    by (metis CARD_G\<^sub>T G\<^sub>T.generator_closed G\<^sub>T.int_pow_pow G\<^sub>T.pow_generator_mod_int crypto_primitives.CARD_q crypto_primitives_axioms times_mod_ring.rep_eq to_int_mod_ring.rep_eq)
+  ultimately have "of_int_mod_ring (int g_exp) * x = of_int_mod_ring (int g_exp) * y"
+    using g_pow_x_eq_g_pow_y pow_on_eq_card_GT by auto
+  then show "x=y" (*TODO show g_exp is not zero*)
+    sorry
+next 
+    assume "x = y"
+    then show "g ^\<^bsub>G\<^sub>T\<^esub> x = g ^\<^bsub>G\<^sub>T\<^esub> y" 
+      by blast
+qed
+ 
+
 lemma two_eval_verify_imp_tSDH_break: 
   assumes "\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 
-                            \<and> verify ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((\<alpha>)^t)) [0..<max_deg+1])) C i \<phi>_of_i w_i 
-                            \<and> verify ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((\<alpha>)^t)) [0..<max_deg+1])) C i \<phi>'_of_i w'_i"
+        \<and> w_i \<in> carrier G\<^sub>p \<and>  w'_i \<in> carrier G\<^sub>p
+        \<and> verify ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((\<alpha>)^t)) [0..<max_deg+1])) C i \<phi>_of_i w_i 
+        \<and> verify ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((\<alpha>)^t)) [0..<max_deg+1])) C i \<phi>'_of_i w'_i"
   shows "\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha> + (-i))) 
                               = (w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i))"
 proof -
   let ?PK = "\<lambda>\<alpha>. (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((\<alpha>)^t)) [0..<max_deg+1])"
-  obtain \<psi>\<^sub>i where "w_i = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<psi>\<^sub>i" try0
+  obtain \<psi>\<^sub>i where \<psi>\<^sub>i: "w_i = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<psi>\<^sub>i"
+    by (metis G\<^sub>p.generatorE assms g_pow_to_int_mod_ring_of_int_mod_ring int_pow_int)
+  obtain \<psi>\<^sub>i' where \<psi>\<^sub>i': "w'_i = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<psi>\<^sub>i'"
+    by (metis G\<^sub>p.generatorE assms g_pow_to_int_mod_ring_of_int_mod_ring int_pow_int)
   
-  have "verify (?PK \<alpha>) C i \<phi>_of_i w_i = (e w_i ((\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>)  \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> \<phi>_of_i) = e C \<^bold>g\<^bsub>G\<^sub>p\<^esub>)" 
-    unfolding verify_def
-    using PK_i[of 1 max_deg] d_pos by force
-  show ?thesis 
-    
+  have "e w_i ((\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>)  \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> \<phi>_of_i)
+      = e w'_i ((\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>)  \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> \<phi>'_of_i)"
+    using assms unfolding verify_def
+    by (metis (no_types, lifting) One_nat_def Suc_eq_plus1 d_pos le_imp_less_Suc less_eq_Suc_le nth_map_upt power_one_right verit_minus_simplify(2))
+  then have "e w_i (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>-i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> \<phi>_of_i)
+      = e w'_i (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>-i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> \<phi>'_of_i)"
+    using mod_ring_pow_mult_inv_G\<^sub>p by presburger
+  then have "e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<psi>\<^sub>i) (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>-i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> \<phi>_of_i)
+      = e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<psi>\<^sub>i') (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>-i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> \<phi>'_of_i)"
+    using \<psi>\<^sub>i \<psi>\<^sub>i' by fast
+  then have "(e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> (\<psi>\<^sub>i * (\<alpha>-i) + \<phi>_of_i)
+      = (e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> (\<psi>\<^sub>i' * (\<alpha>-i) + \<phi>'_of_i)"
+    by force
+  then have "\<psi>\<^sub>i * (\<alpha>-i) + \<phi>_of_i = \<psi>\<^sub>i' * (\<alpha>-i) + \<phi>'_of_i"
+    using pow_on_eq_card_GT'
+    by (metis G\<^sub>T.int_pow_one G\<^sub>T.one_closed)
+  show ?thesis
     sorry
 qed
 
@@ -190,6 +262,8 @@ proof -
      \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> (?PK \<alpha>);
   _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 
+                            \<and> valid_msg \<phi>_of_i w_i 
+                            \<and> valid_msg \<phi>'_of_i w'_i
                             \<and> verify (?PK \<alpha>) C i \<phi>_of_i w_i 
                             \<and> verify (?PK \<alpha>) C i \<phi>'_of_i w'_i);
     _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(?\<alpha> \<alpha> + (-i))) = (w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i)));
@@ -206,6 +280,8 @@ proof -
     (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> (?PK \<alpha>);
     TRY do {
   _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 
+                            \<and> valid_msg \<phi>_of_i w_i
+                            \<and> valid_msg \<phi>'_of_i w'_i
                             \<and> verify (?PK \<alpha>) C i \<phi>_of_i w_i 
                             \<and> verify (?PK \<alpha>) C i \<phi>'_of_i w'_i);
     _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(?\<alpha> \<alpha> + (-i))) = (w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i)));
@@ -221,6 +297,8 @@ proof -
     (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> (?PK \<alpha>);
     TRY do {
   _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 
+                            \<and> valid_msg \<phi>_of_i w_i
+                            \<and> valid_msg \<phi>'_of_i w'_i
                             \<and> verify (?PK \<alpha>) C i \<phi>_of_i w_i 
                             \<and> verify (?PK \<alpha>) C i \<phi>'_of_i w'_i
                             \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(?\<alpha> \<alpha> + (-i))) 
@@ -240,6 +318,7 @@ proof -
                               = (w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i)));
     return_spmf True 
   } ELSE return_spmf False"
+    sorry
 
 
 
