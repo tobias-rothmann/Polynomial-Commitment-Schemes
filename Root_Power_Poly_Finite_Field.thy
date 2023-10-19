@@ -29,17 +29,101 @@ unfolding root_poly_def using assms by (subst Abs_poly_inverse, auto)
 definition root_poly' :: "nat \<Rightarrow> 'a :: zero poly \<Rightarrow> _ poly" where
   "root_poly' n p = Abs_poly (\<lambda>i. poly.coeff p (i * n))"
 
+lemma coeff_root_poly' [simp]:
+assumes "n>1"
+shows "poly.coeff (root_poly' n p) i = poly.coeff p (i * n)"
+proof -
+  let ?A = "{x. poly.coeff p (x * n) \<noteq> 0}"
+  let ?f = "(\<lambda>x. if n dvd x then x div n else degree p + 1)"
+  have card: "degree p < n + degree p * n" using assms by (simp add: add_strict_increasing)
+  have "?f -` ?A \<subseteq> {x. poly.coeff p x \<noteq> 0}" using coeff_eq_0[OF card] by auto
+  then have f1: "finite (?f -` ?A)" if "finite {x. poly.coeff p x \<noteq> 0}"
+    using finite_subset that by blast 
+  have surj: "surj ?f"
+  by (smt (verit, best) Groups.mult_ac(2) arith_simps(62) card dvd_triv_left mult_Suc_right 
+    nonzero_mult_div_cancel_left not_less0 surj_def)
+  have "\<forall>\<^sub>\<infinity>m. poly.coeff p (m * n) = 0" using MOST_coeff_eq_0[of p] 
+    unfolding MOST_iff_cofinite by (intro finite_vimageD[of ?f ?A]) (use f1 surj in \<open>auto\<close>)
+ then show ?thesis unfolding root_poly'_def by (subst Abs_poly_inverse)(auto)
+qed
+
+(*
 text \<open>We also need an executable version of the root poly function.\<close>
-(*TODO
-fun root_poly'_impl :: "nat \<Rightarrow> 'a :: zero list \<Rightarrow> 'a list" where
+definition root_poly'_impl :: "nat \<Rightarrow> 'a :: zero list \<Rightarrow> 'a list" where
+"root_poly'_impl n cs = nths cs {i. n dvd i \<and> i<length cs}"
+(*
   "root_poly'_impl n [] = []" |
-  "root_poly'_impl n (c#cs) = (if n dvd (length cs + 1) 
-      then c#root_poly'_impl n cs else root_poly'_impl n cs)"
+  "root_poly'_impl n (c # cs) = (if n dvd (length cs + 1) 
+      then c#(root_poly'_impl n cs) else root_poly'_impl n cs)"
+*)
 
 lemma root_poly'_code [code]:
-  "coeffs (root_poly' n p) = root_poly'_impl n (coeffs p)"
-unfolding root_poly'_impl_def sorry
+assumes "n>1"
+shows "coeffs (root_poly' n p) = root_poly'_impl n (coeffs p)"
+proof (rule coeffs_eqI, goal_cases)
+  case (1 m)
+  then show ?case sorry
+next
+  case 2
+  then show ?case unfolding root_poly'_impl_def sorry
+qed
 *)
+
+
+
+(*
+(*
+coeffs p = [p_0,...,p_r]
+rev (coeffs p) = [p_r,...,p_0]
+root_poly'_impl geht über rev (coeffs p) weil es immer coeff vom nächsthöchsten Grad anschaut
+
+coeffs (root_poly' p) = [p0, pn, p2n,...pmn]
+
+root_poly'_impl n (rev (coeffs p)) = [pmn, ... p2n, pn, p0]
+*)
+
+lemma root_poly'_code [code]:
+assumes "n>1"
+shows "coeffs (root_poly' n p) = root_poly'_impl n (coeffs p)"
+proof (rule coeffs_eqI, goal_cases)
+  case (1 m)
+  have *: "poly.coeff (root_poly' n p) m = poly.coeff p (m*n)" by (rule coeff_root_poly'[OF assms])
+  show ?case unfolding * root_poly'_impl_def nths_def apply auto
+
+ proof (induction "rev (coeffs p)" arbitrary: p)
+    case Nil
+    then have "p = 0" using coeffs_eq_Nil by fastforce
+    then show ?case unfolding coeff_root_poly'[OF assms] 1 by auto
+  next
+    case (Cons p_deg cs) (* cs = [p_deg-1,... p0] *)
+    define p' where "p' = "
+
+    have "cs = rev (coeffs p')" sorry
+      (* p = p' + x^(deg p) * p_deg*)
+    have "poly.coeff p (m * n) = nth_default 0 (rev (root_poly'_impl n cs)) m" 
+      if "\<not> n dvd length cs + 1"
+    proof -
+      have "rev (coeffs p') = cs"  sorry
+      show ?thesis using nth_default_coeffs_eq[of p, symmetric] Cons(1) sorry
+    qed
+    moreover have "poly.coeff p (m * n) = nth_default 0 (rev (root_poly'_impl n cs) @ [c]) m" 
+      if "n dvd length cs + 1" 
+    proof -
+      have two: "nth_default 0 (root_poly'_impl n cs) n = poly.coeff (root_poly' n (Poly cs)) n" 
+        using 2(1)[OF that]
+ sorry
+      show ?thesis sorry
+    qed
+    ultimately show ?case unfolding c[symmetric] by auto 
+  qed
+next
+  case 2
+  then show ?case  sorry
+qed
+
+*)
+
+
 
 
 text \<open>For prime cardinality of the finite field, we get the following lemmas.\<close>
@@ -64,7 +148,7 @@ proof -
 qed
 
 
-lemma coeff_root_poly':
+lemma coeff_root_poly'_CARD_e:
 assumes  "CARD('e) dvd n" 
 shows "poly.coeff p n = poly.coeff (root_poly' CARD('e) p) (n div CARD('e))"
 proof -

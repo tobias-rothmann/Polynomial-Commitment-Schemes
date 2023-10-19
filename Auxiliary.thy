@@ -29,6 +29,12 @@ assumes "\<forall>x\<in>A. monic x"
 shows "normalize (\<Prod>x\<in>A. x^(e x)) = (\<Prod>x\<in>A. x^(e x))"
 by (simp add: assms monic_power monic_prod normalize_monic)
 
+text \<open>All primes are monic.\<close>
+lemma prime_monic:
+fixes p :: "'a :: {euclidean_ring_gcd,field} poly"
+assumes "p\<noteq>0" "prime p" shows "monic p"
+using normalize_prime[OF assms(2)] monic_normalize[OF assms(1)] by auto
+
 
 text \<open>Update function for multisets. 
 Example: The factorization of a polynomial is represented by a multiset m where for every factor f
@@ -219,7 +225,7 @@ proof (rule ccontr)
     have left: "poly.coeff (h \<circ>\<^sub>p Polynomial.monom 1 e) n = 
       (if n mod e = 0 then poly.coeff h (n div e) else 0)"
     by (subst coeff_pcompose_monom[of _ e, symmetric]) (auto simp add: \<open>n mod e < e\<close>)
-    show ?case unfolding left using * coeff_root_poly'[unfolded e_def[symmetric]] h_def
+    show ?case unfolding left using * coeff_root_poly'_CARD_e[unfolded e_def[symmetric]] h_def
       e_def by auto
   qed 
   moreover have "h \<circ>\<^sub>p (Polynomial.monom 1 e) = h ^ e"
@@ -247,7 +253,25 @@ qed
 
 end
 
-text \<open>Properties of the radical.\<close>
+text \<open>Properties of the radical. A monic polynomial is the same as its radical iff it is squarefree.\<close>
+
+lemma monic_radical:
+fixes f :: "'a :: {euclidean_ring_gcd,field,semiring_gcd_mult_normalize} poly"
+assumes "f\<noteq>0"
+shows "monic (radical f)"
+proof -
+  have "monic (\<Prod>(prime_factors f))" by (intro monic_prod)
+     (metis in_prime_factors_imp_prime prime_monic zero_not_in_prime_factors)
+  then show ?thesis unfolding radical_def using assms by auto
+qed
+
+lemma radical_radical:
+"radical (radical f) = radical f"
+proof -
+  have "\<Prod>(prime_factors (\<Prod>(prime_factors f))) = \<Prod>(prime_factors f)" if "f\<noteq>0" 
+    using prime_factors_radical[OF that] by (metis radical_def that)
+  then show ?thesis unfolding radical_def by auto
+qed
 
 lemma radical_squarefree:
 assumes "f\<noteq>0" "monic f"
@@ -283,6 +307,16 @@ next
   then show ?case by auto
 qed
 
+
+lemma squarefree_radical:
+fixes f :: "'a :: {euclidean_ring_gcd,field,semiring_gcd_mult_normalize} poly"
+assumes "f\<noteq>0"
+shows "squarefree (radical f)"
+by (subst radical_squarefree[of "radical f", symmetric]) 
+   (auto simp add: assms monic_radical radical_radical)
+
+text \<open>A constant polynomial has no primes in its prime factorization and its radical is 1. \<close>
+
 lemma prime_factorization_degree0:
 fixes f :: "'a :: {factorial_ring_gcd,semiring_gcd_mult_normalize,field} poly"
 assumes "degree f = 0" "f\<noteq>0"
@@ -309,10 +343,13 @@ assumes "degree f = 0" "f\<noteq>0"
 shows "radical f = 1"
 unfolding radical_def using prime_factors_degree0[OF assms(1) assms(2)] by (auto simp add: assms)
 
+text \<open>A polynomial is squarefree iff its normalization is also squarefree.\<close>
 
 lemma squarefree_normalize:
 "squarefree f \<longleftrightarrow> squarefree (normalize f)"
 by (simp add: squarefree_def)
+
+text \<open>Important: The zeros of a polynomial are also zeros of its radical and vice versa.\<close>
 
 lemma same_zeros_radical:
 "(poly f a = 0) = (poly (radical f) a = 0)"
