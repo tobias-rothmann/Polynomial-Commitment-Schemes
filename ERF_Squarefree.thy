@@ -471,7 +471,6 @@ lemma degree_aux_less [termination_simp]:
   shows   "degree z < degree f"
 proof -
   have "z\<noteq>0" 
-    sledgehammer
     using assms square_free_part_of_correct_aux(4) by blast
   have "f\<noteq>0" using assms unfolding aux_def by auto
   then have "degree z * CARD('e) \<le> degree f" 
