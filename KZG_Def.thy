@@ -19,9 +19,10 @@ p_prime : "prime p" and
 CARD_G\<^sub>p: "int (order G\<^sub>p) = p" and
 CARD_G\<^sub>T: "int (order G\<^sub>T) = p" and
 e_symmetric: "e \<in> carrier G\<^sub>p \<rightarrow> carrier G\<^sub>p \<rightarrow> carrier G\<^sub>T" and 
-e_bilinear[simp]: "\<forall>a b::'q mod_ring . \<forall>P Q. P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p \<longrightarrow> 
-   e (P [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring a)) (Q [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring b)) 
-= (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring (a*b))" and 
+e_bilinearity[simp]: "\<forall>a b::int . \<forall>P Q. P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p \<longrightarrow> 
+   e (P [^]\<^bsub>G\<^sub>p\<^esub> a) (Q [^]\<^bsub>G\<^sub>p\<^esub> b) 
+= (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (a*b)" and 
+e_non_degeneracy[simp]: "\<not>(\<forall>P Q. P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p \<longrightarrow> e P Q = \<one>\<^bsub>G\<^sub>T\<^esub>)" and 
 (*$(\mathbb{Z}_p[x])^{<d}$ Assumptions*)
 d_pos: "max_deg > 0" and
 CARD_q: "int (CARD('q)) = p" and
@@ -171,6 +172,21 @@ qed
 
 subsubsection \<open>bilinearity operations for mod_ring elements\<close>
 
+lemma e_bilinear: "P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p \<Longrightarrow> 
+   e (P [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a::'q mod_ring))) (Q [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring b)) 
+= (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring (a*b))"
+proof -
+  assume asm: "P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p"
+  then have "e (P [^] to_int_mod_ring a) (Q [^] to_int_mod_ring b) = e P Q [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring a * to_int_mod_ring b)"
+    by simp
+   also have "\<dots> = (e P Q [^]\<^bsub>G\<^sub>T\<^esub> ((to_int_mod_ring a * to_int_mod_ring b) mod CARD ('q)))"
+     using CARD_q pow_mod_order_G\<^sub>T asm e_symmetric by blast
+   also have "\<dots>= e P Q [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring (a * b)"
+     by (simp add: times_mod_ring.rep_eq to_int_mod_ring.rep_eq)
+   finally  show "e (P [^] to_int_mod_ring a) (Q [^] to_int_mod_ring b) = e P Q [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring (a * b)"
+     .
+qed
+
 lemma e_linear_in_fst: 
   assumes "P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p"
   shows "e (P [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a::'q mod_ring))) (Q) = (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring a)"
@@ -196,6 +212,31 @@ lemma addition_in_exponents_on_e[simp]:
   shows "(e x y) ^\<^bsub>G\<^sub>T\<^esub> a \<otimes>\<^bsub>G\<^sub>T\<^esub> (e x y) ^\<^bsub>G\<^sub>T\<^esub> b = (e x y) ^\<^bsub>G\<^sub>T\<^esub> (a+b)"
   using assms
   by (metis PiE e_symmetric mod_ring_pow_mult_G\<^sub>T)
+
+lemma e_from_generators_ne_1: "e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<noteq> \<one>\<^bsub>G\<^sub>T\<^esub>"
+proof 
+  assume asm: "e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> = \<one>\<^bsub>G\<^sub>T\<^esub>"
+  have "\<forall>P Q. P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p \<longrightarrow> e P Q = \<one>\<^bsub>G\<^sub>T\<^esub>" 
+  proof(intro allI)
+    fix P Q
+    show "P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p \<longrightarrow> e P Q = \<one>\<^bsub>G\<^sub>T\<^esub> "
+    proof 
+      assume "P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p"
+      then obtain p q::int where "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> p = P \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> q = Q"
+        by (metis G\<^sub>p.generatorE int_pow_int)
+      then have "e P Q = e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> p) (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> q)"
+        by blast
+      also have "\<dots> = e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> (p*q)"
+        by force
+      also have "\<dots> =  \<one>\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> (p*q)"
+        using asm by argo
+      also have "\<dots> =  \<one>\<^bsub>G\<^sub>T\<^esub>"
+        by fastforce
+      finally show "e P Q = \<one>\<^bsub>G\<^sub>T\<^esub>" .
+    qed
+  qed
+  then show "False" using e_non_degeneracy by blast
+qed
 
 subsubsection \<open>polynomial lemmas\<close>
 
