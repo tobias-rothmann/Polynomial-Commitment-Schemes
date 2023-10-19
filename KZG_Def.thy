@@ -19,14 +19,13 @@ p_prime : "prime p" and
 CARD_G\<^sub>p: "int (order G\<^sub>p) = p" and
 CARD_G\<^sub>T: "int (order G\<^sub>T) = p" and
 e_symmetric: "e \<in> carrier G\<^sub>p \<rightarrow> carrier G\<^sub>p \<rightarrow> carrier G\<^sub>T" and 
-e_bilinear: "\<forall>a b::'q mod_ring . \<forall>P Q. P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p \<longrightarrow> 
+e_bilinear[simp]: "\<forall>a b::'q mod_ring . \<forall>P Q. P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p \<longrightarrow> 
    e (P [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring a)) (Q [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring b)) 
 = (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring (a*b))" and 
 (*$(\mathbb{Z}_p[x])^{<d}$ Assumptions*)
 d_pos: "max_deg > 0" and
 CARD_q: "int (CARD('q)) = p" and
 qr_poly'_eq: "qr_poly' TYPE('q) = Polynomial.monom 1 (nat (max_deg+1)) - 1"
-\<comment>\<open>TODO and t_SDH_GP: "t_SDH GP" TODO\<close>
 begin
 
 abbreviation pow_mod_ring_G\<^sub>p :: "'a \<Rightarrow>'q mod_ring \<Rightarrow> 'a" (infixr "^\<^bsub>G\<^sub>p\<^esub>" 75)
@@ -192,6 +191,12 @@ have "e P (Q [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a) = e (P [^]\<^bsub>G
   finally show "e P (Q [^]\<^bsub>G\<^sub>p\<^esub> to_int_mod_ring a) = e P Q [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring a" .
 qed
 
+lemma addition_in_exponents_on_e[simp]: 
+  assumes "x \<in> carrier G\<^sub>p \<and> y \<in> carrier G\<^sub>p "
+  shows "(e x y) ^\<^bsub>G\<^sub>T\<^esub> a \<otimes>\<^bsub>G\<^sub>T\<^esub> (e x y) ^\<^bsub>G\<^sub>T\<^esub> b = (e x y) ^\<^bsub>G\<^sub>T\<^esub> (a+b)"
+  using assms
+  by (metis PiE e_symmetric mod_ring_pow_mult_G\<^sub>T)
+
 subsubsection \<open>polynomial lemmas\<close>
 
 lemma deg_qr_n: 
@@ -220,7 +225,8 @@ text\<open>The definitions of the KZG functions are from the section 3.2 of the 
 "Constant-Size Commitments to Polynomials and Their Applications" and mirror the construction of 
 PolyCommitDL.
 I strongly recommend having the section 3.2 of the paper ready for look-up when trying to 
-understand this formalization.\<close>
+understand this formalization. 
+You can find the paper here: https://cacr.uwaterloo.ca/techreports/2010/cacr2010-10.pdf\<close>
 
 type_synonym 'q' sk = "'q' mod_ring"
 type_synonym 'a' pk = "'a' list"
