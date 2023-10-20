@@ -186,28 +186,26 @@ next
   then show "\<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> x = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> y" by fast
 qed
 
-lemma pow_on_eq_card_GT_carrier_ext': "g \<in> carrier G\<^sub>T \<Longrightarrow> g^\<^bsub>G\<^sub>T\<^esub> x = g^\<^bsub>G\<^sub>T\<^esub> y \<longleftrightarrow> x=y"
+lemma pow_on_eq_card_GT_carrier_ext': 
+  "((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>))^\<^bsub>G\<^sub>T\<^esub> x = ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>))^\<^bsub>G\<^sub>T\<^esub> y \<longleftrightarrow> x=y"
 proof 
-  assume asm: "g \<in> carrier G\<^sub>T"
-  assume g_pow_x_eq_g_pow_y: "g ^\<^bsub>G\<^sub>T\<^esub> x = g ^\<^bsub>G\<^sub>T\<^esub> y"
-  from asm obtain g_exp::nat where "g = \<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> g_exp"
-    using G\<^sub>T.generatorE by blast
-  then have g_exp: "g = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> (of_int_mod_ring (int g_exp))"
+  assume g_pow_x_eq_g_pow_y: "e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> x = e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> y"
+  obtain g_exp::nat where "e \<^bold>g \<^bold>g = \<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> g_exp"
+    using G\<^sub>T.generatorE e_g_g_in_carrier_GT by blast
+  then have g_exp: "e \<^bold>g \<^bold>g = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> (of_int_mod_ring (int g_exp))"
     by (metis CARD_G\<^sub>T G\<^sub>T.pow_generator_mod_int crypto_primitives.CARD_q crypto_primitives_axioms int_pow_int of_int_mod_ring.rep_eq to_int_mod_ring.rep_eq)
   let ?g_exp = "of_int_mod_ring (int g_exp)"
-  have "g^\<^bsub>G\<^sub>T\<^esub> x =  \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> (of_int_mod_ring (int g_exp) * x)"
+  have "(e \<^bold>g \<^bold>g)^\<^bsub>G\<^sub>T\<^esub> x =  \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> (of_int_mod_ring (int g_exp) * x)"
     using g_exp
     by (metis CARD_G\<^sub>T G\<^sub>T.generator_closed G\<^sub>T.int_pow_pow G\<^sub>T.pow_generator_mod_int crypto_primitives.CARD_q crypto_primitives_axioms times_mod_ring.rep_eq to_int_mod_ring.rep_eq)
-  moreover have "g^\<^bsub>G\<^sub>T\<^esub> y = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> (of_int_mod_ring (int g_exp) * y)"
+  moreover have "(e \<^bold>g \<^bold>g)^\<^bsub>G\<^sub>T\<^esub> y = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> (of_int_mod_ring (int g_exp) * y)"
     using g_exp
     by (metis CARD_G\<^sub>T G\<^sub>T.generator_closed G\<^sub>T.int_pow_pow G\<^sub>T.pow_generator_mod_int crypto_primitives.CARD_q crypto_primitives_axioms times_mod_ring.rep_eq to_int_mod_ring.rep_eq)
-  ultimately have "of_int_mod_ring (int g_exp) * x = of_int_mod_ring (int g_exp) * y"
-    using g_pow_x_eq_g_pow_y pow_on_eq_card_GT by auto
-  then show "x=y" (*TODO show g_exp is not zero*)
-    sorry
+  ultimately show "x =y"
+    using g_pow_x_eq_g_pow_y pow_on_eq_card_GT e_from_generators_ne_1 g_exp by force
 next 
     assume "x = y"
-    then show "g ^\<^bsub>G\<^sub>T\<^esub> x = g ^\<^bsub>G\<^sub>T\<^esub> y" 
+    then show "(e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> x = (e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> y" 
       by blast
 qed
  
@@ -238,13 +236,44 @@ proof -
     using \<psi>\<^sub>i \<psi>\<^sub>i' by fast
   then have "(e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> (\<psi>\<^sub>i * (\<alpha>-i) + \<phi>_of_i)
       = (e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> (\<psi>\<^sub>i' * (\<alpha>-i) + \<phi>'_of_i)"
-    by force
+    using e_bilinear by force
   then have "\<psi>\<^sub>i * (\<alpha>-i) + \<phi>_of_i = \<psi>\<^sub>i' * (\<alpha>-i) + \<phi>'_of_i"
-    using pow_on_eq_card_GT'
-    by (metis G\<^sub>T.int_pow_one G\<^sub>T.one_closed)
-  show ?thesis
-    sorry
+    using pow_on_eq_card_GT_carrier_ext'
+    by blast
+  then have "(\<psi>\<^sub>i - \<psi>\<^sub>i') * (\<alpha>-i) = \<phi>'_of_i - \<phi>_of_i"
+    by (simp add: algebra_simps)
+  then have "(\<psi>\<^sub>i - \<psi>\<^sub>i')/(\<phi>'_of_i - \<phi>_of_i) = 1/(\<alpha>-i)"
+    by (metis \<psi>\<^sub>i \<psi>\<^sub>i' assms divide_divide_eq_left divide_self_if eq_iff_diff_eq_0)
+  moreover have "(w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i)) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((\<psi>\<^sub>i - \<psi>\<^sub>i')/(\<phi>'_of_i - \<phi>_of_i))"
+  proof -
+    have "(w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i)) 
+        = ((\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<psi>\<^sub>i) \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<psi>\<^sub>i')) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i))"
+      using \<psi>\<^sub>i \<psi>\<^sub>i' by fast
+    also have "\<dots> = (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<psi>\<^sub>i - \<psi>\<^sub>i')) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i))"
+      using mod_ring_pow_mult_inv_G\<^sub>p by presburger
+    also have "\<dots> = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((\<psi>\<^sub>i - \<psi>\<^sub>i')/(\<phi>'_of_i - \<phi>_of_i))"
+      by (metis mod_ring_pow_pow_G\<^sub>p times_divide_eq_right verit_prod_simplify(2))
+    finally show ?thesis .
+  qed
+  ultimately show ?thesis by fastforce
 qed
+
+subsubsection \<open>literal helping lemmas\<close>
+
+lemma helping_1: "\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 
+                            \<and> valid_msg \<phi>_of_i w_i
+                            \<and> valid_msg \<phi>'_of_i w'_i
+                            \<and> verify ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((\<alpha>)^t)) [0..<max_deg+1])) C i \<phi>_of_i w_i 
+                            \<and> verify ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1])) C i \<phi>'_of_i w'_i
+                            \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha> + (-i))) 
+                              = (w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i)) 
+\<longleftrightarrow> 
+\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 
+                            \<and> valid_msg \<phi>_of_i w_i
+                            \<and> valid_msg \<phi>'_of_i w'_i
+                            \<and> verify ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1])) C i \<phi>_of_i w_i 
+                            \<and> verify ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1])) C i \<phi>'_of_i w'_i"
+  using two_eval_verify_imp_tSDH_break unfolding valid_msg_def by meson
 
 subsubsection \<open>KZG eval bind game to reduction game - equivalence theorem\<close>
 
@@ -307,18 +336,32 @@ proof -
   } ELSE return_spmf False 
   } ELSE return_spmf False 
   } ELSE return_spmf False "  
-  using assert_anding by presburger
-  also have "\<dots> = TRY do { 
+    using assert_anding by presburger
+ also have "\<dots> = TRY do { 
      \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> (?PK \<alpha>);
   _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 
+                            \<and> valid_msg \<phi>_of_i w_i
+                            \<and> valid_msg \<phi>'_of_i w'_i
                             \<and> verify (?PK \<alpha>) C i \<phi>_of_i w_i 
                             \<and> verify (?PK \<alpha>) C i \<phi>'_of_i w'_i
                             \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(?\<alpha> \<alpha> + (-i))) 
                               = (w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i)));
     return_spmf True 
-  } ELSE return_spmf False"
-    sorry
+  } ELSE return_spmf False"  
+    unfolding split_def Let_def
+    by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
+ also have "\<dots> = TRY do { 
+     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> (?PK \<alpha>);
+  _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 
+                            \<and> valid_msg \<phi>_of_i w_i
+                            \<and> valid_msg \<phi>'_of_i w'_i
+                            \<and> verify (?PK \<alpha>) C i \<phi>_of_i w_i 
+                            \<and> verify (?PK \<alpha>) C i \<phi>'_of_i w'_i);
+    return_spmf True 
+  } ELSE return_spmf False"  
+    using helping_1 by algebra 
 
 
 
