@@ -568,6 +568,13 @@ text \<open>ERF algorithm as function\<close>
 definition ERF :: "'e mod_ring poly \<Rightarrow> 'e mod_ring poly" where 
 "ERF f = (if f = 0 then 0 else prod_list (square_free_part_of f))"
 
+lemma ERF_0[simp]:
+"ERF 0 = 0" unfolding ERF_def by auto
+
+lemma ERF_0_iff:
+"ERF f = 0 \<longleftrightarrow> f = 0"
+unfolding ERF_def using square_free_part_of_correct(1) by force
+
 text \<open>To show:\<close>
 
 lemma same_zeros_in_square_free_part:
@@ -588,6 +595,11 @@ assumes "f\<noteq>0"
 shows "squarefree (ERF f)"
 using assms unfolding ERF_def square_free_part_of_correct(1)[OF assms] 
 by (auto simp add: squarefree_radical)
+
+lemma square_free_ERF:
+assumes "f\<noteq>0"
+shows "square_free (ERF f)"
+using assms squarefree_square_free ERF_0_iff squarefree_ERF by blast
 
 (*
 thm multiplicity_gcd

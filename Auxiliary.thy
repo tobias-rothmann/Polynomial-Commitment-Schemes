@@ -371,7 +371,7 @@ qed
 
 text \<open>We need to relate two different versions of the definition of a square-free polynomial.\<close>
 
-lemma squarefree_is_squarefree:
+lemma squarefree_square_free:
 fixes x :: "'a :: {field} poly"
 assumes "x \<noteq> 0"
 shows "squarefree x = square_free x"
