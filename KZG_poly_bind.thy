@@ -326,7 +326,7 @@ proof -
     using f_ne_0_imp_ERF_ne_0[OF \<phi>_ne_0] .
   moreover have "poly (ERF \<phi>) \<alpha> = 0" 
     using \<alpha>_root same_zeros_in_square_free_part by blast
-  moreover have "square_free (ERF \<phi>)" unfolding ERF_def sorry
+  moreover have "square_free (ERF \<phi>)" using squarefree_ERF[OF \<phi>_ne_0] sorry
   ultimately show "find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
     unfolding find_\<alpha>.simps using poly_eq0_is_find_\<alpha>_sf_eq_\<alpha> by blast
 qed

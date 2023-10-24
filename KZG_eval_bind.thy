@@ -371,16 +371,16 @@ proof -
   have "bind_game \<A> = TRY do {
   PK \<leftarrow> key_gen;
   (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
-  _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i);
+  _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
   _ :: unit \<leftarrow> assert_spmf (verify PK C i \<phi>_i w_i \<and> verify PK C i \<phi>'_i w'_i);  
   return_spmf True} ELSE return_spmf False"
     using bind_game_alt_def by presburger
-  also have "\<dots> = TRY do {
+  moreover have "\<dots> = TRY do {
   PK \<leftarrow> key_gen;
     TRY do {
     (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
       TRY do {
-      _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i);
+      _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
       _ :: unit \<leftarrow> assert_spmf (verify PK C i \<phi>_i w_i \<and> verify PK C i \<phi>'_i w'_i);  
       return_spmf True
       } ELSE return_spmf False 
@@ -394,6 +394,8 @@ proof -
     (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
       TRY do {
       _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i 
+                                \<and> valid_msg \<phi>_i w_i 
+                                \<and> valid_msg \<phi>'_i w'_i
                                 \<and> verify PK C i \<phi>_i w_i 
                                 \<and> verify PK C i \<phi>'_i w'_i);  
       return_spmf True

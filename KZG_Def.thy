@@ -172,7 +172,7 @@ qed
 
 subsubsection \<open>bilinearity operations for mod_ring elements\<close>
 
-lemma e_bilinear: "P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p \<Longrightarrow> 
+lemma e_bilinear[simp]: "P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p \<Longrightarrow> 
    e (P [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a::'q mod_ring))) (Q [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring b)) 
 = (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring (a*b))"
 proof -
@@ -237,6 +237,9 @@ proof
   qed
   then show "False" using e_non_degeneracy by blast
 qed
+
+lemma e_g_g_in_carrier_GT[simp]: "e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<in> carrier G\<^sub>T"
+  using e_symmetric by fast
 
 subsubsection \<open>polynomial lemmas\<close>
 
