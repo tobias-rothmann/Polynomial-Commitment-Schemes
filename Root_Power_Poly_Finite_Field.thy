@@ -1,6 +1,6 @@
 theory Root_Power_Poly_Finite_Field
 
-imports "Berlekamp_Zassenhaus.Finite_Field_Factorization" KZG_Def
+imports "Berlekamp_Zassenhaus.Finite_Field_Factorization" 
 "Mason_Stothers.Mason_Stothers"
 
 begin
@@ -25,103 +25,160 @@ assumes "\<forall>\<^sub>\<infinity>na. rt (poly.coeff p (na * n)) = 0"
 shows "poly.coeff (root_poly rt n p) i = rt (poly.coeff p (i * n))"
 unfolding root_poly_def using assms by (subst Abs_poly_inverse, auto)
 
+(* remastered version by Manuel Eberl *)
 
-definition root_poly' :: "nat \<Rightarrow> 'a :: zero poly \<Rightarrow> _ poly" where
-  "root_poly' n p = Abs_poly (\<lambda>i. poly.coeff p (i * n))"
+lift_definition root_poly' :: "nat \<Rightarrow> 'a :: zero poly \<Rightarrow> 'a poly" is
+  "\<lambda>n p i. if n = 0 then p i else p (i * n)"
+proof goal_cases
+  case (1 n f)
+  show ?case
+  proof (cases "n > 0")
+    case True
+    from 1 obtain N where N: "f i = 0" if "i \<ge> N" for i
+      using cofinite_eq_sequentially eventually_sequentially by auto
+    have "f (i * n) = 0" if "i \<ge> N" for i
+    proof (rule N)
+      show "N \<le> i * n"
+        using that True 
+        by (metis One_nat_def Suc_leI le_trans mult.right_neutral mult_le_mono2)
+    qed
+    thus ?thesis using True
+      unfolding cofinite_eq_sequentially eventually_sequentially by auto
+  qed (use 1 in auto)
+qed
 
 lemma coeff_root_poly' [simp]:
-assumes "n>1"
-shows "poly.coeff (root_poly' n p) i = poly.coeff p (i * n)"
-proof -
-  let ?A = "{x. poly.coeff p (x * n) \<noteq> 0}"
-  let ?f = "(\<lambda>x. if n dvd x then x div n else degree p + 1)"
-  have card: "degree p < n + degree p * n" using assms by (simp add: add_strict_increasing)
-  have "?f -` ?A \<subseteq> {x. poly.coeff p x \<noteq> 0}" using coeff_eq_0[OF card] by auto
-  then have f1: "finite (?f -` ?A)" if "finite {x. poly.coeff p x \<noteq> 0}"
-    using finite_subset that by blast 
-  have surj: "surj ?f"
-  by (smt (verit, best) Groups.mult_ac(2) arith_simps(62) card dvd_triv_left mult_Suc_right 
-    nonzero_mult_div_cancel_left not_less0 surj_def)
-  have "\<forall>\<^sub>\<infinity>m. poly.coeff p (m * n) = 0" using MOST_coeff_eq_0[of p] 
-    unfolding MOST_iff_cofinite by (intro finite_vimageD[of ?f ?A]) (use f1 surj in \<open>auto\<close>)
- then show ?thesis unfolding root_poly'_def by (subst Abs_poly_inverse)(auto)
+  assumes "n > 0"
+  shows "poly.coeff (root_poly' n p) i = poly.coeff p (i * n)"
+  using assms by transfer auto
+
+lemma root_poly'_0 [simp]: "root_poly' n 0 = 0"
+  by transfer auto
+
+lemma root_poly'_0_left [simp]: "root_poly' 0 p = p"
+  by transfer auto
+
+lemma degree_root_poly'_le:
+  assumes "n > 0"
+  shows   "degree (root_poly' n p) \<le> degree p div n"
+proof (intro degree_le allI impI)
+  fix i assume "degree p div n < i"
+  hence "i * n > degree p"
+    using assms div_less_iff_less_mult by blast
+  thus "coeff (root_poly' n p) i = 0"
+    using assms by (simp add: coeff_eq_0)
 qed
 
-(*
+
+
+
 text \<open>We also need an executable version of the root poly function.\<close>
-definition root_poly'_impl :: "nat \<Rightarrow> 'a :: zero list \<Rightarrow> 'a list" where
-"root_poly'_impl n cs = nths cs {i. n dvd i \<and> i<length cs}"
-(*
-  "root_poly'_impl n [] = []" |
-  "root_poly'_impl n (c # cs) = (if n dvd (length cs + 1) 
-      then c#(root_poly'_impl n cs) else root_poly'_impl n cs)"
-*)
+(* The executable version is thanks to Manuel Eberl *)
 
-lemma root_poly'_code [code]:
-assumes "n>1"
-shows "coeffs (root_poly' n p) = root_poly'_impl n (coeffs p)"
-proof (rule coeffs_eqI, goal_cases)
-  case (1 m)
-  then show ?case sorry
-next
-  case 2
-  then show ?case unfolding root_poly'_impl_def sorry
-qed
-*)
+fun take_every :: "nat \<Rightarrow> 'a list \<Rightarrow> 'a list" where
+  "take_every _ [] = []"
+| "take_every n (x # xs) = x # take_every n (drop (n - 1) xs)"
 
+lemma take_every_0 [simp]: "take_every 0 xs = xs"
+  by (induction xs) auto
 
+lemma take_every_1 [simp]: "take_every (Suc 0) xs = xs"
+  by (induction xs) auto
 
-(*
-(*
-coeffs p = [p_0,...,p_r]
-rev (coeffs p) = [p_r,...,p_0]
-root_poly'_impl geht über rev (coeffs p) weil es immer coeff vom nächsthöchsten Grad anschaut
-
-coeffs (root_poly' p) = [p0, pn, p2n,...pmn]
-
-root_poly'_impl n (rev (coeffs p)) = [pmn, ... p2n, pn, p0]
-*)
-
-lemma root_poly'_code [code]:
-assumes "n>1"
-shows "coeffs (root_poly' n p) = root_poly'_impl n (coeffs p)"
-proof (rule coeffs_eqI, goal_cases)
-  case (1 m)
-  have *: "poly.coeff (root_poly' n p) m = poly.coeff p (m*n)" by (rule coeff_root_poly'[OF assms])
-  show ?case unfolding * root_poly'_impl_def nths_def apply auto
-
- proof (induction "rev (coeffs p)" arbitrary: p)
-    case Nil
-    then have "p = 0" using coeffs_eq_Nil by fastforce
-    then show ?case unfolding coeff_root_poly'[OF assms] 1 by auto
+lemma int_length_take_every: "n > 0 \<Longrightarrow> int (length (take_every n xs)) = ceiling (length xs / n)"
+proof (induction n xs rule: take_every.induct)
+  case (2 n x xs)
+  show ?case
+  proof (cases "Suc (length xs) \<ge> n")
+    case True
+    thus ?thesis using 2
+      by (auto simp: dvd_imp_le of_nat_diff diff_divide_distrib split: if_splits)
   next
-    case (Cons p_deg cs) (* cs = [p_deg-1,... p0] *)
-    define p' where "p' = "
-
-    have "cs = rev (coeffs p')" sorry
-      (* p = p' + x^(deg p) * p_deg*)
-    have "poly.coeff p (m * n) = nth_default 0 (rev (root_poly'_impl n cs)) m" 
-      if "\<not> n dvd length cs + 1"
-    proof -
-      have "rev (coeffs p') = cs"  sorry
-      show ?thesis using nth_default_coeffs_eq[of p, symmetric] Cons(1) sorry
-    qed
-    moreover have "poly.coeff p (m * n) = nth_default 0 (rev (root_poly'_impl n cs) @ [c]) m" 
-      if "n dvd length cs + 1" 
-    proof -
-      have two: "nth_default 0 (root_poly'_impl n cs) n = poly.coeff (root_poly' n (Poly cs)) n" 
-        using 2(1)[OF that]
- sorry
-      show ?thesis sorry
-    qed
-    ultimately show ?case unfolding c[symmetric] by auto 
+    case False
+    hence "\<lceil>(1 + real (length xs)) / real n\<rceil> = 1"
+      by (intro ceiling_unique) auto
+    thus ?thesis using False
+      by auto
   qed
-next
-  case 2
-  then show ?case  sorry
-qed
+qed auto
 
-*)
+lemma length_take_every:
+  "n > 0 \<Longrightarrow> length (take_every n xs) = nat (ceiling (length xs / n))"
+  using int_length_take_every[of n xs] by simp
+
+lemma take_every_nth [simp]:
+  "n > 0 \<Longrightarrow> i < length (take_every n xs) \<Longrightarrow> take_every n xs ! i = xs ! (n * i)"
+proof (induction n xs arbitrary: i rule: take_every.induct)
+  case (2 n x xs i)
+  show ?case
+  proof (cases i)
+    case (Suc j)
+    have "n - Suc 0 \<le> length xs"
+      using Suc "2.prems" nat_le_linear by force
+    hence "drop (n - Suc 0) xs ! (n * j) = xs ! (n - 1 + n * j)"
+      using Suc by (subst nth_drop) auto
+    also have "n - 1 + n * j = n + n * j - 1"
+      using \<open>n > 0\<close> by linarith
+    finally show ?thesis
+      using "2.IH"[of j] "2.prems" Suc by simp
+  qed auto
+qed auto
+
+lemma coeffs_eq_strip_whileI:
+  assumes "\<And>i. i < length xs \<Longrightarrow> coeff p i = xs ! i"
+  assumes "p \<noteq> 0 \<Longrightarrow> length xs > degree p"
+  shows   "coeffs p = strip_while ((=) 0) xs"
+proof (rule coeffs_eqI)
+  fix n :: nat
+  show "coeff p n = nth_default 0 (strip_while ((=) 0) xs) n"
+    using assms
+    by (metis coeff_0 coeff_Poly_eq coeffs_Poly le_degree nth_default_coeffs_eq 
+      nth_default_eq_dflt_iff nth_default_nth order_le_less_trans)
+qed auto
+
+lemma root_poly'_code [code]:
+  "coeffs (root_poly' n p) = (if n = 0 then coeffs p else strip_while ((=) 0) (take_every n (coeffs p)))"
+     (is "_ = If _ _ ?rhs")
+proof (cases "n = 0 \<or> p = 0")
+  case False
+  hence "n > 0" "p \<noteq> 0"
+    by auto
+  have "coeffs (root_poly' n p) = ?rhs"
+  proof (rule coeffs_eq_strip_whileI)
+    fix i
+    show "coeff (root_poly' n p) i = take_every n (coeffs p) ! i"
+      if i: "i < length (take_every n (coeffs p))" for i
+    proof -
+      note \<open>i < length (take_every n (coeffs p))\<close>
+      also have "length (take_every n (coeffs p)) = nat \<lceil>(degree p + 1) / real n\<rceil>"
+        using False by (simp add: length_take_every length_coeffs)
+      finally have "i < real (degree p + 1) / real n"
+        by linarith
+      hence "real i * real n < real (degree p + 1)"
+        using False by (simp add: field_simps)
+      hence "i * n \<le> degree p"
+        unfolding of_nat_mult [symmetric] by linarith
+      hence "coeffs p ! (i * n) = coeff p (i * n)"
+        using False by (intro coeffs_nth) (auto simp: length_take_every)
+      thus ?thesis using False i
+        by (auto simp: nth_default_def nth_strip_while mult.commute)
+    qed
+  next
+    assume nz: "root_poly' n p \<noteq> 0"
+    have "degree (root_poly' n p) \<le> degree p div n"
+      by (rule degree_root_poly'_le) fact
+    also have "\<dots> < nat \<lceil>(real (degree p) + 1) / real n\<rceil>"
+      using \<open>n > 0\<close>
+      by (metis div_less_iff_less_mult linorder_not_le nat_le_real_less of_nat_0_less_iff
+                of_nat_ceiling of_nat_mult pos_less_divide_eq)
+    also have "\<dots> = length (take_every n (coeffs p))"
+      using \<open>n > 0\<close> \<open>p \<noteq> 0\<close> by (simp add: length_take_every length_coeffs add_ac)
+    finally show "length (take_every n (coeffs p)) > degree (root_poly' n p)"
+      by - simp_all
+  qed
+  thus ?thesis
+    using False by metis
+qed auto
 
 
 
@@ -154,10 +211,9 @@ shows "poly.coeff p n = poly.coeff (root_poly' CARD('e) p) (n div CARD('e))"
 proof -
   let ?A = "{x. poly.coeff p (x * CARD('e)) \<noteq> 0}"
   let ?f = "(\<lambda>x. if CARD('e) dvd x then x div CARD('e) else degree p + 1)"
-  have card: "degree p < CARD('e) + degree p * CARD('e)" 
-  by (metis add_gr_0 arithmetic_simps(79) bot_nat_0.not_eq_extremum 
-    linordered_comm_semiring_strict_class.comm_mult_strict_left_mono nontriv trans_less_add2 
-    zero_less_card_finite)
+  have card: "degree p < CARD('e) + degree p * CARD('e)"
+  by (metis One_nat_def Suc_lessI antisym_conv3 less_add_same_cancel2 less_zeroE 
+    n_less_n_mult_m nat_mult_1_right pos_add_strict zero_less_card_finite)
   have "?f -` ?A \<subseteq> {x. poly.coeff p x \<noteq> 0}" using coeff_eq_0[OF card] by auto
   then have f1: "finite (?f -` ?A)" if "finite {x. poly.coeff p x \<noteq> 0}"
     using finite_subset that by blast 
@@ -165,7 +221,7 @@ proof -
     by (smt (verit) div_mult_self1_is_m dvd_triv_left surjI zero_less_card_finite)
   have "\<forall>\<^sub>\<infinity>n. poly.coeff p (n * CARD('e)) = 0" using MOST_coeff_eq_0[of p] 
     unfolding MOST_iff_cofinite by (intro finite_vimageD[of ?f ?A]) (use f1 surj in \<open>auto\<close>)
- then show ?thesis unfolding root_poly'_def by (subst Abs_poly_inverse) (use assms in \<open>auto\<close>)
+ then show ?thesis by (simp add: assms)
 qed
 
 lemma root_poly'_power': 
@@ -178,10 +234,6 @@ proof -
   then show ?thesis by (metis coeff_of_power poly_eq_iff)
 qed
 
-(*
-definition root_poly' :: "'e mod_ring poly \<Rightarrow> 'e mod_ring poly" where
-  "root_poly' = root_poly (\<lambda>_ x. x) CARD('e)"
-*)
 
 
 end
