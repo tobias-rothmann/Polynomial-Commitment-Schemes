@@ -13,12 +13,12 @@ text \<open>A polynomial can be uniquely decomposed into a monic part and a coef
 (which is exactly the lead_coefficient).\<close>
 
 lemma lead_coeff_is_coeff_for_monic_part:
-assumes "f = smult a g" "monic g" "a\<noteq>0"
+assumes "f = Polynomial.smult a g" "monic g" "a\<noteq>0"
 shows "lead_coeff f = (a::'a ::field)"
   using assms by auto
 
 lemma decompose_monic_part_and_coefficient:
-assumes "monic f" "monic g" "smult a f = smult b g" "a\<noteq>0" "b\<noteq>0"
+assumes "monic f" "monic g" "Polynomial.smult a f = Polynomial.smult b g" "a\<noteq>0" "b\<noteq>0"
 shows "a=(b::'a ::field)" "f = g"
 by (metis assms lead_coeff_is_coeff_for_monic_part)
    (metis assms lead_coeff_is_coeff_for_monic_part smult_eq_iff)
@@ -51,11 +51,11 @@ of said polynomial.\<close>
 lemma pderiv_exp_prod_monic: 
 assumes "p = prod_mset fs" 
 shows "pderiv p = (sum (\<lambda> fi. let ei = count fs fi in
-    smult (of_nat ei) (pderiv fi) * fi^(ei-1) * prod (\<lambda> fj. fj^(count fs fj)) ((set_mset fs) - {fi})) 
-    (set_mset fs))"
+    Polynomial.smult (of_nat ei) (pderiv fi) * fi^(ei-1) * prod (\<lambda> fj. fj^(count fs fj)) 
+    ((set_mset fs) - {fi})) (set_mset fs))"
 proof -
   have pderiv_fi: "pderiv (fi ^ count fs fi) = 
-    smult (of_nat (count fs fi)) (pderiv fi * (fi ^ (count fs fi - Suc 0)))" 
+    Polynomial.smult (of_nat (count fs fi)) (pderiv fi * (fi ^ (count fs fi - Suc 0)))" 
     if "fi \<in># fs" for fi
   proof -
     obtain i where i: "Suc i = count fs fi" by (metis \<open>fi \<in># fs\<close> in_countE)
@@ -158,11 +158,11 @@ text \<open>This lemma helps to reason that if a sum is zero, under some conditi
 the summands must also be zero.\<close>
 lemma one_summand_zero:
 fixes a2::"'a ::field poly"
-assumes "smult a1 a2 + b = 0" "a2\<noteq>0" "c dvd b" "\<not> c dvd a2"
+assumes "Polynomial.smult a1 a2 + b = 0" "a2\<noteq>0" "c dvd b" "\<not> c dvd a2"
 shows "a1 = 0"
 proof (rule ccontr)
   assume "a1\<noteq>0"
-  then have "a2 = smult (- inverse a1) b" using assms(1)
+  then have "a2 = Polynomial.smult (- inverse a1) b" using assms(1)
     by (metis add.commute assms(3) assms(4) dvd_0_right dvd_add_triv_left_iff dvd_smult_cancel dvd_trans)
   then have "b dvd a2" using smult_dvd_cancel by (metis dvd_refl)
   then have "c dvd a2" using assms(3) by auto
@@ -368,5 +368,24 @@ next
     by (subst f, subst poly_prod, subst poly_mult, subst poly_hom.hom_prod_mset) auto
   then show ?thesis unfolding radical_def using False by auto
 qed
+
+text \<open>We need to relate two different versions of the definition of a square-free polynomial.\<close>
+
+lemma squarefree_square_free:
+fixes x :: "'a :: {field} poly"
+assumes "x \<noteq> 0"
+shows "squarefree x = square_free x"
+using assms unfolding squarefree_def square_free_def proof (safe, goal_cases)
+  case (1 q)
+  have "q dvd 1" using 1(2,4) by (metis power2_eq_square)
+  then have "degree q = 0" using poly_dvd_1[of q] by auto
+  then show ?case using 1(3) by auto
+next
+  case (2 y)
+  then have "degree y = 0" by (metis bot_nat_0.not_eq_extremum power2_eq_square)
+  have "y\<noteq>0" using 2(2,4) by fastforce
+  show ?case using is_unit_iff_degree[OF \<open>y\<noteq>0\<close>] \<open>degree y = 0\<close> by auto
+qed
+    
 
 end
