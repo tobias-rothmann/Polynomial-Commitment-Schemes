@@ -20,7 +20,9 @@ The security properties are the same as in the [paper](https://cacr.uwaterloo.ca
 They are shown via game-based proofs, see the [CryptHOL tutorial](https://eprint.iacr.org/2018/941.pdf) for details.
 
 ### Polynomial Binding
- #### Proven (thanks to [Katharina Kreuzer](https://www21.in.tum.de/team/kreuzer/) for providing the Elimination of repeated factors (ERF) algorithm, which allowed a complete factorization).
+(thanks to [Katharina Kreuzer](https://www21.in.tum.de/team/kreuzer/) for providing the Elimination of repeated factors (ERF) algorithm, which allowed a complete factorization)
+
+#### Proven.
 
 ### Evaluation Binding
 #### In progress..
