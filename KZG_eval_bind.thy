@@ -39,7 +39,6 @@ where
 
 definition valid_msg :: "'e eval_value \<Rightarrow> 'a eval_witness \<Rightarrow> bool" where 
   "valid_msg \<phi>_i w_i = (w_i \<in> carrier G\<^sub>p)"
-
                     
 subsection \<open>Game definition\<close>
 
@@ -56,6 +55,9 @@ definition bind_game :: "('a, 'e) adversary \<Rightarrow> bool spmf"
   let b = verify PK C i \<phi>_i w_i;
   let b' = verify PK C i \<phi>'_i w'_i;
   return_spmf (b \<and> b')} ELSE return_spmf False"
+
+definition bind_advantage :: "('a, 'e) adversary \<Rightarrow> real"
+  where "bind_advantage \<A> \<equiv> spmf (bind_game \<A>) True"
 
 subsection \<open>putting together the binding game\<close>
                                                         
@@ -163,8 +165,7 @@ lemma assert_anding: "TRY do {
       } ELSE return_spmf False"
   by (simp add: try_bind_assert_spmf)
 
-declare [[show_types]]
-lemma pow_on_eq_card_GT: "(\<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> x = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> y) = (x=y)"
+lemma pow_on_eq_card_GT[simp]: "(\<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> x = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> y) = (x=y)"
 proof
   assume assm: "\<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> x = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> y"
   then have "\<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring x = \<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring y"
@@ -186,7 +187,7 @@ next
   then show "\<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> x = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> y" by fast
 qed
 
-lemma pow_on_eq_card_GT_carrier_ext': 
+lemma pow_on_eq_card_GT_carrier_ext'[simp]: 
   "((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>))^\<^bsub>G\<^sub>T\<^esub> x = ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>))^\<^bsub>G\<^sub>T\<^esub> y \<longleftrightarrow> x=y"
 proof 
   assume g_pow_x_eq_g_pow_y: "e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> x = e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> y"
@@ -277,7 +278,7 @@ lemma helping_1: "\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i
 
 subsubsection \<open>KZG eval bind game to reduction game - equivalence theorem\<close>
 
-theorem poly_bind_game_eq_t_SDH_strong_red:
+theorem eval_bind_game_eq_t_SDH_strong_red:
   shows "bind_game \<A> = t_SDH_G\<^sub>p.game (bind_reduction \<A>)"
 proof -
   note [simp] = Let_def split_def
@@ -361,33 +362,18 @@ proof -
                             \<and> verify (?PK \<alpha>) C i \<phi>'_of_i w'_i);
     return_spmf True 
   } ELSE return_spmf False"  
-    using helping_1 by algebra 
-
-
-
-  
-    text \<open>We start with the poly bind game and perform logical 
-  transitions until we obtain the t-SDH game with the (stronger-)reduction\<close>
-  have "bind_game \<A> = TRY do {
-  PK \<leftarrow> key_gen;
-  (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
-  _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
-  _ :: unit \<leftarrow> assert_spmf (verify PK C i \<phi>_i w_i \<and> verify PK C i \<phi>'_i w'_i);  
-  return_spmf True} ELSE return_spmf False"
-    using bind_game_alt_def by presburger
-  moreover have "\<dots> = TRY do {
-  PK \<leftarrow> key_gen;
-    TRY do {
-    (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
-      TRY do {
-      _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
-      _ :: unit \<leftarrow> assert_spmf (verify PK C i \<phi>_i w_i \<and> verify PK C i \<phi>'_i w'_i);  
-      return_spmf True
-      } ELSE return_spmf False 
-    } ELSE return_spmf False 
+   using helping_1 by algebra 
+  also have "\<dots> = TRY do { 
+    PK \<leftarrow> key_gen;
+    (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> PK;
+  _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 
+                            \<and> valid_msg \<phi>_of_i w_i
+                            \<and> valid_msg \<phi>'_of_i w'_i
+                            \<and> verify PK C i \<phi>_of_i w_i 
+                            \<and> verify PK C i \<phi>'_of_i w'_i);
+    return_spmf True 
   } ELSE return_spmf False"
-   unfolding split_def Let_def
-   by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
+    unfolding key_gen_def by simp
   also have "\<dots> = TRY do {
   PK \<leftarrow> key_gen;
   TRY do {
@@ -402,21 +388,38 @@ proof -
       } ELSE return_spmf False 
     } ELSE return_spmf False 
   } ELSE return_spmf False"
+  unfolding split_def Let_def
+   by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
+  also  have "\<dots> = TRY do {
+  PK \<leftarrow> key_gen;
+    TRY do {
+    (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
+      TRY do {
+      _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
+      _ :: unit \<leftarrow> assert_spmf (verify PK C i \<phi>_i w_i \<and> verify PK C i \<phi>'_i w'_i);  
+      return_spmf True
+      } ELSE return_spmf False 
+    } ELSE return_spmf False 
+  } ELSE return_spmf False"  
     using assert_anding by presburger
-  also have "\<dots> = TRY do {
+  also  have "\<dots> = TRY do {
   PK \<leftarrow> key_gen;
   (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
-  _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i 
-                            \<and> verify PK C i \<phi>_i w_i 
-                            \<and> verify PK C i \<phi>'_i w'_i);  
+  _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
+  _ :: unit \<leftarrow> assert_spmf (verify PK C i \<phi>_i w_i \<and> verify PK C i \<phi>'_i w'_i);  
   return_spmf True} ELSE return_spmf False"
-   unfolding split_def Let_def
-   by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
-
-  show ?thesis unfolding bind_game_def t_SDH_G\<^sub>p.game_def
-    sorry
+    unfolding split_def Let_def
+    by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
+  also have "\<dots>=bind_game \<A>"
+     using bind_game_alt_def by presburger
+  finally show ?thesis unfolding bind_game_def t_SDH_G\<^sub>p.game_def ..
 qed
 
+
+theorem evaluation_binding: "bind_advantage \<A> = t_SDH_G\<^sub>p.advantage (bind_reduction \<A>)"
+  unfolding bind_advantage_def t_SDH_G\<^sub>p.advantage_def
+  using eval_bind_game_eq_t_SDH_strong_red by presburger
+  
 end
 
 end
