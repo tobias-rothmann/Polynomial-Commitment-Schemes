@@ -294,7 +294,8 @@ where
     x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
     let \<alpha>::'e mod_ring = of_int_mod_ring (int x) in
     return_spmf (\<alpha>, map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) 
-  }" 
+  }"
+
 
 subsection\<open>Commit\<close>
 

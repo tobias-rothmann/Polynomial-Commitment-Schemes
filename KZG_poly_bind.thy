@@ -943,7 +943,6 @@ theorem polynomial_binding: "bind_commit.bind_advantage \<A> \<le> t_SDH_G\<^sub
       using t_SDH_advantage_stronger_red_le_red 
       unfolding t_SDH_G\<^sub>p.advantage_def .
   qed
-
 end
 
 end
