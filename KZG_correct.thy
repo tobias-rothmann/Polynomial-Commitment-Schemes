@@ -30,8 +30,8 @@ definition Poly_Commit_game:: "'e polynomial \<Rightarrow> bool spmf"
   where "Poly_Commit_game \<phi> = 
     do{
     (\<alpha>,PK) \<leftarrow> Setup;
-    C::'a commit \<leftarrow> Commit PK \<phi>;
-    VerifyPoly PK C \<phi>
+    let C = Commit PK \<phi>;
+    return_spmf (VerifyPoly PK C \<phi>)
     }"
 
 lemma lossless_Setup: "lossless_spmf Setup"
@@ -63,9 +63,9 @@ definition Eval_Commit_game:: "'e polynomial \<Rightarrow> 'e eval_position  \<R
   where "Eval_Commit_game \<phi> i = 
     do{
     (\<alpha>,PK) \<leftarrow> Setup;
-    C::'a commit \<leftarrow> Commit PK \<phi>;
-    (i, \<phi>_of_i, w_i) \<leftarrow> CreateWitness PK \<phi> i;
-    VerifyEval PK C i \<phi>_of_i w_i
+    let C = Commit PK \<phi>;
+    let (i, \<phi>_of_i, w_i) = CreateWitness PK \<phi> i;
+    return_spmf (VerifyEval PK C i \<phi>_of_i w_i)
     }"
 
 subsubsection \<open>helping lemmas for the computation of \<psi> (function \<psi>_of) in \<phi>(x)-\<phi>(c)=(x-c)*\<psi>(x), 
@@ -526,9 +526,9 @@ proof -
     x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
     return_spmf (of_int_mod_ring (int x)::'e sk, map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int x)::'e sk)^t)) [0..<max_deg+1]) 
     };
-    C::'a commit \<leftarrow> Commit PK \<phi>;
-    (i, \<phi>_of_i, w_i) \<leftarrow> CreateWitness PK \<phi> i;
-    VerifyEval PK C i \<phi>_of_i w_i
+    let C = Commit PK \<phi>;
+    let (i, \<phi>_of_i, w_i) = CreateWitness PK \<phi> i;
+    return_spmf (VerifyEval PK C i \<phi>_of_i w_i)
     }) True"
     unfolding Eval_Commit_game_def Setup_def by metis
   also have "\<dots> = spmf ( do {

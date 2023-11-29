@@ -25,9 +25,7 @@ case of the KZG both the same public key (remember the KZG uses a trusted setup.
 Setup function from KZG_Def but let it return the the public key for prover and verifier\<close>
 definition SCC_key_gen:: "('a pk \<times> 'a pk) spmf" where
   "SCC_key_gen = do {
-    x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
-    let \<alpha>::'e mod_ring = of_int_mod_ring (int x);
-    PK = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1] in
+    (_::'e sk, PK::'a pk) \<leftarrow> Setup;
     return_spmf (PK, PK)
   }"
 
@@ -40,7 +38,7 @@ to.\<close>
 definition SCC_Commit :: "'a pk \<Rightarrow> 'e polynomial \<Rightarrow> ('a commit \<times> 'e polynomial) spmf"
 where 
   "SCC_Commit PK \<phi> = do {
-    return_spmf (g_pow_PK_Prod PK (of_qr \<phi>), \<phi>)
+    return_spmf (Commit PK \<phi>, \<phi>)
   }" 
 
 text \<open>3. the Verify function, that verifies that the commitment was actually made to the plain-text, 
@@ -52,12 +50,10 @@ Furthermore, it does not return a bool spmf, like in the KZG_Def, but a just a b
 are still equivalent though as the bool spmf is depended on C and \<phi> either {1} or {0} 
 (for spmf _ True).
 \<close>
-lemma "spmf (VerifyPoly PK C \<phi>) True = (if C = g_pow_PK_Prod PK (of_qr \<phi>) then 1 else 0)"
-  unfolding VerifyPoly_def by simp
 
 definition SCC_verify :: "'a pk \<Rightarrow> 'e polynomial \<Rightarrow> 'a commit \<Rightarrow> 'e polynomial \<Rightarrow> bool"
 where 
-  "SCC_verify PK \<phi> C _ \<equiv> (C = g_pow_PK_Prod PK (of_qr \<phi>))"
+  "SCC_verify PK \<phi> C _ \<equiv> VerifyPoly PK C \<phi>"
 
 text \<open>4. the valid_msg function, that checks whether a provided plain text / polynomial is actually 
 a valid/allowed message. For the KZG, a polynomial must be of degree less than or equal to the maximum 
@@ -425,7 +421,7 @@ proof -
     _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>'); 
     _ :: unit \<leftarrow> assert_spmf ((C = g_pow_PK_Prod PK (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod PK (of_qr \<phi>')));
     return_spmf True} ELSE return_spmf False"
-      unfolding SCC_key_gen_def SCC_verify_def by simp
+      unfolding SCC_key_gen_def SCC_verify_def VerifyPoly_def Setup_def by simp
     also have "\<dots> = TRY do {
     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     TRY do {

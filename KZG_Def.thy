@@ -241,6 +241,7 @@ qed
 lemma e_g_g_in_carrier_GT[simp]: "e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<in> carrier G\<^sub>T"
   using e_symmetric by fast
 
+
 subsubsection \<open>polynomial lemmas\<close>
 
 lemma deg_qr_n: 
@@ -309,30 +310,25 @@ public key:
 = g^\<phi>(\<alpha>)
 \<close>
 fun g_pow_PK_Prod :: "'a list \<Rightarrow>'e mod_ring poly \<Rightarrow> 'a" where
-  "g_pow_PK_Prod PK \<phi> = fold (\<lambda>pk g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!pk ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> pk)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>"
+  "g_pow_PK_Prod PK \<phi> = fold (\<lambda>i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> i)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>"
 
 subsubsection\<open>actual Commit definition is basically computing g^\<phi>(a) from the public key\<close>
-definition Commit :: "'a pk \<Rightarrow> 'e polynomial \<Rightarrow> ('a commit) spmf"
+definition Commit :: "'a pk \<Rightarrow> 'e polynomial \<Rightarrow> ('a commit)"
 where 
-  "Commit PK \<phi> = do {
-    return_spmf (g_pow_PK_Prod PK (of_qr \<phi>)) 
-  }" 
+  "Commit PK \<phi> = g_pow_PK_Prod PK (of_qr \<phi>)" 
 
 subsection \<open>Open: opens the commitment\<close>
-definition Open :: "'a pk \<Rightarrow> 'a commit \<Rightarrow> 'e polynomial \<Rightarrow> 'e polynomial spmf"
+definition Open :: "'a pk \<Rightarrow> 'a commit \<Rightarrow> 'e polynomial \<Rightarrow> 'e polynomial"
 where 
-  "Open PK C \<phi> = do {
-    return_spmf \<phi> 
-  }" 
+  "Open PK C \<phi> = \<phi>" 
 
 
 subsection \<open>VerifyPoly: verify the commitment
 Recomputes the commitment and checks the equality\<close>
-definition VerifyPoly :: "'a pk \<Rightarrow> 'a commit \<Rightarrow> 'e polynomial \<Rightarrow> bool spmf"
+definition VerifyPoly :: "'a pk \<Rightarrow> 'a commit \<Rightarrow> 'e polynomial \<Rightarrow> bool"
 where 
-  "VerifyPoly PK C \<phi> = do {
-    return_spmf (C = g_pow_PK_Prod PK (of_qr \<phi>)) 
-  }" 
+  "VerifyPoly PK C \<phi> =
+    (C = g_pow_PK_Prod PK (of_qr \<phi>))" 
 
 subsection \<open>CreateWitness: creates a witness for a commitment to an evaluation of a polynomial 
 at position i\<close>
@@ -400,21 +396,29 @@ definition \<psi>_of :: "'e qr \<Rightarrow> 'e mod_ring \<Rightarrow> 'e mod_ri
 subsubsection \<open>actual CreateWitness:
 computes the evalutation at position i, \<phi>(i), and the witness g^\<psi>(\<alpha>)\<close>
 definition CreateWitness :: "'a pk \<Rightarrow> 'e polynomial \<Rightarrow> 'e eval_position 
-  \<Rightarrow> ('e eval_position \<times> 'e eval_value \<times> 'a eval_witness) spmf"
+  \<Rightarrow> ('e eval_position \<times> 'e eval_value \<times> 'a eval_witness)"
 where 
-  "CreateWitness PK \<phi> i = do { 
+  "CreateWitness PK \<phi> i =( 
     let \<phi>_of_i = poly (of_qr \<phi>) i; \<comment>\<open>\<phi>(i)\<close>
         \<psi> = \<psi>_of \<phi> i; \<comment>\<open>\<psi> in \<phi>(x) - \<phi>(i) = (x-i) * \<psi>(x)\<close>
         w_i = g_pow_PK_Prod PK \<psi> \<comment>\<open>g^\<psi>(\<alpha>)\<close>
     in
-    return_spmf (i, \<phi>_of_i,w_i) \<comment>\<open>(i, \<phi>(i), g^\<psi>(\<alpha>))\<close>
-  }" 
+    (i, \<phi>_of_i,w_i) \<comment>\<open>(i, \<phi>(i), g^\<psi>(\<alpha>))\<close>
+  )" 
+
+fun createWitness :: "'a pk \<Rightarrow> 'e polynomial \<Rightarrow> 'e eval_position 
+  \<Rightarrow>'a eval_witness"
+where 
+  "createWitness PK \<phi> i =(
+    let \<psi> = \<psi>_of \<phi> i \<comment>\<open>\<psi> in \<phi>(x) - \<phi>(i) = (x-i) * \<psi>(x)\<close>
+    in  g_pow_PK_Prod PK \<psi> \<comment>\<open>g^\<psi>(\<alpha>)\<close>)" 
 
 
-definition VerifyEval :: "'a pk \<Rightarrow> 'a commit \<Rightarrow> 'e eval_position \<Rightarrow> 'e eval_value \<Rightarrow> 'a eval_witness \<Rightarrow> bool spmf"
+definition VerifyEval :: "'a pk \<Rightarrow> 'a commit \<Rightarrow> 'e eval_position \<Rightarrow> 'e eval_value \<Rightarrow> 'a eval_witness 
+  \<Rightarrow> bool"
 where 
   "VerifyEval PK C i \<phi>_of_i w_i =
-    return_spmf (e w_i (PK!1  \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> \<phi>_of_i) = e C \<^bold>g\<^bsub>G\<^sub>p\<^esub>) 
+    (e w_i (PK!1  \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> \<phi>_of_i) = e C \<^bold>g\<^bsub>G\<^sub>p\<^esub>) 
     \<comment>\<open>e(g^\<psi>(\<alpha>), g^\<alpha> / g^i) \<otimes> e(g,g)^\<phi>(i) = e(C, g)\<close>" 
 
 thm Setup_def[simp]
