@@ -96,16 +96,9 @@ definition knowledge_soundness_game :: "('a, 'e) extractor \<Rightarrow> ('a, 'e
   (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
   return_spmf (VerifyEval PK C i \<phi>_i w_i \<and> \<phi>_i \<noteq> poly \<phi> i)} ELSE return_spmf False"
 
-(*
-definition bind_game :: "('a, 'e) adversary \<Rightarrow> bool spmf"
-  where "bind_game \<A> = TRY do {
-  PK \<leftarrow> key_gen;
-  (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
-  _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i); 
-  let b = VerifyEval PK C i \<phi>_i w_i;
-  let b' = VerifyEval PK C i \<phi>'_i w'_i;
-  return_spmf (b \<and> b')} ELSE return_spmf False"
-*)
+definition knowledge_soundness_game_advantage :: "('a, 'e) extractor \<Rightarrow> ('a, 'e) adversary_1 \<Rightarrow> ('a, 'e) adversary_2 
+   \<Rightarrow> real"
+  where "knowledge_soundness_game_advantage E \<A> \<A>' \<equiv> spmf (knowledge_soundness_game E \<A> \<A>') True"
 
 subsubsection \<open>reduction definition\<close>
 
@@ -477,12 +470,43 @@ lemma asserts_are_equal:
             \<and> valid_msg (poly \<phi> i) (createWitness PK (to_qr \<phi>) i) 
             \<and> VerifyEval PK C i \<phi>_i w_i 
             \<and> VerifyEval PK C i (poly \<phi> i) (createWitness PK (to_qr \<phi>) i)"
-  
-  sorry
+proof 
+  assume asm: "length PK = length calc_vec \<and>
+    C = fold (\<lambda>i acc. acc \<otimes> PK ! i ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! i) [0..<length PK] \<one> \<and>
+    VerifyEval PK C i \<phi>_i w_i \<and> \<phi>_i \<noteq> poly \<phi> i"
+  show "length PK = length calc_vec \<and>
+    C = fold (\<lambda>i acc. acc \<otimes> PK ! i ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! i) [0..<length PK] \<one> \<and>
+    \<phi>_i \<noteq> poly \<phi> i \<and>
+    w_i \<noteq> createWitness PK (to_qr \<phi>) i \<and>
+    valid_msg \<phi>_i w_i \<and>
+    valid_msg (poly \<phi> i) (createWitness PK (to_qr \<phi>) i) \<and>
+    VerifyEval PK C i \<phi>_i w_i \<and> VerifyEval PK C i (poly \<phi> i) (createWitness PK (to_qr \<phi>) i)"
+  proof(intro conjI)
+    show "w_i \<noteq> createWitness PK (to_qr \<phi>) i"  
+      sorry
+    show " valid_msg \<phi>_i w_i"
+      sorry
+    show "valid_msg (poly \<phi> i) (createWitness PK (to_qr \<phi>) i)"
+      sorry
+    show  "VerifyEval PK C i (poly \<phi> i) (createWitness PK (to_qr \<phi>) i)"
+      sorry
+    show "VerifyEval PK C i \<phi>_i w_i" 
+      using asm by fast 
+  qed (simp add: asm)+
+qed linarith
 
-theorem "knowledge_soundness_game E \<A> \<A>' = bind_game (knowledge_soundness_reduction E \<A> \<A>')"
+theorem knowledge_soundness_game_eq_bind_game_knowledge_soundness_reduction: 
+  "knowledge_soundness_game E \<A> \<A>' = bind_game (knowledge_soundness_reduction E \<A> \<A>')"
   unfolding knowledge_soundness_game_alt_def bind_game_knowledge_soundness_reduction_alt_def
   using asserts_are_equal by algebra
+
+theorem evaluation_knowledge_soundness: 
+  "knowledge_soundness_game_advantage E \<A> \<A>' 
+  = t_SDH_G\<^sub>p.advantage (bind_reduction (knowledge_soundness_reduction E \<A> \<A>'))"
+  using knowledge_soundness_game_eq_bind_game_knowledge_soundness_reduction 
+        evaluation_binding
+  unfolding bind_advantage_def knowledge_soundness_game_advantage_def
+  by algebra
 
 
 end
