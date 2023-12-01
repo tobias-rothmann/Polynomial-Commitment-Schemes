@@ -128,10 +128,19 @@ proof -
   then show ?thesis by presburger
 qed
 
+lemma key_gen_alt_def: "key_gen = do {
+    x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
+    let \<alpha>::'e mod_ring = of_int_mod_ring (int x) in
+    return_spmf (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1])
+  }"
+    unfolding key_gen_def Setup_def Let_def split_def by simp
+
 lemma knowledge_soundness_game_alt_def: 
   "knowledge_soundness_game E \<A> \<A>' = 
    TRY do {
-    PK \<leftarrow> key_gen;
+    x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
+    let \<alpha> = of_int_mod_ring (int x);
+    let PK = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
     (C,calc_vec) \<leftarrow> \<A> PK;
     let \<phi> = E C calc_vec;
     (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
@@ -280,8 +289,56 @@ proof -
     } ELSE return_spmf False
   } ELSE return_spmf False"
      using assert_anding by presburger
+   text \<open>next step, add assert PK construction\<close>
   also have "\<dots> = TRY do {
-    PK \<leftarrow> key_gen;
+    x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
+    let \<alpha> = of_int_mod_ring (int x);
+    PK \<leftarrow> return_spmf (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]);
+    TRY do {
+    (C,calc_vec) \<leftarrow> \<A> PK;
+    TRY do {
+    let \<phi> = E C calc_vec;
+    TRY do {
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    TRY do {
+     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
+            \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
+            \<and> valid_msg \<phi>_i w_i 
+            \<and> VerifyEval PK C i \<phi>_i w_i \<and> \<phi>_i \<noteq> poly \<phi> i);
+    return_spmf True
+    } ELSE return_spmf False
+    } ELSE return_spmf False
+    } ELSE return_spmf False
+    } ELSE return_spmf False
+  } ELSE return_spmf False"
+     using key_gen_alt_def
+     by (smt (verit, ccfv_SIG) bind_spmf_assoc bind_spmf_cong)
+    also have "\<dots> = TRY do {
+    x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
+    let \<alpha> = of_int_mod_ring (int x);
+    let PK = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
+    TRY do {
+    (C,calc_vec) \<leftarrow> \<A> PK;
+    TRY do {
+    let \<phi> = E C calc_vec;
+    TRY do {
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    TRY do {
+     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
+            \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
+            \<and> valid_msg \<phi>_i w_i 
+            \<and> VerifyEval PK C i \<phi>_i w_i \<and> \<phi>_i \<noteq> poly \<phi> i);
+    return_spmf True
+    } ELSE return_spmf False
+    } ELSE return_spmf False
+    } ELSE return_spmf False
+    } ELSE return_spmf False
+  } ELSE return_spmf False"
+      using return_bind_spmf by meson
+  also have "\<dots> = TRY do {
+    x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
+    let \<alpha> = of_int_mod_ring (int x);
+    let PK = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
     (C,calc_vec) \<leftarrow> \<A> PK;
     let \<phi> = E C calc_vec;
     (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
@@ -292,14 +349,16 @@ proof -
    return_spmf True
   } ELSE return_spmf False" 
    unfolding split_def Let_def
-    by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
+   by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
   finally show ?thesis .
 qed
 
 lemma bind_game_knowledge_soundness_reduction_alt_def: 
   "bind_game (knowledge_soundness_reduction E \<A> \<A>') = 
   TRY do {
-    PK \<leftarrow> key_gen;
+    x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
+    let \<alpha> = of_int_mod_ring (int x);
+    let PK = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
     (C,calc_vec) \<leftarrow> \<A> PK;
     let \<phi> = E C calc_vec;
     (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
@@ -583,62 +642,131 @@ proof -
        return_spmf True
     } ELSE return_spmf False"
    unfolding split_def Let_def 
-  by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
-  finally show ?thesis .
-qed
-
-subsection \<open>Reduction proof\<close>
-
-lemma g_pow_PK_Prod_in_G\<^sub>p: "g_pow_PK_Prod PK \<psi> \<in> carrier G\<^sub>p"
-  sorry
-
-text \<open>show the equivalence of the content of the assert statements in the alt games i.e. 
-assert content of knowledge_soundness_game_alt_def
-is equivalent to the 
-assert content of bind_game_knowledge_soundness_reduction_alt_def\<close>
-lemma asserts_are_equal: 
-      "length PK = length calc_vec 
-            \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
-            \<and> valid_msg \<phi>_i w_i 
-            \<and> VerifyEval PK C i \<phi>_i w_i \<and> \<phi>_i \<noteq> poly \<phi> i
-  \<longleftrightarrow>
-  length PK = length calc_vec 
+   by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
+ text \<open>make PK definition extractable\<close>
+  also have "\<dots> = TRY do {
+    x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
+    let \<alpha> = of_int_mod_ring (int x);
+    PK \<leftarrow> return_spmf (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]);
+    (C,calc_vec) \<leftarrow> \<A> PK;
+    let \<phi> = E C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
             \<and> \<phi>_i \<noteq> (poly \<phi> i) 
             \<and> w_i \<noteq> (createWitness PK (to_qr \<phi>) i) 
             \<and> valid_msg \<phi>_i w_i 
             \<and> valid_msg (poly \<phi> i) (createWitness PK (to_qr \<phi>) i) 
             \<and> VerifyEval PK C i \<phi>_i w_i 
-            \<and> VerifyEval PK C i (poly \<phi> i) (createWitness PK (to_qr \<phi>) i)"
-proof 
-  assume asm: "length PK = length calc_vec 
+            \<and> VerifyEval PK C i (poly \<phi> i) (createWitness PK (to_qr \<phi>) i));
+       return_spmf True
+    } ELSE return_spmf False"
+    using key_gen_alt_def
+    by (smt (verit, ccfv_SIG) bind_spmf_assoc bind_spmf_cong)
+  also have "\<dots> = TRY do {
+    x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
+    let \<alpha> = of_int_mod_ring (int x);
+    let PK = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
+    (C,calc_vec) \<leftarrow> \<A> PK;
+    let \<phi> = E C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
+            \<and> \<phi>_i \<noteq> (poly \<phi> i) 
+            \<and> w_i \<noteq> (createWitness PK (to_qr \<phi>) i) 
             \<and> valid_msg \<phi>_i w_i 
-            \<and> VerifyEval PK C i \<phi>_i w_i \<and> \<phi>_i \<noteq> poly \<phi> i"
-  show "length PK = length calc_vec \<and>
-    C = fold (\<lambda>i acc. acc \<otimes> PK ! i ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! i) [0..<length PK] \<one> \<and>
-    \<phi>_i \<noteq> poly \<phi> i \<and>
-    w_i \<noteq> createWitness PK (to_qr \<phi>) i \<and>
+            \<and> valid_msg (poly \<phi> i) (createWitness PK (to_qr \<phi>) i) 
+            \<and> VerifyEval PK C i \<phi>_i w_i 
+            \<and> VerifyEval PK C i (poly \<phi> i) (createWitness PK (to_qr \<phi>) i));
+       return_spmf True
+    } ELSE return_spmf False"
+    using return_bind_spmf by meson
+  finally show ?thesis .
+qed
+
+subsection \<open>Reduction proof\<close>
+
+text \<open>show the equivalence of the content of the assert statements in the alt games i.e. 
+assert content of knowledge_soundness_game_alt_def
+is equivalent to the 
+assert content of bind_game_knowledge_soundness_reduction_alt_def\<close>
+lemma asserts_are_equal: 
+      "length (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) = length calc_vec 
+            \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1])!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1])] \<one>\<^bsub>G\<^sub>p\<^esub>
+            \<and> valid_msg \<phi>_i w_i 
+            \<and> VerifyEval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) C i \<phi>_i w_i \<and> \<phi>_i \<noteq> poly (Poly calc_vec) i
+  \<longleftrightarrow>
+       length (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) = length calc_vec 
+            \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1])!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1])] \<one>\<^bsub>G\<^sub>p\<^esub>
+            \<and> \<phi>_i \<noteq> (poly (Poly calc_vec) i) 
+            \<and> w_i \<noteq> (createWitness (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (to_qr (Poly calc_vec)) i) 
+            \<and> valid_msg \<phi>_i w_i 
+            \<and> valid_msg (poly (Poly calc_vec) i) (createWitness (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (to_qr (Poly calc_vec)) i) 
+            \<and> VerifyEval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) C i \<phi>_i w_i 
+            \<and> VerifyEval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) C i (poly (Poly calc_vec) i) (createWitness (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (to_qr (Poly calc_vec)) i)"
+proof 
+  let ?PK = "(map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1])"
+  let ?\<phi> = "Poly calc_vec"
+  assume asm: "length ?PK = length calc_vec 
+            \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> ?PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length ?PK] \<one>\<^bsub>G\<^sub>p\<^esub>
+            \<and> valid_msg \<phi>_i w_i 
+            \<and> VerifyEval ?PK C i \<phi>_i w_i \<and> \<phi>_i \<noteq> poly ?\<phi> i"
+  show "length ?PK = length calc_vec \<and>
+    C = fold (\<lambda>i acc. acc \<otimes> ?PK ! i ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! i) [0..<length ?PK] \<one> \<and>
+    \<phi>_i \<noteq> poly ?\<phi> i \<and>
+    w_i \<noteq> createWitness ?PK (to_qr ?\<phi>) i \<and>
     valid_msg \<phi>_i w_i \<and>
-    valid_msg (poly \<phi> i) (createWitness PK (to_qr \<phi>) i) \<and>
-    VerifyEval PK C i \<phi>_i w_i \<and> VerifyEval PK C i (poly \<phi> i) (createWitness PK (to_qr \<phi>) i)"
+    valid_msg (poly ?\<phi> i) (createWitness ?PK (to_qr ?\<phi>) i) \<and>
+    VerifyEval ?PK C i \<phi>_i w_i \<and> VerifyEval ?PK C i (poly ?\<phi> i) (createWitness ?PK (to_qr ?\<phi>) i)"
   proof(intro conjI)
-    show "valid_msg (poly \<phi> i) (createWitness PK (to_qr \<phi>) i)"
-      unfolding valid_msg_def using g_pow_PK_Prod_in_G\<^sub>p by fastforce
-    show  "VerifyEval PK C i (poly \<phi> i) (createWitness PK (to_qr \<phi>) i)"
-      unfolding VerifyEval_def
-      sorry
-    show "VerifyEval PK C i \<phi>_i w_i" 
+    show "length ?PK = length calc_vec"
+      using asm by blast
+    
+    show "valid_msg (poly ?\<phi> i) (createWitness ?PK (to_qr ?\<phi>) i)" 
+    proof -
+      have "g_pow_PK_Prod ?PK (\<psi>_of (to_qr (Poly calc_vec)) i) 
+      = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (\<psi>_of (to_qr (Poly calc_vec)) i) \<alpha>)"
+      proof (rule g_pow_PK_Prod_correct)
+        show "degree (\<psi>_of (to_qr (Poly calc_vec)) i) \<le> max_deg"
+          by (metis \<psi>_of_and_\<psi>_of_poly degree_of_qr degree_q_le_\<phi> le_trans)
+      qed
+      then show ?thesis 
+        unfolding valid_msg_def createWitness.simps Let_def
+        by simp
+    qed
+
+    show "VerifyEval ?PK C i \<phi>_i w_i" 
       using asm by fast 
-     show "w_i \<noteq> createWitness PK (to_qr \<phi>) i"  
+    
+    show  "VerifyEval ?PK C i (poly ?\<phi> i) (createWitness ?PK (to_qr ?\<phi>) i)"
+    proof -
+      have 3: "C = (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (of_qr (to_qr (Poly calc_vec))) \<alpha>)"
+        sorry
+      have 1: " 
+        (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1])
+        (\<psi>_of (to_qr (Poly calc_vec)) i))
+        = (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (\<psi>_of (to_qr (Poly calc_vec)) i) \<alpha>)"
+        sorry
+      have 2: "map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1] ! 1 = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha>"
+        sorry
+      show ?thesis
+      unfolding VerifyEval_def createWitness.simps Let_def g_pow_PK_Prod_correct 3 2 1
+      using eq_on_e[of "to_qr (Poly calc_vec)" i \<alpha>] 
+      
+      sorry
+      qed
+    
+     show "w_i \<noteq> createWitness ?PK (to_qr ?\<phi>) i"  
       sorry
   qed (simp add: asm)+
 qed linarith
 
 theorem knowledge_soundness_game_eq_bind_game_knowledge_soundness_reduction: 
   "knowledge_soundness_game E \<A> \<A>' = bind_game (knowledge_soundness_reduction E \<A> \<A>')"
-  unfolding knowledge_soundness_game_alt_def bind_game_knowledge_soundness_reduction_alt_def
-  using asserts_are_equal by algebra
+  unfolding knowledge_soundness_game_alt_def 
+            bind_game_knowledge_soundness_reduction_alt_def
+            Let_def
+  using asserts_are_equal by simp
 
 theorem evaluation_knowledge_soundness: 
   "knowledge_soundness_game_advantage E \<A> \<A>' 
