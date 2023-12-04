@@ -61,7 +61,7 @@ degree max_deg. This however is already ensured by the type qr that is a quotien
 polynomials for degree max_deg. Hence the valid_msg function is True\<close>
 definition SCC_valid_msg :: "'e polynomial \<Rightarrow> bool"
 where 
-  "SCC_valid_msg _ \<equiv> True" 
+  "SCC_valid_msg \<phi> \<equiv> degree \<phi> \<le> max_deg" 
 
 subsection \<open>putting together the binding game\<close>
                                                         
@@ -114,9 +114,11 @@ fun bind_reduction
 where
   "bind_reduction \<A> PK = do {
   (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> PK;
-  _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' \<and> (g_pow_PK_Prod PK (of_qr \<phi>) = g_pow_PK_Prod PK (of_qr \<phi>'))); 
+  _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' 
+                  \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
+                  \<and> (g_pow_PK_Prod PK \<phi> = g_pow_PK_Prod PK \<phi>')); 
   \<comment>\<open>\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' \<and> Commit \<phi> = Commit \<phi>'\<close>
-  let \<alpha> = find_\<alpha> (PK!1) (of_qr \<phi> - of_qr \<phi>');
+  let \<alpha> = find_\<alpha> (PK!1) (\<phi> - \<phi>');
   return_spmf (0::'e mod_ring, \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/\<alpha>))}"
 end
 
@@ -141,8 +143,8 @@ where
   "stronger_bind_reduction \<A> PK = do {
   (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> PK;
   _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-  \<and> (C = g_pow_PK_Prod PK (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod PK (of_qr \<phi>')));
-  let \<alpha> = find_\<alpha> (PK!1) (of_qr \<phi> - of_qr \<phi>');
+  \<and> (C = g_pow_PK_Prod PK \<phi>) \<and> (C = g_pow_PK_Prod PK \<phi>'));
+  let \<alpha> = find_\<alpha> (PK!1) (\<phi> - \<phi>');
   return_spmf (0::'e mod_ring, \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/\<alpha>))}"
 
 subsection \<open>Proof of equivalence between KZG poly bind and stronger bind_reduction\<close>
@@ -161,28 +163,35 @@ lemma assert_anding: "TRY do {
   by (simp add: try_bind_assert_spmf)
 
 text \<open>g^\<phi>(\<alpha>)=g^\<phi>'(\<alpha>) is equivalent to (\<phi>-\<phi>')(\<alpha>)=0\<close>
-lemma commit_eq_is_poly_diff_\<alpha>_eq_0: "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (of_qr \<phi>) 
-= g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (of_qr \<phi>')
-  \<longleftrightarrow> poly (of_qr \<phi> - of_qr \<phi>') \<alpha> = 0"
+lemma commit_eq_is_poly_diff_\<alpha>_eq_0: 
+  assumes "degree \<phi> \<le> max_deg" "degree \<phi>' \<le> max_deg"
+  shows "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) \<phi>
+= g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) \<phi>'
+  \<longleftrightarrow> poly (\<phi> - \<phi>') \<alpha> = 0"
 proof 
-  have deg_\<phi>: "degree (of_qr \<phi>) \<le> max_deg" using degree_of_qr by blast
-  have deg_\<phi>': "degree (of_qr \<phi>') \<le> max_deg"  using degree_of_qr by blast
-  assume commit_eq: "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (of_qr \<phi>) = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (of_qr \<phi>')"
-  have acc_\<phi>: "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (of_qr \<phi>) =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>) \<alpha> )"
-    by (metis g_pow_PK_Prod_correct deg_\<phi>)
-  moreover have acc_\<phi>': "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (of_qr \<phi>') =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>') \<alpha> )"
-    by (metis g_pow_PK_Prod_correct deg_\<phi>')
-  ultimately show "(poly (of_qr \<phi> - of_qr \<phi>') \<alpha> = 0)"
+  assume commit_eq: 
+    "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) \<phi> 
+   = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) \<phi>'"
+  have acc_\<phi>: "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) \<phi> 
+              =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly \<phi> \<alpha> )"
+    by (metis g_pow_PK_Prod_correct assms(1))
+  moreover have acc_\<phi>': 
+    "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) \<phi>' 
+    =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly \<phi>' \<alpha> )"
+    by (metis g_pow_PK_Prod_correct assms(2))
+  ultimately show "(poly (\<phi> - \<phi>') \<alpha> = 0)"
     using pow_on_eq_card commit_eq by fastforce
 next
-  have deg_\<phi>: "degree (of_qr \<phi>) \<le> max_deg" using degree_of_qr by blast
-  have deg_\<phi>': "degree (of_qr \<phi>') \<le> max_deg"  using degree_of_qr by blast
-  assume poly_eq_0: "poly (of_qr \<phi> - of_qr \<phi>') \<alpha> = 0"
-  have acc_\<phi>: "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (of_qr \<phi>) =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>) \<alpha> )"
-    by (metis g_pow_PK_Prod_correct deg_\<phi>)
-  moreover have acc_\<phi>': "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (of_qr \<phi>') =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>') \<alpha> )"
-    by (metis g_pow_PK_Prod_correct deg_\<phi>')
-  ultimately show "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (of_qr \<phi>) = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (of_qr \<phi>')" 
+  assume poly_eq_0: "poly (\<phi> - \<phi>') \<alpha> = 0"
+  have acc_\<phi>: "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) \<phi> 
+            =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly \<phi> \<alpha> )"
+    by (metis g_pow_PK_Prod_correct assms(1))
+  moreover have acc_\<phi>': 
+    "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) \<phi>' 
+    =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly \<phi>' \<alpha> )"
+    by (metis g_pow_PK_Prod_correct assms(2))
+  ultimately show "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) \<phi> 
+                 = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) \<phi>'" 
     using poly_eq_0 by fastforce 
 qed
 
@@ -338,23 +347,24 @@ Basically extracted logical reasoning.\<close>
 
 text \<open>The logical addition of (\<phi>-\<phi>')(\<alpha>)=0, which is implied by \<phi>(\<alpha>)=\<phi>'(\<alpha>), which we derive from C=g^\<phi>(\<alpha>) \<and> C=g^\<phi>'(\<alpha>)\<close>
 lemma helping_1_add_poly_\<phi>_m_\<phi>': "(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) 
-        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))) 
+        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>) 
+        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>')) 
         = (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) 
-        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
-        \<and> (poly (of_qr \<phi> - (of_qr \<phi>')) (of_int_mod_ring (int \<alpha>)::'e mod_ring) = 0))"
+        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>) 
+        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>')
+        \<and> (poly (\<phi> - (\<phi>')) (of_int_mod_ring (int \<alpha>)::'e mod_ring) = 0))"
+  unfolding SCC_valid_msg_def 
   using commit_eq_is_poly_diff_\<alpha>_eq_0 by fast
 
 text\<open>\<close>
 lemma helping_2_factorize_\<alpha>: "\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) 
-        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
-        \<and> (poly (of_qr \<phi> - (of_qr \<phi>')) (of_int_mod_ring (int \<alpha>)::'e mod_ring) = 0)
+        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>) 
+        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>')
+        \<and> (poly (\<phi> - \<phi>') (of_int_mod_ring (int \<alpha>)::'e mod_ring) = 0)
         \<longleftrightarrow> \<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) 
-        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
-        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (of_qr \<phi> - of_qr \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring))"
+        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>) 
+        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>')
+        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (\<phi> - \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring))"
   (is "?lhs = ?rhs")
 proof
   assume ?lhs
@@ -362,21 +372,23 @@ proof
     by (metis right_minus_eq to_qr_of_qr)
 next 
   assume ?rhs
-  then show ?lhs using commit_eq_is_poly_diff_\<alpha>_eq_0 by fast
+  then show ?lhs 
+    unfolding SCC_valid_msg_def
+    using commit_eq_is_poly_diff_\<alpha>_eq_0 by fast
 qed
                                 
 text \<open>\<close>
 lemma helping_3_\<alpha>_is_found: "\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
-        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (of_qr \<phi> - of_qr \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring)) 
+        \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>) \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>')
+        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (\<phi> - \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring)) 
 \<longleftrightarrow> \<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-          \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
-          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (((of_int_mod_ring (int \<alpha>)::'e mod_ring)))) (of_qr \<phi> - of_qr \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring))   
-          \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/of_int_mod_ring (int \<alpha>)) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1])!1) (of_qr \<phi> - of_qr \<phi>'))"
+          \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>) \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>')
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (((of_int_mod_ring (int \<alpha>)::'e mod_ring)))) (\<phi> - \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring))   
+          \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/of_int_mod_ring (int \<alpha>)) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1])!1) (\<phi> - \<phi>'))"
   (is "?lhs = ?rhs")
 proof 
   assume asm:?lhs
-  moreover have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/of_int_mod_ring (int \<alpha>)) = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (1 / find_\<alpha> (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> of_int_mod_ring (int \<alpha>) ^ t) [0..<max_deg + 1] ! 1) (of_qr \<phi> - of_qr \<phi>'))"
+  moreover have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/of_int_mod_ring (int \<alpha>)) = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (1 / find_\<alpha> (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> of_int_mod_ring (int \<alpha>) ^ t) [0..<max_deg + 1] ! 1) (\<phi> - \<phi>'))"
   proof -
     have "map (\<lambda>t::nat. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> of_int_mod_ring (int \<alpha>) ^ t) [0::nat..<max_deg + (1::nat)] ! (1::nat) = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> of_int_mod_ring (int \<alpha>)"
       using PK_i d_pos by force
@@ -419,7 +431,7 @@ proof -
     let PK = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1];
     (C, \<phi>, d, \<phi>', d') \<leftarrow> \<A> PK;
     _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>'); 
-    _ :: unit \<leftarrow> assert_spmf ((C = g_pow_PK_Prod PK (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod PK (of_qr \<phi>')));
+    _ :: unit \<leftarrow> assert_spmf ((C = g_pow_PK_Prod PK \<phi>) \<and> (C = g_pow_PK_Prod PK \<phi>'));
     return_spmf True} ELSE return_spmf False"
       unfolding SCC_key_gen_def SCC_verify_def VerifyPoly_def Setup_def by simp
     also have "\<dots> = TRY do {
@@ -428,7 +440,7 @@ proof -
     (C, \<phi>, d, \<phi>', d') \<leftarrow> \<A> (?PK \<alpha>);
       TRY do {
          _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>'); 
-         _ :: unit \<leftarrow> assert_spmf ((C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>')));
+         _ :: unit \<leftarrow> assert_spmf ((C = g_pow_PK_Prod (?PK \<alpha>) \<phi>) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>'));
         return_spmf True
       } ELSE return_spmf False
     } ELSE return_spmf False
@@ -441,7 +453,7 @@ proof -
     (C, \<phi>, d, \<phi>', d') \<leftarrow> \<A> (?PK \<alpha>);
       TRY do {
         _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-        \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>')));
+        \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>'));
         return_spmf True
       } ELSE return_spmf False
     } ELSE return_spmf False
@@ -453,8 +465,8 @@ proof -
     (C, \<phi>, d, \<phi>', d') \<leftarrow> \<A> (?PK \<alpha>);
       TRY do {
         _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-        \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-        \<and> (poly (of_qr \<phi> - (of_qr \<phi>')) (?\<alpha> \<alpha>) = 0));
+        \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+        \<and> (poly (\<phi> - \<phi>') (?\<alpha> \<alpha>) = 0));
         return_spmf True
       } ELSE return_spmf False
     } ELSE return_spmf False
@@ -466,8 +478,8 @@ proof -
     (C, \<phi>, d, \<phi>', d') \<leftarrow> \<A> (?PK \<alpha>);
       TRY do {
         _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-        \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>)));
+        \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (\<phi> - \<phi>') = (?\<alpha> \<alpha>)));
         return_spmf True
       } ELSE return_spmf False
     } ELSE return_spmf False
@@ -479,9 +491,9 @@ proof -
     (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
        TRY do {
        _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-          \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>))   
-          \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+          \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (\<phi> - \<phi>') = (?\<alpha> \<alpha>))   
+          \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>')));
       return_spmf True } ELSE return_spmf False
       } ELSE return_spmf False 
     } ELSE return_spmf False "
@@ -492,9 +504,9 @@ proof -
     (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
        TRY do {
        _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-          \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>)));   
-      _::unit \<leftarrow> assert_spmf (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+          \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (\<phi> - \<phi>') = (?\<alpha> \<alpha>)));   
+      _::unit \<leftarrow> assert_spmf (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>')));
       return_spmf True } ELSE return_spmf False
       } ELSE return_spmf False 
     } ELSE return_spmf False"
@@ -503,9 +515,9 @@ proof -
     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
      _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-        \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>)));   
-    _::unit \<leftarrow> assert_spmf (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+        \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (\<phi> - \<phi>') = (?\<alpha> \<alpha>)));   
+    _::unit \<leftarrow> assert_spmf (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>')));
     return_spmf True } ELSE return_spmf False " 
     unfolding split_def
     by(fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
@@ -513,17 +525,17 @@ proof -
     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
     _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-        \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-        \<and> (poly (of_qr \<phi> - (of_qr \<phi>')) (?\<alpha> \<alpha>) = 0));    
-  _::unit \<leftarrow> assert_spmf (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+        \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+        \<and> (poly (\<phi> - \<phi>') (?\<alpha> \<alpha>) = 0));    
+  _::unit \<leftarrow> assert_spmf (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>')));
     return_spmf True } ELSE return_spmf False"
     using helping_2_factorize_\<alpha> by presburger
    also have "\<dots>  = TRY do { 
     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
     _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-      \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>')));
-    _::unit \<leftarrow> assert_spmf (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+      \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>'));
+    _::unit \<leftarrow> assert_spmf (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>')));
     return_spmf True } ELSE return_spmf False "
      using helping_1_add_poly_\<phi>_m_\<phi>' by presburger
   also have "\<dots>= TRY do { 
@@ -531,8 +543,8 @@ proof -
     (c, g) \<leftarrow>  do {
   (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
   _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-  \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>')));
-  let \<alpha> = find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>');
+  \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>'));
+  let \<alpha> = find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>');
   return_spmf (0::'e mod_ring, \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/\<alpha>))};
     _::unit \<leftarrow> assert_spmf (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (1/((?\<alpha> \<alpha>)+c)) = g);
     return_spmf True } ELSE return_spmf False"
@@ -564,20 +576,24 @@ that would complicate the equivalence proof.
 Basically extracted logical reasoning.\<close>
 
 lemma helping_1_add_poly_\<phi>_m_\<phi>'_bindv: "(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-        \<and> (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>) = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))) 
+        \<and> (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi> 
+         = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>')) 
         = (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-        \<and> (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>) = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
-        \<and> (poly (of_qr \<phi> - (of_qr \<phi>')) (of_int_mod_ring (int \<alpha>)::'e mod_ring) = 0))"
-  using commit_eq_is_poly_diff_\<alpha>_eq_0 by fast
+        \<and> (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi> 
+         = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>')
+        \<and> (poly (\<phi> - \<phi>') (of_int_mod_ring (int \<alpha>)::'e mod_ring) = 0))"
+  unfolding SCC_valid_msg_def
+  using commit_eq_is_poly_diff_\<alpha>_eq_0 
+  by blast
 
 lemma helping_2_factorize_\<alpha>_bindv: "\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-        \<and> (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)
-           = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
-        \<and> (poly (of_qr \<phi> - (of_qr \<phi>')) (of_int_mod_ring (int \<alpha>)::'e mod_ring) = 0)
+        \<and> (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>
+           = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>')
+        \<and> (poly (\<phi> - \<phi>') (of_int_mod_ring (int \<alpha>)::'e mod_ring) = 0)
         \<longleftrightarrow> \<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-        \<and> (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>) 
-           = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
-        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (of_qr \<phi> - of_qr \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring))"
+        \<and> (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi> 
+           = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>')
+        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (\<phi> - \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring))"
   (is "?lhs = ?rhs")
 proof
   assume ?lhs
@@ -585,21 +601,23 @@ proof
     by (metis right_minus_eq to_qr_of_qr)
 next 
   assume ?rhs
-  then show ?lhs using commit_eq_is_poly_diff_\<alpha>_eq_0 by fast
+  then show ?lhs 
+    unfolding SCC_valid_msg_def
+    using commit_eq_is_poly_diff_\<alpha>_eq_0 by fast
 qed
 
 lemma helping_3_g_powPK_eq: "\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-            \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) 
-            \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
-            \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (of_qr \<phi> - of_qr \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring))   
-            \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(of_int_mod_ring (int \<alpha>)::'e mod_ring)) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1])!1) (of_qr \<phi> - of_qr \<phi>')) 
+            \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>) 
+            \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>')
+            \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (\<phi> - \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring))   
+            \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(of_int_mod_ring (int \<alpha>)::'e mod_ring)) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1])!1) (\<phi> - \<phi>')) 
   \<longleftrightarrow> \<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-            \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>)) 
-            \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
-            \<and> (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>) 
-             = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) (of_qr \<phi>'))
-            \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (of_qr \<phi> - of_qr \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring))   
-            \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(of_int_mod_ring (int \<alpha>)::'e mod_ring)) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1])!1) (of_qr \<phi> - of_qr \<phi>'))"
+            \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>) 
+            \<and> (C = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>')
+            \<and> (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi> 
+             = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1]) \<phi>')
+            \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring))) (\<phi> - \<phi>') = (of_int_mod_ring (int \<alpha>)::'e mod_ring))   
+            \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(of_int_mod_ring (int \<alpha>)::'e mod_ring)) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((of_int_mod_ring (int \<alpha>)::'e mod_ring)^t)) [0..<max_deg+1])!1) (\<phi> - \<phi>'))"
   by meson
 
 subsubsection \<open>generalized less equal reduction\<close>
@@ -692,17 +710,17 @@ proof -
     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
     _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-      \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>')));
-    _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+      \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>'));
+    _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>')));
     return_spmf True } ELSE return_spmf False"
     by (simp add: t_SDH_G\<^sub>p.game_alt_def[of "(stronger_bind_reduction \<A>)"])
   also have "\<dots>= TRY do { 
     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
      _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-        \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>)));   
-    _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+        \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (\<phi> - \<phi>') = (?\<alpha> \<alpha>)));   
+    _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>')));
     return_spmf True } ELSE return_spmf False "
     using helping_1_add_poly_\<phi>_m_\<phi>' helping_2_factorize_\<alpha> by presburger
   also have "\<dots> = TRY do { 
@@ -711,9 +729,9 @@ proof -
     (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
        TRY do {
        _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-          \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>)));   
-      _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+          \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (\<phi> - \<phi>') = (?\<alpha> \<alpha>)));   
+      _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>')));
       return_spmf True } ELSE return_spmf False
       } ELSE return_spmf False 
     } ELSE return_spmf False"
@@ -725,9 +743,9 @@ proof -
     (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
        TRY do {
        _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-          \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>))   
-          \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+          \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (\<phi> - \<phi>') = (?\<alpha> \<alpha>))   
+          \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>')));
       return_spmf True } ELSE return_spmf False
       } ELSE return_spmf False 
     } ELSE return_spmf False"
@@ -736,9 +754,9 @@ proof -
     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
        _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-          \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>))   
-          \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+          \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (\<phi> - \<phi>') = (?\<alpha> \<alpha>))   
+          \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>')));
       return_spmf True } ELSE return_spmf False"
     unfolding split_def
     by(fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
@@ -746,10 +764,10 @@ proof -
     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
        _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-          \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-          \<and> (g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>) = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>))   
-          \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+          \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+          \<and> (g_pow_PK_Prod (?PK \<alpha>) \<phi> = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (\<phi> - \<phi>') = (?\<alpha> \<alpha>))   
+          \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>')));
       return_spmf True } ELSE return_spmf False"
     using helping_3_g_powPK_eq by algebra
   finally have sbr_game_ref: "t_SDH_G\<^sub>p.advantage (stronger_bind_reduction \<A>) = spmf (
@@ -757,10 +775,10 @@ proof -
     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
        _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-          \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-          \<and> (g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>) = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>))   
-          \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+          \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+          \<and> (g_pow_PK_Prod (?PK \<alpha>) \<phi> = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (\<phi> - \<phi>') = (?\<alpha> \<alpha>))   
+          \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>')));
       return_spmf True } ELSE return_spmf False
     ) True"
     unfolding t_SDH_G\<^sub>p.advantage_def by presburger
@@ -772,17 +790,17 @@ proof -
     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
     _ :: unit \<leftarrow> assert_spmf(\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-      \<and> (g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)= g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>')));
-    _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+      \<and> (g_pow_PK_Prod (?PK \<alpha>) \<phi> = g_pow_PK_Prod (?PK \<alpha>) \<phi>'));
+    _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>')));
     return_spmf True } ELSE return_spmf False"
      by (simp add: t_SDH_G\<^sub>p.game_alt_def[of "(bind_reduction \<A>)"])
   also have "\<dots>= TRY do { 
     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
      _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-        \<and> (g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>) = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>)));   
-    _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+        \<and> (g_pow_PK_Prod (?PK \<alpha>) \<phi> = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+        \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (\<phi> - \<phi>') = (?\<alpha> \<alpha>)));   
+    _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>')));
     return_spmf True } ELSE return_spmf False "
     using helping_1_add_poly_\<phi>_m_\<phi>'_bindv helping_2_factorize_\<alpha>_bindv by presburger
   also have "\<dots> = TRY do { 
@@ -791,9 +809,9 @@ proof -
     (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
        TRY do {
        _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-          \<and> (g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>) = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>)));   
-      _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+          \<and> (g_pow_PK_Prod (?PK \<alpha>) \<phi> = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (\<phi> - \<phi>') = (?\<alpha> \<alpha>)));   
+      _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>')));
       return_spmf True } ELSE return_spmf False
       } ELSE return_spmf False 
     } ELSE return_spmf False"
@@ -805,9 +823,9 @@ proof -
     (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
        TRY do {
        _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-          \<and> (g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>) = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>))   
-          \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+          \<and> (g_pow_PK_Prod (?PK \<alpha>) \<phi> = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (\<phi> - \<phi>') = (?\<alpha> \<alpha>))   
+          \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>')));
       return_spmf True } ELSE return_spmf False
       } ELSE return_spmf False 
     } ELSE return_spmf False"
@@ -816,9 +834,9 @@ proof -
     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
        _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-          \<and> (g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>) = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>))   
-          \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+          \<and> (g_pow_PK_Prod (?PK \<alpha>) \<phi> = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+          \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (\<phi> - \<phi>') = (?\<alpha> \<alpha>))   
+          \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>')));
       return_spmf True } ELSE return_spmf False"
     unfolding split_def
     by(fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
@@ -827,9 +845,9 @@ proof -
       \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
       (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);
          _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-            \<and> (g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>) = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-            \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>))   
-            \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+            \<and> (g_pow_PK_Prod (?PK \<alpha>) \<phi> = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+            \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (\<phi> - \<phi>') = (?\<alpha> \<alpha>))   
+            \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>')));
         return_spmf True } ELSE return_spmf False
     ) True"
     unfolding t_SDH_G\<^sub>p.advantage_def by presburger
@@ -848,22 +866,22 @@ proof -
       game for the stronger bind reduction. And we show that we can split this f_n_q function into 
       the conjunction of f and q.\<close>
       let ?f_n_q = "\<lambda>(C, \<phi>, \<phi>') . \<lambda>\<alpha>. \<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-            \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-            \<and> (g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>) = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-            \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>))   
-            \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>'))"
+            \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+            \<and> (g_pow_PK_Prod (?PK \<alpha>) \<phi> = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+            \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (\<phi> - \<phi>') = (?\<alpha> \<alpha>))   
+            \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>'))"
       let ?f = "\<lambda>(C, \<phi>, \<phi>') . \<lambda>\<alpha>. \<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>'
-            \<and> (g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>) = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-            \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>))   
-            \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>'))"
+            \<and> (g_pow_PK_Prod (?PK \<alpha>) \<phi> = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+            \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (\<phi> - \<phi>') = (?\<alpha> \<alpha>))   
+            \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>'))"
       let ?q = "\<lambda>(C, \<phi>, \<phi>') . \<lambda>\<alpha>. 
-          (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))"
+          (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>')"
       text \<open>We show that the "f \<and> q" definition is equal to the conjuncted definitions of f and q.
       (Basically "f \<and> q" = "f" \<and> "q")\<close>
       have f_n_q_conv : "\<forall>C \<phi> \<phi>' \<alpha>. ?f_n_q (C,\<phi>,\<phi>') \<alpha> \<longleftrightarrow> ?f (C,\<phi>,\<phi>') \<alpha> \<and> ?q (C,\<phi>, \<phi>') \<alpha>"
       proof (intro allI)
         fix C::'a
-        fix \<phi> \<phi>':: "'e qr"
+        fix \<phi> \<phi>':: "'e polynomial"
         fix \<alpha> :: nat
         show "?f_n_q (C,\<phi>,\<phi>') \<alpha> \<longleftrightarrow> ?f (C,\<phi>,\<phi>') \<alpha> \<and> ?q (C,\<phi>, \<phi>') \<alpha>"
         proof 
@@ -889,10 +907,10 @@ proof -
        \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
        (C, \<phi>, _, \<phi>', _) \<leftarrow> \<A> (?PK \<alpha>);      
          _ :: unit \<leftarrow> assert_spmf (\<phi> \<noteq> \<phi>' \<and> SCC_valid_msg \<phi> \<and> SCC_valid_msg \<phi>' 
-            \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>)) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-            \<and> (g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>) = g_pow_PK_Prod (?PK \<alpha>) (of_qr \<phi>'))
-            \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (of_qr \<phi> - of_qr \<phi>') = (?\<alpha> \<alpha>))   
-            \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (of_qr \<phi> - of_qr \<phi>')));
+            \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>) \<and> (C = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+            \<and> (g_pow_PK_Prod (?PK \<alpha>) \<phi> = g_pow_PK_Prod (?PK \<alpha>) \<phi>')
+            \<and> (find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>))) (\<phi> - \<phi>') = (?\<alpha> \<alpha>))   
+            \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/?\<alpha> \<alpha>) = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/find_\<alpha> ((?PK \<alpha>)!1) (\<phi> - \<phi>')));
        return_spmf True } ELSE return_spmf False
       ) True"
         by (rule sbr_game_ref)
