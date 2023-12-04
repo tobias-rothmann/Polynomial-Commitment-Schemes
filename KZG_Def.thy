@@ -25,8 +25,7 @@ e_bilinearity[simp]: "\<forall>a b::int . \<forall>P Q. P \<in> carrier G\<^sub>
 e_non_degeneracy[simp]: "\<not>(\<forall>P Q. P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p \<longrightarrow> e P Q = \<one>\<^bsub>G\<^sub>T\<^esub>)" and 
 (*$(\mathbb{Z}_p[x])^{<d}$ Assumptions*)
 d_pos: "max_deg > 0" and
-CARD_q: "int (CARD('q)) = p" and
-qr_poly'_eq: "qr_poly' TYPE('q) = Polynomial.monom 1 (nat (max_deg+1)) - 1"
+CARD_q: "int (CARD('q)) = p"
 begin
 
 abbreviation pow_mod_ring_G\<^sub>p :: "'a \<Rightarrow>'q mod_ring \<Rightarrow> 'a" (infixr "^\<^bsub>G\<^sub>p\<^esub>" 75)
@@ -242,23 +241,6 @@ lemma e_g_g_in_carrier_GT[simp]: "e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g
   using e_symmetric by fast
 
 
-subsubsection \<open>polynomial lemmas\<close>
-
-lemma deg_qr_n: 
-  "deg_qr TYPE('q) = max_deg+1"
-  unfolding deg_qr_def using qr_poly'_eq
-  by (metis deg_qr'_pos degree_1 degree_add_eq_left degree_monom_eq diff_add_cancel nat_int semiring_norm(159))
-
-lemma degree_of_qr: "degree (of_qr (x ::'q qr)) \<le> max_deg"
-proof -
-  have "degree (of_qr (x ::'q qr)) < deg_qr TYPE('q)"
-    by (metis deg_qr_pos degree_0 degree_mod_less degree_qr_poly nless_le of_qr.rep_eq)
-  also have "\<dots>=max_deg+1"  
-   unfolding deg_qr_def using qr_poly'_eq
-   by (metis deg_qr'_pos degree_1 degree_add_eq_left degree_monom_eq diff_add_cancel nat_int semiring_norm(159))
-  finally show ?thesis by fastforce
-qed
-
 end
 
 section \<open>KZG function definitions\<close>
@@ -276,7 +258,7 @@ You can find the paper here: https://cacr.uwaterloo.ca/techreports/2010/cacr2010
 type_synonym 'q' sk = "'q' mod_ring"
 type_synonym 'a' pk = "'a' list"
 
-type_synonym 'e' polynomial = "'e' qr"
+type_synonym 'e' polynomial = "'e' mod_ring poly"
 type_synonym 'a' commit = "'a'"
 
 type_synonym 'e' eval_position = "'e' mod_ring"
@@ -316,7 +298,7 @@ fun g_pow_PK_Prod :: "'a list \<Rightarrow>'e mod_ring poly \<Rightarrow> 'a" wh
 subsubsection\<open>actual Commit definition is basically computing g^\<phi>(a) from the public key\<close>
 definition Commit :: "'a pk \<Rightarrow> 'e polynomial \<Rightarrow> ('a commit)"
 where 
-  "Commit PK \<phi> = g_pow_PK_Prod PK (of_qr \<phi>)" 
+  "Commit PK \<phi> = g_pow_PK_Prod PK \<phi>" 
 
 subsection \<open>Open: opens the commitment\<close>
 definition Open :: "'a pk \<Rightarrow> 'a commit \<Rightarrow> 'e polynomial \<Rightarrow> 'e polynomial"
@@ -329,7 +311,7 @@ Recomputes the commitment and checks the equality\<close>
 definition VerifyPoly :: "'a pk \<Rightarrow> 'a commit \<Rightarrow> 'e polynomial \<Rightarrow> bool"
 where 
   "VerifyPoly PK C \<phi> =
-    (C = g_pow_PK_Prod PK (of_qr \<phi>))" 
+    (C = g_pow_PK_Prod PK \<phi>)"
 
 subsection \<open>CreateWitness: creates a witness for a commitment to an evaluation of a polynomial 
 at position i\<close>
@@ -389,9 +371,9 @@ The correctness proof is to be found in the correctness theory KZG_correct.
 definition coeffs_n :: "'e mod_ring poly \<Rightarrow> 'e mod_ring \<Rightarrow> 'e mod_ring list \<Rightarrow> nat \<Rightarrow> 'e mod_ring list"
   where "coeffs_n \<phi> u = (\<lambda>q_coeffs. \<lambda>n. map (\<lambda>(i::nat). (nth_default 0 q_coeffs i + poly.coeff \<phi> n * u ^ (n - Suc i))) [0..<n])"
 
-definition \<psi>_of :: "'e qr \<Rightarrow> 'e mod_ring \<Rightarrow> 'e mod_ring poly" 
+definition \<psi>_of :: "'e polynomial \<Rightarrow> 'e mod_ring \<Rightarrow> 'e polynomial" 
   where "\<psi>_of \<phi> u = (let 
-     \<psi>_coeffs = foldl (coeffs_n (of_qr \<phi>) u) [] [0..<Suc (degree (of_qr \<phi>))] \<comment>\<open>coefficients of \<psi>\<close>
+     \<psi>_coeffs = foldl (coeffs_n \<phi> u) [] [0..<Suc (degree \<phi>)] \<comment>\<open>coefficients of \<psi>\<close>
     in Poly \<psi>_coeffs) \<comment>\<open>\<psi>\<close>"
 
 subsubsection \<open>actual CreateWitness:
@@ -400,7 +382,7 @@ definition CreateWitness :: "'a pk \<Rightarrow> 'e polynomial \<Rightarrow> 'e 
   \<Rightarrow> ('e eval_position \<times> 'e eval_value \<times> 'a eval_witness)"
 where 
   "CreateWitness PK \<phi> i =( 
-    let \<phi>_of_i = poly (of_qr \<phi>) i; \<comment>\<open>\<phi>(i)\<close>
+    let \<phi>_of_i = poly \<phi> i; \<comment>\<open>\<phi>(i)\<close>
         \<psi> = \<psi>_of \<phi> i; \<comment>\<open>\<psi> in \<phi>(x) - \<phi>(i) = (x-i) * \<psi>(x)\<close>
         w_i = g_pow_PK_Prod PK \<psi> \<comment>\<open>g^\<psi>(\<alpha>)\<close>
     in

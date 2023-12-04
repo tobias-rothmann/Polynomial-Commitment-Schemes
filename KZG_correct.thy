@@ -80,16 +80,6 @@ lemma coeffs_n_add_nth[simp]: "\<forall>i<n. coeffs_n \<phi> u l n ! i = nth_def
 lemma \<psi>_coeffs_length: "length (foldl (coeffs_n \<phi> u) [] [0..<Suc n]) = n"
   by auto
 
-text \<open>this definition cuts out the "of_qr \<phi>" part, in \<psi>_of, thus easing lemmas"\<close>
-definition \<psi>_of_poly :: "'e mod_ring poly \<Rightarrow> 'e mod_ring \<Rightarrow> 'e mod_ring poly" 
-  where "\<psi>_of_poly \<phi> u = (let 
-     \<psi>_coeffs = foldl (coeffs_n \<phi> u) [] [0..<Suc (degree \<phi>)] \<comment>\<open>coefficients of \<psi>\<close>
-    in Poly \<psi>_coeffs)"
-
-text \<open>lemma that states the equivalence of \<psi>_of and \<psi>_of_qr\<close>
-lemma \<psi>_of_and_\<psi>_of_poly: "\<psi>_of \<phi> u = \<psi>_of_poly (of_qr \<phi>) u"
-  unfolding \<psi>_of_def \<psi>_of_poly_def .. 
-
 lemma sum_split: "m\<le>n \<Longrightarrow> (\<Sum>i\<le>n. f i) = (\<Sum>i\<le>m. f i) + (\<Sum>i\<in>{m<..<Suc n}. f i)"
 proof -
   assume "m\<le>n"
@@ -107,8 +97,8 @@ proof -
 qed
 
 text \<open>state that the computed polynomial \<psi>, is of degree less equal to \<phi>.\<close>
-lemma degree_q_le_\<phi>: "degree (\<psi>_of_poly \<phi> u) \<le> degree \<phi>"
-  unfolding \<psi>_of_poly_def
+lemma degree_q_le_\<phi>: "degree (\<psi>_of \<phi> u) \<le> degree \<phi>"
+  unfolding \<psi>_of_def
   by (metis degree_Poly \<psi>_coeffs_length)
 
 text \<open>This lemma is essentially resorting the summation according to the idea given in KZG_def 
@@ -267,16 +257,16 @@ coefficients of \<psi> before multiplying with x^i.
 With the \<psi>_of_ith_coeff_eq_sum_ith_coeff lemma, show the coefficients of the result of 
 sum_horiz_to_vert equal to the coefficients calculated by \<psi>_of_poly and thus showing 
 poly (\<psi>_of_poly \<phi> u) x equal to the result sum of sum_horiz_to_vert.\<close>
-lemma \<phi>x_m_\<phi>u_eq_xmu_\<psi>x: "\<forall>\<phi>::'e mod_ring poly. poly \<phi> x - poly \<phi> u = (x-u) * poly (\<psi>_of_poly \<phi> u) x"
+lemma \<phi>x_m_\<phi>u_eq_xmu_\<psi>x: "\<forall>\<phi>::'e mod_ring poly. poly \<phi> x - poly \<phi> u = (x-u) * poly (\<psi>_of \<phi> u) x"
 proof
   fix \<phi>::"'e mod_ring poly"
   fix u x :: "'e mod_ring"
-  show "poly \<phi> x - poly \<phi> u = (x-u) * poly (\<psi>_of_poly \<phi> u) x"
+  show "poly \<phi> x - poly \<phi> u = (x-u) * poly (\<psi>_of \<phi> u) x"
   proof -
     let ?q_coeffs = "foldl (coeffs_n \<phi> u) [] [0..<Suc (degree \<phi>)]"
     let ?q_dirty ="(\<lambda>x. (\<Sum>i\<le>degree \<phi>. poly.coeff \<phi> i * (\<Sum>j<i. u^(i - Suc j) * x^j)))"
     let ?q_vert  ="(\<lambda>x. (\<Sum>i\<le>degree \<phi>. (\<Sum>j\<in>{i<..<Suc (degree \<phi>)}. poly.coeff \<phi> j * u ^ (j - Suc i)) * x^i))"
-    let ?q = "\<psi>_of_poly \<phi> u"
+    let ?q = "\<psi>_of \<phi> u"
     (*idee: über endl. Summen, see: poly_as_sum *)
     have "(\<Sum>i\<le>degree \<phi>. poly.coeff \<phi> i * x ^ i) - (\<Sum>i\<le>degree \<phi>. poly.coeff \<phi> i * u ^ i) 
       = (\<Sum>i\<le>degree \<phi>. poly.coeff \<phi> i * (x ^ i - u ^ i))"
@@ -304,7 +294,7 @@ proof
             assume asmp: "n\<ge>degree ?q \<and> n\<le>degree \<phi>"
             have "\<forall>i>degree ?q. ?f i = 0"
               using coeff_eq_0 coeffs_n_def
-              by (metis \<psi>_of_poly_def coeff_Poly_eq)
+              by (metis \<psi>_of_def coeff_Poly_eq)
             then have "(\<Sum>i\<in>{degree ?q <..<Suc n}. ?f i * x^i) = 0"
               by fastforce
             also have "(\<Sum>i\<le>n. ?f i * x ^ i) = (\<Sum>i\<le>degree ?q. ?f i * x ^ i) + (\<Sum>i\<in>{degree ?q <..<Suc n}. ?f i * x^i)"
@@ -354,38 +344,34 @@ proof
           by force
       qed
       ultimately show "?q_vert x = poly ?q x" 
-        by (metis (no_types, lifting) \<psi>_of_poly_def coeff_Poly_eq poly_altdef sum.cong) 
+        by (metis (no_types, lifting) \<psi>_of_def coeff_Poly_eq poly_altdef sum.cong) 
     qed
-    ultimately show "poly \<phi> x - poly \<phi> u = (x-u) * poly (\<psi>_of_poly \<phi> u) x"
+    ultimately show "poly \<phi> x - poly \<phi> u = (x-u) * poly (\<psi>_of \<phi> u) x"
       by (simp add: poly_altdef)
   qed
 qed
-
-text \<open>Use \<psi>_of_poly \<psi>_of (almost) equivalence to show \<psi>_of computes the correct \<psi>\<close>
-corollary f_eq_xu_compute_qx: "\<forall>\<phi>::'e qr. poly (of_qr \<phi>) x - poly (of_qr \<phi>) u = (x-u) * poly (\<psi>_of \<phi> u ) x"
-  using \<psi>_of_and_\<psi>_of_poly \<phi>x_m_\<phi>u_eq_xmu_\<psi>x by presburger
 
 text \<open>Taking the result to the bilinear function. 
 We know \<phi>(x)-\<phi>(u)=(x-u)\<psi>(x) from the previous corollary, now we show the equality is also valid with 
 the billinear function e.\<close>
 lemma eq_on_e: "(e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (\<psi>_of \<phi> i) \<alpha>))  (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) 
-      \<otimes>\<^bsub>G\<^sub>T\<^esub> (e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>)^\<^bsub>G\<^sub>T\<^esub> (poly (of_qr \<phi>) i) 
-      = e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>) \<alpha>)) \<^bold>g\<^bsub>G\<^sub>p\<^esub>"
+      \<otimes>\<^bsub>G\<^sub>T\<^esub> (e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>)^\<^bsub>G\<^sub>T\<^esub> (poly \<phi> i) 
+      = e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly \<phi> \<alpha>)) \<^bold>g\<^bsub>G\<^sub>p\<^esub>"
 proof -
   have e_in_carrier: "(e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ) \<in> carrier G\<^sub>T" using e_symmetric by blast
-  have "e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly (\<psi>_of \<phi> i) \<alpha>) (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i) \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>T\<^esub> poly (of_qr \<phi>) i 
-      = e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly (\<psi>_of \<phi> i) \<alpha>) (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha> - i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>T\<^esub> poly (of_qr \<phi>) i"
+  have "e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly (\<psi>_of \<phi> i) \<alpha>) (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i) \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>T\<^esub> poly \<phi> i 
+      = e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly (\<psi>_of \<phi> i) \<alpha>) (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha> - i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>T\<^esub> poly \<phi> i"
     using mod_ring_pow_mult_inv_G\<^sub>p by force
-  also have "\<dots>= (e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ) ^\<^bsub>G\<^sub>T\<^esub> ((poly (\<psi>_of \<phi> i) \<alpha>) * (\<alpha>-i))  \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>T\<^esub> poly (of_qr \<phi>) i"
+  also have "\<dots>= (e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ) ^\<^bsub>G\<^sub>T\<^esub> ((poly (\<psi>_of \<phi> i) \<alpha>) * (\<alpha>-i))  \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>T\<^esub> poly \<phi> i"
     using G\<^sub>p.generator_closed e_bilinear by presburger 
-  also have "\<dots>= (e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ) ^\<^bsub>G\<^sub>T\<^esub> ((poly (\<psi>_of \<phi> i) \<alpha>) * (\<alpha>-i) + poly (of_qr \<phi>) i)"
+  also have "\<dots>= (e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ) ^\<^bsub>G\<^sub>T\<^esub> ((poly (\<psi>_of \<phi> i) \<alpha>) * (\<alpha>-i) + poly \<phi> i)"
     using mod_ring_pow_mult_G\<^sub>T e_in_carrier by presburger
-  also have "\<dots>= (e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ) ^\<^bsub>G\<^sub>T\<^esub> (poly (of_qr \<phi>) \<alpha>)"
-    by (metis diff_add_cancel f_eq_xu_compute_qx mult.commute)
-  also have "\<dots>= e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>) \<alpha>)) \<^bold>g\<^bsub>G\<^sub>p\<^esub>"
+  also have "\<dots>= (e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ) ^\<^bsub>G\<^sub>T\<^esub> (poly \<phi> \<alpha>)"
+    by (metis Groups.mult_ac(2) \<phi>x_m_\<phi>u_eq_xmu_\<psi>x diff_add_cancel)
+  also have "\<dots>= e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly \<phi> \<alpha>)) \<^bold>g\<^bsub>G\<^sub>p\<^esub>"
     by (simp add: e_linear_in_fst)
-  finally show "e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly (\<psi>_of \<phi> i) \<alpha>) (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i) \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>T\<^esub> poly (of_qr \<phi>) i =
-    e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly (of_qr \<phi>) \<alpha>) \<^bold>g\<^bsub>G\<^sub>p\<^esub>"
+  finally show "e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly (\<psi>_of \<phi> i) \<alpha>) (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i) \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>T\<^esub> poly \<phi> i =
+    e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> poly \<phi> \<alpha>) \<^bold>g\<^bsub>G\<^sub>p\<^esub>"
     .
 qed
 
@@ -506,18 +492,16 @@ proof -
 qed
 
 subsubsection \<open>The actual theorem\<close>
-
+(* TODO assms*)
 text \<open>theorem stating the goal of the subsection: 
 that a correct Setup with a correct commit to a polynomial and a correctly computed 
 evaluation witness, yields a correct verification of the evaluation.
 We use the restriction that a polynomial can only be of degree max_deg, which is according to 
 the KZG.\<close>
 theorem Eval_Commit_correct:  
-  "spmf (Eval_Commit_game \<phi> i) True = 1"
+  assumes "degree \<phi> \<le> max_deg"
+  shows "spmf (Eval_Commit_game \<phi> i) True = 1"
 proof -
-  have deg_\<phi>_le_max_deg: "degree (of_qr \<phi>) \<le> max_deg" 
-    by (rule degree_of_qr)
-  
   let ?\<alpha> = "\<lambda>x. of_int_mod_ring (int x)"
   let ?PK = "\<lambda>x. (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> ?\<alpha> x ^ t) [0..<max_deg+1])"
   have "spmf (Eval_Commit_game \<phi> i) True 
@@ -535,25 +519,25 @@ proof -
       x::nat \<leftarrow> sample_uniform (order G\<^sub>p);
       return_spmf
              (e (g_pow_PK_Prod (?PK x) (\<psi>_of \<phi> i))((?PK x)!1 \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) 
-              \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>T\<^esub> poly (of_qr \<phi>) i 
-                  = e (g_pow_PK_Prod (?PK x) (of_qr \<phi>)) \<^bold>g\<^bsub>G\<^sub>p\<^esub>)})
+              \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>T\<^esub> poly \<phi> i 
+                  = e (g_pow_PK_Prod (?PK x) \<phi>) \<^bold>g\<^bsub>G\<^sub>p\<^esub>)})
      True" 
     unfolding Commit_def CreateWitness_def VerifyEval_def
     by (auto simp del: g_pow_PK_Prod.simps)
   also have "\<dots> = spmf ( do {
       x::nat \<leftarrow> sample_uniform (order G\<^sub>p);
       return_spmf
-             (e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (\<psi>_of \<phi> i) (?\<alpha> x))) (( \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (?\<alpha> x))  \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> (poly (of_qr \<phi>) i )) 
-                   = e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>) (?\<alpha> x))) \<^bold>g\<^bsub>G\<^sub>p\<^esub>)})
+             (e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (\<psi>_of \<phi> i) (?\<alpha> x))) (( \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (?\<alpha> x))  \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> (poly \<phi> i )) 
+                   = e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly \<phi> (?\<alpha> x))) \<^bold>g\<^bsub>G\<^sub>p\<^esub>)})
      True"
   proof -
-    let ?g_pow_\<phi> = "\<lambda>x. g_pow_PK_Prod (?PK x) (of_qr \<phi>)"
+    let ?g_pow_\<phi> = "\<lambda>x. g_pow_PK_Prod (?PK x) \<phi>"
     let ?g_pow_\<psi> = "\<lambda>x. g_pow_PK_Prod (?PK x) (\<psi>_of \<phi> i)"
     let ?g_pow_\<alpha> = "\<lambda>x. (?PK x)!1"
-    have g_pow_\<phi>: "?g_pow_\<phi> = (\<lambda>x. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (of_qr \<phi>) (?\<alpha> x)))"
-      using g_pow_PK_Prod_correct[OF deg_\<phi>_le_max_deg] by presburger
-    have degree_\<psi>: "degree (\<psi>_of \<phi> i) \<le> max_deg" using deg_\<phi>_le_max_deg 
-      by (metis \<psi>_of_and_\<psi>_of_poly degree_q_le_\<phi> dual_order.trans)
+    have g_pow_\<phi>: "?g_pow_\<phi> = (\<lambda>x. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly \<phi> (?\<alpha> x)))"
+      using g_pow_PK_Prod_correct[OF assms] by presburger
+    have degree_\<psi>: "degree (\<psi>_of \<phi> i) \<le> max_deg" 
+      using assms degree_q_le_\<phi> le_trans by blast
     have g_pow_\<psi>: "?g_pow_\<psi> = (\<lambda>x. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (\<psi>_of \<phi> i) (?\<alpha> x)))"
       using g_pow_PK_Prod_correct[OF degree_\<psi>] by presburger
     have g_pow_\<alpha>: "?g_pow_\<alpha> = (\<lambda>x. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (?\<alpha> x))"
