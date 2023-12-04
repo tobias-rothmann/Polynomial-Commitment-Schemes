@@ -59,7 +59,7 @@ where
   (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
   _ :: unit \<leftarrow> assert_spmf (valid_msg \<phi>_i w_i);
   let \<phi>'_i = poly \<phi> i;
-  let w'_i = createWitness PK (to_qr \<phi>) i;
+  let w'_i = createWitness PK \<phi> i;
   return_spmf (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i)}"
 
 subsubsection \<open>Extractor definition\<close>
@@ -365,11 +365,11 @@ lemma bind_game_knowledge_soundness_reduction_alt_def:
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
             \<and> \<phi>_i \<noteq> (poly \<phi> i) 
-            \<and> w_i \<noteq> (createWitness PK (to_qr \<phi>) i) 
+            \<and> w_i \<noteq> (createWitness PK \<phi> i) 
             \<and> valid_msg \<phi>_i w_i 
-            \<and> valid_msg (poly \<phi> i) (createWitness PK (to_qr \<phi>) i) 
+            \<and> valid_msg (poly \<phi> i) (createWitness PK \<phi> i) 
             \<and> VerifyEval PK C i \<phi>_i w_i 
-            \<and> VerifyEval PK C i (poly \<phi> i) (createWitness PK (to_qr \<phi>) i));
+            \<and> VerifyEval PK C i (poly \<phi> i) (createWitness PK \<phi> i));
        return_spmf True
     } ELSE return_spmf False"
 proof -
@@ -391,7 +391,7 @@ proof -
   (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
   _ :: unit \<leftarrow> assert_spmf (valid_msg \<phi>_i w_i);
   let \<phi>'_i = poly \<phi> i;
-  let w'_i = createWitness PK (to_qr \<phi>) i;
+  let w'_i = createWitness PK \<phi> i;
   _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
   let b = VerifyEval PK C i \<phi>_i w_i;
   let b' = VerifyEval PK C i \<phi>'_i w'_i;
@@ -411,7 +411,7 @@ proof -
     TRY do {
     _ :: unit \<leftarrow> assert_spmf (valid_msg \<phi>_i w_i);
     let \<phi>'_i = poly \<phi> i;
-    let w'_i = createWitness PK (to_qr \<phi>) i;
+    let w'_i = createWitness PK \<phi> i;
     TRY do {
     _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i 
                             \<and> valid_msg \<phi>_i w_i 
@@ -439,7 +439,7 @@ proof -
     TRY do {
     _ :: unit \<leftarrow> assert_spmf (valid_msg \<phi>_i w_i);
     let \<phi>'_i = poly \<phi> i;
-    let w'_i = createWitness PK (to_qr \<phi>) i;
+    let w'_i = createWitness PK \<phi> i;
     TRY do {
     _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i 
                             \<and> valid_msg \<phi>_i w_i 
@@ -465,7 +465,7 @@ proof -
     TRY do {
     (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
     let \<phi>'_i = poly \<phi> i;
-    let w'_i = createWitness PK (to_qr \<phi>) i;
+    let w'_i = createWitness PK \<phi> i;
     TRY do {
     _ :: unit \<leftarrow> assert_spmf (valid_msg \<phi>_i w_i);
     _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i 
@@ -492,7 +492,7 @@ proof -
     TRY do {
     (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
     let \<phi>'_i = poly \<phi> i;
-    let w'_i = createWitness PK (to_qr \<phi>) i;
+    let w'_i = createWitness PK \<phi> i;
     TRY do {
     _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i 
                             \<and> valid_msg \<phi>_i w_i 
@@ -528,11 +528,11 @@ proof -
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);  
     (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
     _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> (poly (E C calc_vec) i) 
-                            \<and> w_i \<noteq> (createWitness PK (to_qr (E C calc_vec)) i) 
+                            \<and> w_i \<noteq> (createWitness PK (E C calc_vec) i) 
                             \<and> valid_msg \<phi>_i w_i 
-                            \<and> valid_msg (poly (E C calc_vec) i) (createWitness PK (to_qr (E C calc_vec)) i) 
+                            \<and> valid_msg (poly (E C calc_vec) i) (createWitness PK (E C calc_vec) i) 
                             \<and> VerifyEval PK C i \<phi>_i w_i 
-                            \<and> VerifyEval PK C i (poly (E C calc_vec) i) (createWitness PK (to_qr (E C calc_vec)) i));
+                            \<and> VerifyEval PK C i (poly (E C calc_vec) i) (createWitness PK (E C calc_vec) i));
     return_spmf True
     } ELSE return_spmf False"
     unfolding split_def Let_def 
@@ -544,11 +544,11 @@ proof -
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);
     _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> (poly (E C calc_vec) i) 
-                            \<and> w_i \<noteq> (createWitness PK (to_qr (E C calc_vec)) i) 
+                            \<and> w_i \<noteq> (createWitness PK (E C calc_vec) i) 
                             \<and> valid_msg \<phi>_i w_i 
-                            \<and> valid_msg (poly (E C calc_vec) i) (createWitness PK (to_qr (E C calc_vec)) i) 
+                            \<and> valid_msg (poly (E C calc_vec) i) (createWitness PK (E C calc_vec) i) 
                             \<and> VerifyEval PK C i \<phi>_i w_i 
-                            \<and> VerifyEval PK C i (poly (E C calc_vec) i) (createWitness PK (to_qr (E C calc_vec)) i));
+                            \<and> VerifyEval PK C i (poly (E C calc_vec) i) (createWitness PK  (E C calc_vec) i));
     return_spmf True
     } ELSE return_spmf False"
   proof -
@@ -559,11 +559,11 @@ proof -
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);  
     (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
     _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> (poly (E C calc_vec) i) 
-                            \<and> w_i \<noteq> (createWitness PK (to_qr (E C calc_vec)) i) 
+                            \<and> w_i \<noteq> (createWitness PK (E C calc_vec) i) 
                             \<and> valid_msg \<phi>_i w_i 
-                            \<and> valid_msg (poly (E C calc_vec) i) (createWitness PK (to_qr (E C calc_vec)) i) 
+                            \<and> valid_msg (poly (E C calc_vec) i) (createWitness PK  (E C calc_vec) i) 
                             \<and> VerifyEval PK C i \<phi>_i w_i 
-                            \<and> VerifyEval PK C i (poly (E C calc_vec) i) (createWitness PK (to_qr (E C calc_vec)) i));
+                            \<and> VerifyEval PK C i (poly (E C calc_vec) i) (createWitness PK (E C calc_vec) i));
     return_spmf True
     } = do {
     PK \<leftarrow> key_gen;
@@ -572,11 +572,11 @@ proof -
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);
     _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> (poly (E C calc_vec) i) 
-                            \<and> w_i \<noteq> (createWitness PK (to_qr (E C calc_vec)) i) 
+                            \<and> w_i \<noteq> (createWitness PK (E C calc_vec) i) 
                             \<and> valid_msg \<phi>_i w_i 
-                            \<and> valid_msg (poly (E C calc_vec) i) (createWitness PK (to_qr (E C calc_vec)) i) 
+                            \<and> valid_msg (poly (E C calc_vec) i) (createWitness PK (E C calc_vec) i) 
                             \<and> VerifyEval PK C i \<phi>_i w_i 
-                            \<and> VerifyEval PK C i (poly (E C calc_vec) i) (createWitness PK (to_qr (E C calc_vec)) i));
+                            \<and> VerifyEval PK C i (poly (E C calc_vec) i) (createWitness PK (E C calc_vec) i));
     return_spmf True
     }"
       using pull_down_assert_spmf_with_assert[of key_gen \<A>] 
@@ -593,11 +593,11 @@ proof -
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);
     _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> (poly (E C calc_vec) i) 
-                            \<and> w_i \<noteq> (createWitness PK (to_qr (E C calc_vec)) i) 
+                            \<and> w_i \<noteq> (createWitness PK (E C calc_vec) i) 
                             \<and> valid_msg \<phi>_i w_i 
-                            \<and> valid_msg (poly (E C calc_vec) i) (createWitness PK (to_qr (E C calc_vec)) i) 
+                            \<and> valid_msg (poly (E C calc_vec) i) (createWitness PK (E C calc_vec) i) 
                             \<and> VerifyEval PK C i \<phi>_i w_i 
-                            \<and> VerifyEval PK C i (poly (E C calc_vec) i) (createWitness PK (to_qr (E C calc_vec)) i));
+                            \<and> VerifyEval PK C i (poly (E C calc_vec) i) (createWitness PK (E C calc_vec) i));
     return_spmf True
     } ELSE return_spmf False
     } ELSE return_spmf False
@@ -615,11 +615,11 @@ proof -
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
             \<and> \<phi>_i \<noteq> (poly (E C calc_vec) i) 
-            \<and> w_i \<noteq> (createWitness PK (to_qr (E C calc_vec)) i) 
+            \<and> w_i \<noteq> (createWitness PK (E C calc_vec) i) 
             \<and> valid_msg \<phi>_i w_i 
-            \<and> valid_msg (poly (E C calc_vec) i) (createWitness PK (to_qr (E C calc_vec)) i) 
+            \<and> valid_msg (poly (E C calc_vec) i) (createWitness PK (E C calc_vec) i) 
             \<and> VerifyEval PK C i \<phi>_i w_i 
-            \<and> VerifyEval PK C i (poly (E C calc_vec) i) (createWitness PK (to_qr (E C calc_vec)) i));
+            \<and> VerifyEval PK C i (poly (E C calc_vec) i) (createWitness PK (E C calc_vec) i));
        return_spmf True
     } ELSE return_spmf False
     } ELSE return_spmf False
@@ -634,11 +634,11 @@ proof -
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
             \<and> \<phi>_i \<noteq> (poly \<phi> i) 
-            \<and> w_i \<noteq> (createWitness PK (to_qr \<phi>) i) 
+            \<and> w_i \<noteq> (createWitness PK \<phi> i) 
             \<and> valid_msg \<phi>_i w_i 
-            \<and> valid_msg (poly \<phi> i) (createWitness PK (to_qr \<phi>) i) 
+            \<and> valid_msg (poly \<phi> i) (createWitness PK \<phi> i) 
             \<and> VerifyEval PK C i \<phi>_i w_i 
-            \<and> VerifyEval PK C i (poly \<phi> i) (createWitness PK (to_qr \<phi>) i));
+            \<and> VerifyEval PK C i (poly \<phi> i) (createWitness PK \<phi> i));
        return_spmf True
     } ELSE return_spmf False"
    unfolding split_def Let_def 
@@ -654,11 +654,11 @@ proof -
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
             \<and> \<phi>_i \<noteq> (poly \<phi> i) 
-            \<and> w_i \<noteq> (createWitness PK (to_qr \<phi>) i) 
+            \<and> w_i \<noteq> (createWitness PK \<phi> i) 
             \<and> valid_msg \<phi>_i w_i 
-            \<and> valid_msg (poly \<phi> i) (createWitness PK (to_qr \<phi>) i) 
+            \<and> valid_msg (poly \<phi> i) (createWitness PK \<phi> i) 
             \<and> VerifyEval PK C i \<phi>_i w_i 
-            \<and> VerifyEval PK C i (poly \<phi> i) (createWitness PK (to_qr \<phi>) i));
+            \<and> VerifyEval PK C i (poly \<phi> i) (createWitness PK \<phi> i));
        return_spmf True
     } ELSE return_spmf False"
     using key_gen_alt_def
@@ -673,11 +673,11 @@ proof -
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
             \<and> \<phi>_i \<noteq> (poly \<phi> i) 
-            \<and> w_i \<noteq> (createWitness PK (to_qr \<phi>) i) 
+            \<and> w_i \<noteq> (createWitness PK \<phi> i) 
             \<and> valid_msg \<phi>_i w_i 
-            \<and> valid_msg (poly \<phi> i) (createWitness PK (to_qr \<phi>) i) 
+            \<and> valid_msg (poly \<phi> i) (createWitness PK \<phi> i) 
             \<and> VerifyEval PK C i \<phi>_i w_i 
-            \<and> VerifyEval PK C i (poly \<phi> i) (createWitness PK (to_qr \<phi>) i));
+            \<and> VerifyEval PK C i (poly \<phi> i) (createWitness PK \<phi> i));
        return_spmf True
     } ELSE return_spmf False"
     using return_bind_spmf by meson
@@ -699,11 +699,11 @@ lemma asserts_are_equal:
        length (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1])!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1])] \<one>\<^bsub>G\<^sub>p\<^esub>
             \<and> \<phi>_i \<noteq> (poly (Poly calc_vec) i) 
-            \<and> w_i \<noteq> (createWitness (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (to_qr (Poly calc_vec)) i) 
+            \<and> w_i \<noteq> (createWitness (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (Poly calc_vec) i) 
             \<and> valid_msg \<phi>_i w_i 
-            \<and> valid_msg (poly (Poly calc_vec) i) (createWitness (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (to_qr (Poly calc_vec)) i) 
+            \<and> valid_msg (poly (Poly calc_vec) i) (createWitness (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (Poly calc_vec) i) 
             \<and> VerifyEval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) C i \<phi>_i w_i 
-            \<and> VerifyEval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) C i (poly (Poly calc_vec) i) (createWitness (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (to_qr (Poly calc_vec)) i)"
+            \<and> VerifyEval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) C i (poly (Poly calc_vec) i) (createWitness (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (Poly calc_vec) i)"
 proof 
   let ?PK = "(map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1])"
   let ?\<phi> = "Poly calc_vec"
@@ -714,21 +714,28 @@ proof
   show "length ?PK = length calc_vec \<and>
     C = fold (\<lambda>i acc. acc \<otimes> ?PK ! i ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! i) [0..<length ?PK] \<one> \<and>
     \<phi>_i \<noteq> poly ?\<phi> i \<and>
-    w_i \<noteq> createWitness ?PK (to_qr ?\<phi>) i \<and>
+    w_i \<noteq> createWitness ?PK ?\<phi> i \<and>
     valid_msg \<phi>_i w_i \<and>
-    valid_msg (poly ?\<phi> i) (createWitness ?PK (to_qr ?\<phi>) i) \<and>
-    VerifyEval ?PK C i \<phi>_i w_i \<and> VerifyEval ?PK C i (poly ?\<phi> i) (createWitness ?PK (to_qr ?\<phi>) i)"
+    valid_msg (poly ?\<phi> i) (createWitness ?PK ?\<phi> i) \<and>
+    VerifyEval ?PK C i \<phi>_i w_i \<and> VerifyEval ?PK C i (poly ?\<phi> i) (createWitness ?PK ?\<phi> i)"
   proof(intro conjI)
     show "length ?PK = length calc_vec"
       using asm by blast
-    
-    show "valid_msg (poly ?\<phi> i) (createWitness ?PK (to_qr ?\<phi>) i)" 
+
+    show "valid_msg (poly ?\<phi> i) (createWitness ?PK ?\<phi> i)" 
     proof -
-      have "g_pow_PK_Prod ?PK (\<psi>_of (to_qr (Poly calc_vec)) i) 
-      = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (\<psi>_of (to_qr (Poly calc_vec)) i) \<alpha>)"
+      have "g_pow_PK_Prod ?PK (\<psi>_of (Poly calc_vec) i) 
+      = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (\<psi>_of (Poly calc_vec) i) \<alpha>)"
       proof (rule g_pow_PK_Prod_correct)
-        show "degree (\<psi>_of (to_qr (Poly calc_vec)) i) \<le> max_deg"
-          by (metis \<psi>_of_and_\<psi>_of_poly degree_of_qr degree_q_le_\<phi> le_trans)
+        show "degree (\<psi>_of (Poly calc_vec) i) \<le> max_deg"
+        proof (rule  le_trans[OF degree_q_le_\<phi>])
+          have "length calc_vec = max_deg +1"
+            using asm by force
+          moreover have "length (coeffs (Poly calc_vec)) \<le> length calc_vec"
+            by (simp add: length_strip_while_le)
+          ultimately show "degree (Poly calc_vec) \<le> max_deg"
+            using degree_eq_length_coeffs[of "Poly calc_vec"] by linarith
+        qed
       qed
       then show ?thesis 
         unfolding valid_msg_def createWitness.simps Let_def
@@ -738,27 +745,28 @@ proof
     show "VerifyEval ?PK C i \<phi>_i w_i" 
       using asm by fast 
     
-    show  "VerifyEval ?PK C i (poly ?\<phi> i) (createWitness ?PK (to_qr ?\<phi>) i)"
+    show  "VerifyEval ?PK C i (poly ?\<phi> i) (createWitness ?PK ?\<phi> i)"
     proof -
-      have 3: "C = (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (of_qr (to_qr (Poly calc_vec))) \<alpha>)"
+      have 3: "C = (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (Poly calc_vec) \<alpha>)"
+
         sorry
       have 1: " 
         (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1])
-        (\<psi>_of (to_qr (Poly calc_vec)) i))
-        = (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (\<psi>_of (to_qr (Poly calc_vec)) i) \<alpha>)"
+        (\<psi>_of (Poly calc_vec) i))
+        = (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (\<psi>_of (Poly calc_vec) i) \<alpha>)"
         sorry
       have 2: "map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1] ! 1 = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha>"
         sorry
       show ?thesis
       unfolding VerifyEval_def createWitness.simps Let_def g_pow_PK_Prod_correct 3 2 1
-      using eq_on_e[of "to_qr (Poly calc_vec)" i \<alpha>] 
-      
+      using eq_on_e[of "(Poly calc_vec)" i \<alpha>] 
       sorry
-      qed
-    
-     show "w_i \<noteq> createWitness ?PK (to_qr ?\<phi>) i"  
+    qed
+
+     show "w_i \<noteq> createWitness ?PK ?\<phi> i"  
       sorry
   qed (simp add: asm)+
+
 qed linarith
 
 theorem knowledge_soundness_game_eq_bind_game_knowledge_soundness_reduction: 
