@@ -686,6 +686,16 @@ qed
 
 subsection \<open>Reduction proof\<close>
 
+lemma fold_split:"i\<le>n \<Longrightarrow> fold f [0..<n] init = fold f [i..<n] (fold f [0..<i] init)"
+proof -
+  assume asm: "i\<le>n"
+  have "fold f [0..<n] init = fold f ([0..<i] @ [i..<n]) init"
+    by (metis Nat.add_diff_assoc add_diff_cancel_left' asm length_upt less_imp_le upt_add_eq_append zero_le)
+  also have "\<dots> = fold f [i..<n] (fold f [0..<i] init)" 
+    by fastforce
+  finally show "fold f [0..<n] init = fold f [i..<n] (fold f [0..<i] init)" .
+qed
+
 text \<open>show the equivalence of the content of the assert statements in the alt games i.e. 
 assert content of knowledge_soundness_game_alt_def
 is equivalent to the 
@@ -747,26 +757,154 @@ proof
     
     show  "VerifyEval ?PK C i (poly ?\<phi> i) (createWitness ?PK ?\<phi> i)"
     proof -
-      have 3: "C = (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (Poly calc_vec) \<alpha>)"
-
-        sorry
-      have 1: " 
-        (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1])
+      have length_calc_vec: "length calc_vec = max_deg +1"
+            using asm by force
+      moreover have "length (coeffs (Poly calc_vec)) \<le> length calc_vec"
+        by (simp add: length_strip_while_le)
+      ultimately have deg_poly_calc_vec_le_max_deg: "degree (Poly calc_vec) \<le> max_deg"
+        using degree_eq_length_coeffs[of "Poly calc_vec"] by linarith
+      
+      have 1: "(g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1])
         (\<psi>_of (Poly calc_vec) i))
         = (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (\<psi>_of (Poly calc_vec) i) \<alpha>)"
-        sorry
+      proof(rule  g_pow_PK_Prod_correct)
+        show "degree (\<psi>_of (Poly calc_vec) i) \<le> max_deg"
+          by (rule le_trans[OF degree_q_le_\<phi>])(fact deg_poly_calc_vec_le_max_deg)
+      qed
+
       have 2: "map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1] ! 1 = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha>"
-        sorry
+        by (metis (no_types, lifting) One_nat_def add.commute d_pos diff_zero le_add_same_cancel1 le_zero_eq length_upt nth_map nth_upt plus_1_eq_Suc power_one_right zero_compare_simps(1))
+      
+      have 3: "C = (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (Poly calc_vec) \<alpha>)"
+      proof -
+        have "(\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (Poly calc_vec) \<alpha>) 
+             = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (Poly calc_vec)"
+          by (rule  g_pow_PK_Prod_correct[symmetric])(fact deg_poly_calc_vec_le_max_deg)
+        also have g_pow_to_fold: "\<dots> = fold (\<lambda>i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^i)) ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff (Poly calc_vec) i)) [0..<Suc (degree (Poly calc_vec))] \<one>\<^bsub>G\<^sub>p\<^esub>"
+          by(rule g_pow_PK_Prod_to_fold)(fact deg_poly_calc_vec_le_max_deg)
+        also have "\<dots> 
+        =fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^i)) ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<max_deg+1] \<one>\<^bsub>G\<^sub>p\<^esub>"
+        proof -
+          have "fold (\<lambda>i acc. acc \<otimes> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ i) ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! i) [0..<max_deg + 1] \<one>
+              = fold (\<lambda>i acc. acc \<otimes> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ i) ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! i) 
+                  ([0..<Suc (degree (Poly calc_vec))] @ [Suc (degree (Poly calc_vec))..<max_deg + 1]) 
+                  \<one>" 
+          proof -
+            have "Suc (degree (Poly calc_vec)) \<le> max_deg +1"
+              by (simp add: deg_poly_calc_vec_le_max_deg)
+            then show ?thesis
+              by (metis (no_types, lifting) nat_le_iff_add not_less not_less_eq_eq upt_add_eq_append zero_less_Suc)
+          qed
+          also have "\<dots> = fold (\<lambda>i acc. acc \<otimes> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ i) ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! i) 
+                            [Suc (degree (Poly calc_vec))..<max_deg + 1]
+                            (fold (\<lambda>i acc. acc \<otimes> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ i) ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! i) 
+                             [0..<Suc (degree (Poly calc_vec))] \<one>)"
+            by fastforce
+          also have "\<dots> = fold (\<lambda>i acc. acc \<otimes> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ i) ^\<^bsub>G\<^sub>p\<^esub> poly.coeff (Poly calc_vec) i) 
+                            [0..<Suc (degree (Poly calc_vec))] 
+                            \<one>"
+          proof -
+            have "fold (\<lambda>i acc. acc \<otimes> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ i) ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! i) [0..<Suc (degree (Poly calc_vec))] \<one> 
+                = fold (\<lambda>i acc. acc \<otimes> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ i) ^\<^bsub>G\<^sub>p\<^esub> poly.coeff (Poly calc_vec) i) [0..<Suc (degree (Poly calc_vec))] \<one>" 
+            proof (rule List.fold_cong) 
+              show " \<And>x. x \<in> set [0..<Suc (degree (Poly calc_vec))] \<Longrightarrow>
+                       (\<lambda>acc. acc \<otimes> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ x) ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! x) =
+                       (\<lambda>acc. acc \<otimes> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ x) ^\<^bsub>G\<^sub>p\<^esub> poly.coeff (Poly calc_vec) x)"
+              proof 
+                fix x::nat
+                fix acc::'a
+                assume asm: "x \<in> set [0..<Suc (degree (Poly calc_vec))]"
+                then have " calc_vec ! x = poly.coeff (Poly calc_vec) x"
+                  by (metis \<open>length calc_vec = max_deg + 1\<close> atLeastLessThan_iff coeff_Poly deg_poly_calc_vec_le_max_deg dual_order.trans less_Suc_eq_le nth_default_nth semiring_norm(174) set_upt)
+                then show " acc \<otimes> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ x) ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! x = acc \<otimes> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ x) ^\<^bsub>G\<^sub>p\<^esub> poly.coeff (Poly calc_vec) x "
+                  by presburger
+              qed
+            qed simp+
+            moreover have "\<forall>init \<in> carrier G\<^sub>p. 
+                    fold (\<lambda>i acc. acc \<otimes> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ i) ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! i) 
+                      [Suc (degree (Poly calc_vec))..<max_deg + 1] 
+                      init 
+                    = init"
+            proof 
+              fix init ::'a
+              assume init_in_carrier: "init \<in> carrier G\<^sub>p"
+              have "fold (\<lambda>i acc. acc \<otimes> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ i) ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! i) 
+                      [Suc (degree (Poly calc_vec))..<max_deg + 1] 
+                      init = fold (\<lambda>i acc. acc \<otimes> \<one>) 
+                      [Suc (degree (Poly calc_vec))..<max_deg + 1] 
+                      init"
+              proof (rule List.fold_cong)
+                show " \<And>x. x \<in> set [Suc (degree (Poly calc_vec))..<max_deg + 1] \<Longrightarrow>
+                        (\<lambda>acc. acc \<otimes> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ x) ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! x) = (\<lambda>acc. acc \<otimes> \<one>)"
+                proof 
+                  fix x::nat
+                  fix acc ::'a
+                  assume asm: "x \<in> set [Suc (degree (Poly calc_vec))..<max_deg + 1]"
+                  show "acc \<otimes> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ x) ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! x = acc  \<otimes> \<one>"
+                  proof -
+                    have " calc_vec ! x = 0" using asm length_calc_vec
+                      by (smt (verit) add.commute coeff_Poly_eq in_set_conv_nth le_degree length_upt less_diff_conv not_less_eq_eq nth_default_eq_dflt_iff nth_upt order.refl trans_le_add2)
+                    then have "(\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ x) ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! x = \<one>" by simp
+                    then show ?thesis by argo 
+                  qed
+                qed
+              qed simp+
+              also have "\<dots> = init" 
+              proof (induction max_deg)
+                case 0
+                then show ?case by fastforce
+              next
+                case (Suc max_deg)
+                have "fold (\<lambda>i acc. acc \<otimes> \<one>) [Suc (degree (Poly calc_vec))..<Suc max_deg + 1] init
+                = fold (\<lambda>i acc. acc \<otimes> \<one>) ([Suc (degree (Poly calc_vec))..<max_deg + 1] @ [Suc max_deg]) init"
+                  by (simp add: init_in_carrier)
+                also have "\<dots> = fold (\<lambda>i acc. acc \<otimes> \<one>) [Suc max_deg] (fold (\<lambda>i acc. acc \<otimes> \<one>) [Suc (degree (Poly calc_vec))..<max_deg + 1] init)"
+                  by force
+                also have "\<dots> = fold (\<lambda>i acc. acc \<otimes> \<one>) [Suc max_deg] init" using Suc.IH by argo
+                also have "\<dots> = init \<otimes> \<one>" by force
+                also have "\<dots> = init" by (simp add: init_in_carrier)
+                finally show ?case .
+              qed
+              finally show "fold (\<lambda>i acc. acc \<otimes> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ i) ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! i) 
+                      [Suc (degree (Poly calc_vec))..<max_deg + 1] 
+                      init 
+                   = init" .
+            qed
+            ultimately show ?thesis
+              by (metis (no_types, lifting) G\<^sub>p.generator_closed G\<^sub>p.int_pow_closed \<open>\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (Poly calc_vec) \<alpha> = g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (Poly calc_vec)\<close> g_pow_to_fold)
+          qed
+          finally show ?thesis by presburger
+        qed
+        also have "\<dots> 
+        =fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1])!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<max_deg+1] \<one>\<^bsub>G\<^sub>p\<^esub>"
+        proof(rule List.fold_cong)
+          show "\<one> = \<one>" by simp
+          show "[0..<max_deg + 1] = [0..<max_deg + 1]" by simp
+          show "\<And>x. x \<in> set [0..<max_deg + 1] \<Longrightarrow>
+           (\<lambda>acc. acc \<otimes> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ x) ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! x) =
+           (\<lambda>acc. acc \<otimes> map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1] ! x ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! x)"
+          proof 
+            fix x::nat 
+            fix acc :: 'a
+            assume asm: "x \<in> set [0..<max_deg + 1]"
+            show " acc \<otimes> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ x) ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! x 
+                 = acc \<otimes> map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1] ! x ^\<^bsub>G\<^sub>p\<^esub> calc_vec ! x"
+              using PK_i[symmetric] asm
+              by (metis Suc_eq_plus1 atLeastLessThan_iff less_Suc_eq_le set_upt)
+          qed
+        qed
+        also have "\<dots> = C" 
+          using asm by fastforce
+        finally show ?thesis ..
+      qed
       show ?thesis
       unfolding VerifyEval_def createWitness.simps Let_def g_pow_PK_Prod_correct 3 2 1
-      using eq_on_e[of "(Poly calc_vec)" i \<alpha>] 
-      sorry
+      using eq_on_e[of "(Poly calc_vec)" i \<alpha>] by blast
     qed
 
-     show "w_i \<noteq> createWitness ?PK ?\<phi> i"  
+    show "w_i \<noteq> createWitness ?PK ?\<phi> i"  
       sorry
   qed (simp add: asm)+
-
 qed linarith
 
 theorem knowledge_soundness_game_eq_bind_game_knowledge_soundness_reduction: 

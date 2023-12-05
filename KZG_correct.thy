@@ -492,12 +492,11 @@ proof -
 qed
 
 subsubsection \<open>The actual theorem\<close>
-(* TODO assms*)
 text \<open>theorem stating the goal of the subsection: 
-that a correct Setup with a correct commit to a polynomial and a correctly computed 
+that a correct Setup with a correct commit to a valid polynomial and a correctly computed 
 evaluation witness, yields a correct verification of the evaluation.
-We use the restriction that a polynomial can only be of degree max_deg, which is according to 
-the KZG.\<close>
+We use the restriction that a polynomial can only be of maximum degree max_deg, which is according 
+to the KZG.\<close>
 theorem Eval_Commit_correct:  
   assumes "degree \<phi> \<le> max_deg"
   shows "spmf (Eval_Commit_game \<phi> i) True = 1"
