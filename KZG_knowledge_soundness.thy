@@ -732,7 +732,7 @@ proof
     show "length ?PK = length calc_vec"
       using asm by blast
 
-    show "valid_msg (poly ?\<phi> i) (createWitness ?PK ?\<phi> i)" 
+    show valid_msg_generated: "valid_msg (poly ?\<phi> i) (createWitness ?PK ?\<phi> i)" 
     proof -
       have "g_pow_PK_Prod ?PK (\<psi>_of (Poly calc_vec) i) 
       = \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (\<psi>_of (Poly calc_vec) i) \<alpha>)"
@@ -752,10 +752,10 @@ proof
         by simp
     qed
 
-    show "VerifyEval ?PK C i \<phi>_i w_i" 
+    show verify_eval_Adversary: "VerifyEval ?PK C i \<phi>_i w_i" 
       using asm by fast 
     
-    show  "VerifyEval ?PK C i (poly ?\<phi> i) (createWitness ?PK ?\<phi> i)"
+    show verify_eval_generated: "VerifyEval ?PK C i (poly ?\<phi> i) (createWitness ?PK ?\<phi> i)"
     proof -
       have length_calc_vec: "length calc_vec = max_deg +1"
             using asm by force
@@ -902,8 +902,44 @@ proof
       using eq_on_e[of "(Poly calc_vec)" i \<alpha>] by blast
     qed
 
-    show "w_i \<noteq> createWitness ?PK ?\<phi> i"  
-      sorry
+    show "w_i \<noteq> createWitness ?PK ?\<phi> i" 
+    proof -
+      obtain w_i_pow where w_i_pow: "w_i = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> w_i_pow" 
+        using asm 
+        unfolding valid_msg_def
+        by (metis G\<^sub>p.generatorE g_pow_to_int_mod_ring_of_int_mod_ring int_pow_int)
+      obtain crt_Witn_pow where crt_Witn_pow: "createWitness ?PK ?\<phi> i = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> crt_Witn_pow" 
+        using valid_msg_generated 
+        unfolding valid_msg_def
+        by (metis G\<^sub>p.generatorE g_pow_to_int_mod_ring_of_int_mod_ring int_pow_int)
+
+      from verify_eval_Adversary verify_eval_generated 
+      have "e w_i (?PK ! 1 \<otimes> inv (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i)) 
+            \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> \<phi>_i 
+          = e (createWitness ?PK ?\<phi> i) (?PK ! 1 \<otimes> inv (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i)) 
+            \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> poly (Poly calc_vec) i" unfolding VerifyEval_def by force
+      then have "e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> w_i_pow) ((\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<otimes> inv (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i)) 
+            \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> \<phi>_i 
+          = e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> crt_Witn_pow) ((\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<otimes> inv (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i)) 
+            \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> poly (Poly calc_vec) i"
+        using crt_Witn_pow w_i_pow PK_i
+        using add.commute add_diff_cancel_right' d_pos landau_product_preprocess(52) length_upt less_diff_conv nth_map nth_upt power_one_right
+        by auto
+      then have "e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> w_i_pow) (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>-i)) 
+            \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> \<phi>_i 
+          = e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> crt_Witn_pow) (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>-i)) 
+            \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> poly (Poly calc_vec) i"
+        using mod_ring_pow_mult_inv_G\<^sub>p by presburger
+      then have "e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> (w_i_pow * (\<alpha>-i) + \<phi>_i)
+          = e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> (crt_Witn_pow * (\<alpha>-i) + poly (Poly calc_vec) i)"
+        using e_bilinear by force
+      then have "w_i_pow * (\<alpha>-i) + \<phi>_i = crt_Witn_pow * (\<alpha>-i) + poly (Poly calc_vec) i"
+        by simp
+      then have "w_i_pow \<noteq> crt_Witn_pow"
+        using asm by fastforce
+      then show ?thesis 
+        using w_i_pow crt_Witn_pow pow_on_eq_card by presburger
+  qed
   qed (simp add: asm)+
 qed linarith
 
@@ -921,7 +957,6 @@ theorem evaluation_knowledge_soundness:
         evaluation_binding
   unfolding bind_advantage_def knowledge_soundness_game_advantage_def
   by algebra
-
 
 end
 
