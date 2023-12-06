@@ -43,7 +43,7 @@ definition bind_game :: "('a, 'e) adversary \<Rightarrow> bool spmf"
   where "bind_game \<A> = TRY do {
   PK \<leftarrow> key_gen;
   (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
-  _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i); 
+  _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i); 
     \<comment>\<open>maybe \<or> for w_i or no w_i at all?\<close>
   let b = VerifyEval PK C i \<phi>_i w_i;
   let b' = VerifyEval PK C i \<phi>'_i w'_i;
@@ -85,7 +85,7 @@ fun bind_reduction
 where
   "bind_reduction \<A> PK = do {
   (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> PK;
-  _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 
+  _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i 
                             \<and> valid_msg \<phi>_of_i w_i
                             \<and> valid_msg \<phi>'_of_i w'_i
                             \<and> VerifyEval PK C i \<phi>_of_i w_i 
@@ -108,7 +108,7 @@ lemma bind_game_alt_def:
   "bind_game \<A> = TRY do {
   PK \<leftarrow> key_gen;
   (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
-  _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
+  _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
   let b = VerifyEval PK C i \<phi>_i w_i;
   let b' = VerifyEval PK C i \<phi>'_i w'_i;
   _ :: unit \<leftarrow> assert_spmf (b \<and> b');
@@ -120,7 +120,7 @@ proof -
       TRY do {
         (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
         TRY do {
-          _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
+          _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
           TRY return_spmf (VerifyEval PK C i \<phi>_i w_i \<and> VerifyEval PK C i \<phi>'_i w'_i) ELSE return_spmf False
         } ELSE return_spmf False
       } ELSE return_spmf False
@@ -132,7 +132,7 @@ proof -
       TRY do {
         (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
         TRY do {
-          _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
+          _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
           TRY do {
             _ :: unit \<leftarrow> assert_spmf (VerifyEval PK C i \<phi>_i w_i \<and> VerifyEval PK C i \<phi>'_i w'_i);
             return_spmf True
@@ -254,6 +254,69 @@ qed
 
 subsubsection \<open>literal helping lemmas\<close>
 
+lemma add_witness_neq_if_eval_neq: "\<phi>_i \<noteq> \<phi>'_i
+                            \<and> valid_msg \<phi>_i w_i 
+                            \<and> valid_msg \<phi>'_i w'_i
+                            \<and> VerifyEval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) C i \<phi>_i w_i 
+                            \<and> VerifyEval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) C i \<phi>'_i w'_i 
+                        \<longleftrightarrow>                                       
+                            \<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i 
+                            \<and> valid_msg \<phi>_i w_i 
+                            \<and> valid_msg \<phi>'_i w'_i
+                            \<and> VerifyEval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) C i \<phi>_i w_i 
+                            \<and> VerifyEval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) C i \<phi>'_i w'_i"
+proof 
+  assume asm: "\<phi>_i \<noteq> \<phi>'_i
+            \<and> valid_msg \<phi>_i w_i 
+            \<and> valid_msg \<phi>'_i w'_i
+            \<and> VerifyEval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) C i \<phi>_i w_i 
+            \<and> VerifyEval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) C i \<phi>'_i w'_i "
+  have "w_i \<noteq> w'_i"
+  proof -
+    obtain w_i_pow where w_i_pow: "w_i = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> w_i_pow" 
+      using asm 
+      unfolding valid_msg_def
+      by (metis G\<^sub>p.generatorE g_pow_to_int_mod_ring_of_int_mod_ring int_pow_int)
+    obtain w'_i_pow where w'_i_pow: "w'_i = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> w'_i_pow" 
+      using asm 
+      unfolding valid_msg_def
+      by (metis G\<^sub>p.generatorE g_pow_to_int_mod_ring_of_int_mod_ring int_pow_int)
+
+      from asm
+      have "e w_i ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) ! 1 \<otimes> inv (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i)) 
+            \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> \<phi>_i 
+          =e w'_i ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) ! 1 \<otimes> inv (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i)) 
+            \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> \<phi>'_i " unfolding VerifyEval_def by force
+      then have "e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> w_i_pow) ((\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<otimes> inv (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i)) 
+            \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> \<phi>_i 
+          =e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> w'_i_pow) ((\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<otimes> inv (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i)) 
+            \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> \<phi>'_i"
+        using PK_i w_i_pow w'_i_pow
+        using add.commute add_diff_cancel_right' d_pos landau_product_preprocess(52) length_upt less_diff_conv nth_map nth_upt power_one_right
+        by auto
+      then have "e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> (w_i_pow * (\<alpha> - i)) 
+            \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> \<phi>_i 
+          =e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> (w'_i_pow * (\<alpha> - i))
+            \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> \<phi>'_i"
+        by (metis G\<^sub>p.generator_closed e_bilinear mod_ring_pow_mult_inv_G\<^sub>p)
+      then have "e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> (w_i_pow * (\<alpha> - i) + \<phi>_i)
+          =e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> (w'_i_pow * (\<alpha> - i) + \<phi>'_i)"
+        by fastforce
+      then have "w_i_pow * (\<alpha> - i) + \<phi>_i = w'_i_pow * (\<alpha> - i) + \<phi>'_i"
+        by simp
+      then have "w_i_pow \<noteq> w'_i_pow" using asm by force
+      
+      then show ?thesis 
+        using w_i_pow w'_i_pow pow_on_eq_card by presburger
+    qed
+  then show "\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i 
+          \<and> valid_msg \<phi>_i w_i 
+          \<and> valid_msg \<phi>'_i w'_i
+          \<and> VerifyEval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) C i \<phi>_i w_i 
+          \<and> VerifyEval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) C i \<phi>'_i w'_i"
+    using asm by fast
+qed fast
+
 lemma helping_1: "\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 
                             \<and> valid_msg \<phi>_of_i w_i
                             \<and> valid_msg \<phi>'_of_i w'_i
@@ -284,7 +347,7 @@ proof -
   have "t_SDH_G\<^sub>p.game (bind_reduction \<A>) = TRY do { 
      \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> (?PK \<alpha>);
-  _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 
+  _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i 
                             \<and> valid_msg \<phi>_of_i w_i 
                             \<and> valid_msg \<phi>'_of_i w'_i
                             \<and> VerifyEval (?PK \<alpha>) C i \<phi>_of_i w_i 
@@ -293,6 +356,20 @@ proof -
     return_spmf True 
   } ELSE return_spmf False"
     by (force simp add: t_SDH_G\<^sub>p.game_alt_def[of "(bind_reduction \<A>)"])
+  text \<open>Add the fact that witnesses have to be unequal if evaluations are unequal for a easier 
+        proof.\<close>
+  also have "\<dots> =  TRY do { 
+     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> (?PK \<alpha>);
+  _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i
+                            \<and> valid_msg \<phi>_of_i w_i 
+                            \<and> valid_msg \<phi>'_of_i w'_i
+                            \<and> VerifyEval (?PK \<alpha>) C i \<phi>_of_i w_i 
+                            \<and> VerifyEval (?PK \<alpha>) C i \<phi>'_of_i w'_i);
+    _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(?\<alpha> \<alpha> + (-i))) = (w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i)));
+    return_spmf True 
+  } ELSE return_spmf False"
+    using add_witness_neq_if_eval_neq by presburger
   text \<open>Goal is to erase the second assert statement, such that we just end up with the 
   evaluation_game. To do that, we first merge the two asserts and show that the first assert's 
   statement implies the second one's statement, hence we can leave the second assert's statement 
@@ -356,10 +433,22 @@ proof -
     return_spmf True 
   } ELSE return_spmf False"  
    using helping_1 by algebra 
+ text \<open>remove additional fact about the witnesses unequalness\<close>
+ also have "\<dots> = TRY do { 
+     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> (?PK \<alpha>);
+  _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i 
+                            \<and> valid_msg \<phi>_of_i w_i
+                            \<and> valid_msg \<phi>'_of_i w'_i
+                            \<and> VerifyEval (?PK \<alpha>) C i \<phi>_of_i w_i 
+                            \<and> VerifyEval (?PK \<alpha>) C i \<phi>'_of_i w'_i);
+    return_spmf True 
+  } ELSE return_spmf False"  
+   using add_witness_neq_if_eval_neq by algebra
   also have "\<dots> = TRY do { 
     PK \<leftarrow> key_gen;
     (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> PK;
-  _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 
+  _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i 
                             \<and> valid_msg \<phi>_of_i w_i
                             \<and> valid_msg \<phi>'_of_i w'_i
                             \<and> VerifyEval PK C i \<phi>_of_i w_i 
@@ -372,7 +461,7 @@ proof -
   TRY do {
     (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
       TRY do {
-      _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i 
+      _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i  
                                 \<and> valid_msg \<phi>_i w_i 
                                 \<and> valid_msg \<phi>'_i w'_i
                                 \<and> VerifyEval PK C i \<phi>_i w_i 
@@ -388,7 +477,7 @@ proof -
     TRY do {
     (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
       TRY do {
-      _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
+      _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
       _ :: unit \<leftarrow> assert_spmf (VerifyEval PK C i \<phi>_i w_i \<and> VerifyEval PK C i \<phi>'_i w'_i);  
       return_spmf True
       } ELSE return_spmf False 
@@ -398,7 +487,7 @@ proof -
   also  have "\<dots> = TRY do {
   PK \<leftarrow> key_gen;
   (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
-  _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> w_i \<noteq> w'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
+  _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
   _ :: unit \<leftarrow> assert_spmf (VerifyEval PK C i \<phi>_i w_i \<and> VerifyEval PK C i \<phi>'_i w'_i);  
   return_spmf True} ELSE return_spmf False"
     unfolding split_def Let_def
