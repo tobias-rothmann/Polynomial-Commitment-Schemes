@@ -25,14 +25,13 @@ They are shown via game-based proofs, see the [CryptHOL tutorial](https://eprint
 #### Proven.
 
 ### Evaluation Binding
-The basic property is shown. Whats left is to show that the adversary has to propose two different polynomials AND two different witnesses, as a simple OR would falsify the VerifyEval function, for at least one of them, hence break the Adversary's capabillity asumption.
-#### (almost) Proven.
+#### Proven.
 
 ### Hiding
 #### Open.
 
 ### Knowledge Soundness in the Algebraic Group Model (AGM)
 Though this property is not explicitly stated in the original paper, it is commonly referred to and needed for zk-SNARK protocols, such as PLONK and Sonic.
-#### In progress...
+#### Proven.
 
 
