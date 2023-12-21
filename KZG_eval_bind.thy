@@ -91,7 +91,6 @@ where
                             \<and> VerifyEval PK C i \<phi>_of_i w_i 
                             \<and> VerifyEval PK C i \<phi>'_of_i w'_i
                             ); 
-  \<comment>\<open>maybe \<or>? or w uneq not even necessary?\<close>
   return_spmf (-i::'e mod_ring, (w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i)) )}"
 end
 
