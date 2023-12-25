@@ -51,8 +51,6 @@ definition bind_game :: "('a, 'e) adversary \<Rightarrow> bool spmf"
 
 definition bind_advantage :: "('a, 'e) adversary \<Rightarrow> real"
   where "bind_advantage \<A> \<equiv> spmf (bind_game \<A>) True"
-
-subsection \<open>putting together the binding game\<close>
                                                         
 subsection \<open>t-SDH game\<close>
 

@@ -1,13 +1,13 @@
 theory KZG_hiding
 
-imports KZG_correct "DL_assumption"
+imports KZG_correct DL_assumption Cyclic_Group_SPMF_ext
 
 begin
 
 locale hiding_game_def = KZG_correct
 begin
 
-text \<open>Although the binding game will look similar to the Sigma_Commit_Crypto bind_game, 
+text \<open>Although the hiding game will look similar to the Sigma_Commit_Crypto hiding_game, 
 The evaluation commitment and verification phase does not exactly mirror the classical 
 commitment scheme as defined in Sigma_Commit_Crypto, which is why we will define our own game 
 to show this property. 
@@ -34,15 +34,51 @@ definition valid_msg :: "'e eval_value \<Rightarrow> 'a eval_witness \<Rightarro
 subsection \<open>Game definition\<close>
 
 type_synonym ('a', 'e')  adversary = 
-  "'a' commit \<Rightarrow> ('e' eval_position \<times> 'e' eval_value \<times> 'a' eval_witness) list\<Rightarrow> 
+  "'a' commit \<Rightarrow> ('e' eval_position \<times> 'e' eval_value \<times> 'a' eval_witness) set \<Rightarrow> 
  'e' polynomial spmf"
 
-definition hiding_game :: "'e polynomial \<Rightarrow> ('a, 'e) adversary \<Rightarrow> bool spmf"
-  where "hiding_game \<phi> \<A> = TRY do {
+declare [[show_types]]
+definition hiding_game :: "'e eval_position set \<Rightarrow> 'e polynomial \<Rightarrow> ('a, 'e) adversary \<Rightarrow> bool spmf"
+  where "hiding_game eval_pos_set \<phi> \<A> = TRY do {
+  _ :: unit \<leftarrow> assert_spmf (card eval_pos_set = max_deg);
   PK \<leftarrow> key_gen;
-  \<phi>' \<leftarrow> \<A> C ;
-  _ :: unit \<leftarrow> assert_spmf (True); 
+  let C = Commit PK \<phi>;
+  let witn_tupel_set = (\<lambda>i. (i, poly \<phi> i, createWitness PK \<phi> i)) ` eval_pos_set;
+  \<phi>' \<leftarrow> \<A> C witn_tupel_set;
   return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
+
+definition hiding_advantage :: "'e eval_position set \<Rightarrow>  'e polynomial \<Rightarrow> ('a, 'e) adversary \<Rightarrow> real"
+  where "hiding_advantage eval_pos_set \<phi> \<A> \<equiv> spmf (hiding_game eval_pos_set \<phi> \<A>) True"
+
+subsection \<open>DL game\<close>
+
+sublocale DL_G\<^sub>p: DL G\<^sub>p "of_int_mod_ring \<circ> int" pow_mod_ring_G\<^sub>p
+  unfolding DL_def 
+  by (rule G\<^sub>p.cyclic_group_axioms)
+
+subsection \<open>Reduction\<close>
+
+fun reduction
+  :: "('a, 'e) adversary \<Rightarrow> ('a,'e) DL.adversary"                     
+where
+  "reduction \<A> g_pow_\<alpha> = do {
+    (\<alpha>::'e sk, PK::'a pk) \<leftarrow> Setup;
+     eval_pos_set \<leftarrow> sample_k_uniform max_deg (order G\<^sub>p);
+     evals_set \<leftarrow> sample_k_uniform max_deg (order G\<^sub>p);
+  _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i 
+                            \<and> valid_msg \<phi>_of_i w_i
+                            \<and> valid_msg \<phi>'_of_i w'_i
+                            \<and> VerifyEval PK C i \<phi>_of_i w_i 
+                            \<and> VerifyEval PK C i \<phi>'_of_i w'_i
+                            ); 
+  return_spmf (-i::'e mod_ring)}"
+
+
+end
+
+
+
+
 
 end 
 
