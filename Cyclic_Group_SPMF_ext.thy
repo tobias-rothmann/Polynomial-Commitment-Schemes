@@ -145,83 +145,103 @@ definition sample_distinct_coordinates_uniform :: "nat \<Rightarrow> nat \<Right
   where "sample_distinct_coordinates_uniform k n 
           = map_spmf pair_lists (pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n))"
 
-thm spmf_map_inj'
-thm map_spmf_cong
-thm set_pair_spmf
-thm spmf_map_inj
-thm spmf_map_outside
-
-  
+lemma unpair_pair_set: "unpair_lists ` pair_lists `
+        set_spmf (pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n)) 
+      = set_spmf (pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n))"
+proof -
+  have simplif: "set_spmf (pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n)) 
+    =  {xs. length xs = k \<and> distinct xs \<and> set xs \<subseteq> {..<n}} \<times> {x. set x \<subseteq> {..<n} \<and> length x = k}"
+    unfolding  set_pair_spmf set_spmf_sample_distinct_uniform_list set_spmf_sample_uniform_list ..
+  have "(unpair_lists \<circ>
+    pair_lists)`
+    ({xs. length xs = k \<and> distinct xs \<and> set xs \<subseteq> {..<n}} \<times>
+     {x. set x \<subseteq> {..<n} \<and> length x = k}) =
+    id ` ({xs. length xs = k \<and> distinct xs \<and> set xs \<subseteq> {..<n}} \<times> {x. set x \<subseteq> {..<n} \<and> length x = k})"
+  proof(rule image_cong)
+    fix x 
+    assume asm: " x \<in> {xs. length xs = k \<and> distinct xs \<and> set xs \<subseteq> {..<n}} \<times>
+             {x. set x \<subseteq> {..<n} \<and> length x = k}"
+    then have "unpair_lists (pair_lists x) = id x"
+      by (induction "x" arbitrary: k rule: pair_lists.induct)simp+
+    then show "(unpair_lists \<circ> pair_lists) x = id x" 
+      by fastforce
+  qed simp
+  then show ?thesis
+    by (simp add: image_comp simplif)
+qed
 
 lemma spmf_sample_distinct_coordinates_uniform: 
   "spmf (sample_distinct_coordinates_uniform k n) pairs 
  = indicator ({xs. length xs = k \<and> distinct xs \<and> set xs \<subseteq> {..<n}} \<times> {x. set x \<subseteq> {..<n} \<and> length x = k}) (unpair_lists pairs) 
    / (real (\<Prod>{n - k + 1..n}) * (n^k))"
-proof (cases "pairs \<notin> pair_lists ` set_spmf (pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n))")
-  case True
-  then show ?thesis 
-    sorry
-next
-  case False
-  then have "pairs \<in> pair_lists ` set_spmf (pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n))" 
-    by blast
-  then show ?thesis
-  proof 
-    fix x 
-    assume x: "pairs = pair_lists x"
-    assume x_in_M: "x \<in> set_spmf (pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n))"
-    have "spmf (sample_distinct_coordinates_uniform k n) pairs =  spmf
+proof -
+   have unfold_pairing: "pair_lists (unpair_lists pairs) = pairs"
+     by (induction pairs rule: unpair_lists.induct) simp+
+   have "spmf (sample_distinct_coordinates_uniform k n) pairs =  spmf
      (map_spmf pair_lists
        ( pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n) )
      )
-     (pair_lists x)"
-      unfolding sample_distinct_coordinates_uniform_def x ..
-    also have "\<dots> = spmf ( pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n) ) x"
-    proof (rule spmf_map_inj[OF _ x_in_M])
-      show " inj_on pair_lists
-     (set_spmf (pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n)))"
-      proof 
-        fix x y
-        assume "x \<in> set_spmf
-                (pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n))"
-        then have x_in_pair_set: 
-          "x \<in> {xs. length xs = k \<and> distinct xs \<and> set xs \<subseteq> {..<n}} \<times> {x. set x \<subseteq> {..<n} \<and> length x = k}"
-          by simp
-        then have unpair_x: "unpair_lists (pair_lists x) = x"
-          by (induction x arbitrary: k rule: pair_lists.induct) auto
-        assume "y \<in> set_spmf
-                 (pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n))"
-         then have y_in_pair_set: 
-          "y \<in> {xs. length xs = k \<and> distinct xs \<and> set xs \<subseteq> {..<n}} \<times> {x. set x \<subseteq> {..<n} \<and> length x = k}"
-           by simp
-         then have unpair_y: "unpair_lists (pair_lists y) = y"
-          by (induction y arbitrary: k rule: pair_lists.induct) auto
-         assume pair_lists_eq: "pair_lists x = pair_lists y"
-         then show "x=y" using unpair_x unpair_y by argo
-      qed
-    qed
-    also have "\<dots> = (spmf (sample_distinct_uniform_list k n) (fst x)) * (spmf (sample_uniform_list k n) (snd x))"
-      by (metis spmf_pair surjective_pairing)
-    also have "\<dots> = indicator {xs. length xs = k \<and> distinct xs \<and> set xs \<subseteq> {..<n}} (fst x) / real (\<Prod>{n - k + 1..n})
-      * indicator {x. set x \<subseteq> {..<n} \<and> length x = k} (snd x) / (n^k)"
+    (pair_lists (unpair_lists pairs))"
+     unfolding sample_distinct_coordinates_uniform_def unfold_pairing ..
+   also have "\<dots> = indicator ({xs. length xs = k \<and> distinct xs \<and> set xs \<subseteq> {..<n}} \<times> {x. set x \<subseteq> {..<n} \<and> length x = k}) (unpair_lists pairs) 
+   / (real (\<Prod>{n - k + 1..n}) * (n^k))"
+   proof (cases "(pair_lists (unpair_lists pairs)) \<notin> pair_lists ` set_spmf ( pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n) )")
+     case True
+     then show ?thesis
+       by (auto simp add: image_eqI spmf_map_outside  indicator_def)
+   next
+     case False
+     have "spmf
+           (map_spmf pair_lists
+             (pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n)))
+           (pair_lists (unpair_lists pairs)) 
+         = spmf ( pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n) ) 
+              (unpair_lists pairs)"
+     proof (rule spmf_map_inj)
+       show "inj_on pair_lists (set_spmf (pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n)))"
+       proof 
+          fix x y
+          assume "x \<in> set_spmf
+                  (pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n))"
+          then have x_in_pair_set: 
+            "x \<in> {xs. length xs = k \<and> distinct xs \<and> set xs \<subseteq> {..<n}} \<times> {x. set x \<subseteq> {..<n} \<and> length x = k}"
+            by simp
+          then have unpair_x: "unpair_lists (pair_lists x) = x"
+            by (induction x arbitrary: k rule: pair_lists.induct) auto
+          assume "y \<in> set_spmf
+                   (pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n))"
+           then have y_in_pair_set: 
+            "y \<in> {xs. length xs = k \<and> distinct xs \<and> set xs \<subseteq> {..<n}} \<times> {x. set x \<subseteq> {..<n} \<and> length x = k}"
+             by simp
+           then have unpair_y: "unpair_lists (pair_lists y) = y"
+            by (induction y arbitrary: k rule: pair_lists.induct) auto
+           assume pair_lists_eq: "pair_lists x = pair_lists y"
+           then show "x=y" using unpair_x unpair_y by argo
+       qed
+
+       from False have "pair_lists (unpair_lists pairs) \<in> pair_lists `
+        set_spmf (pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n))"
+         by blast
+       then have "unpair_lists (pair_lists (unpair_lists pairs)) \<in> unpair_lists ` pair_lists `
+          set_spmf (pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n))"
+         by fast
+       then show " (unpair_lists pairs) \<in>
+          set_spmf (pair_spmf (sample_distinct_uniform_list k n) (sample_uniform_list k n))"
+         using unpair_pair_set unfold_pairing by simp
+     qed
+     also have "\<dots> = (spmf (sample_distinct_uniform_list k n) (fst (unpair_lists pairs) )) * (spmf (sample_uniform_list k n) (snd (unpair_lists pairs)))"
+       by (metis spmf_pair surjective_pairing)
+     also have "\<dots> = indicator {xs. length xs = k \<and> distinct xs \<and> set xs \<subseteq> {..<n}} (fst (unpair_lists pairs)) / real (\<Prod>{n - k + 1..n})
+      * indicator {x. set x \<subseteq> {..<n} \<and> length x = k} (snd (unpair_lists pairs)) / (n^k)"
       by (simp add: spmf_sample_distinct_uniform_list spmf_sample_uniform_list)
-    also have "\<dots> = indicator ({xs. length xs = k \<and> distinct xs \<and> set xs \<subseteq> {..<n}} \<times> {x. set x \<subseteq> {..<n} \<and> length x = k}) x 
-          / (real (\<Prod>{n - k + 1..n}) * (n^k))"
-      by (smt (verit) div_by_1 divide_divide_eq_left indicator_simps(1) indicator_simps(2) mem_Sigma_iff mult_eq_0_iff nonzero_mult_div_cancel_left prod.collapse times_divide_eq_left)
     also have "\<dots> = indicator ({xs. length xs = k \<and> distinct xs \<and> set xs \<subseteq> {..<n}} \<times> {x. set x \<subseteq> {..<n} \<and> length x = k}) (unpair_lists pairs) 
           / (real (\<Prod>{n - k + 1..n}) * (n^k))"
-    proof -
-      from x_in_M have "unpair_lists (pair_lists x) = x"
-        by (induction x arbitrary: k rule: pair_lists.induct) auto
-      then show ?thesis using x by presburger
-    qed
-    finally show " spmf (sample_distinct_coordinates_uniform k n) pairs =
-         indicator ({xs. length xs = k \<and> distinct xs \<and> set xs \<subseteq> {..<n}} \<times> {x. set x \<subseteq> {..<n} \<and> length x = k})
-          (unpair_lists pairs) /
-         (real (\<Prod>{n - k + 1..n}) * (n ^ k))" .
-  qed
-qed
-  
+      by (smt (verit) div_by_1 divide_divide_eq_left indicator_simps(1) indicator_simps(2) mem_Sigma_iff mult_eq_0_iff nonzero_mult_div_cancel_left prod.collapse times_divide_eq_left)
+    finally  show ?thesis
+      by fastforce 
+   qed
+   finally show ?thesis .
+ qed
   
 
 
