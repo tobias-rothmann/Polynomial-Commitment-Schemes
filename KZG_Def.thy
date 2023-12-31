@@ -265,6 +265,8 @@ type_synonym 'e' eval_position = "'e' mod_ring"
 type_synonym 'e' eval_value = "'e' mod_ring"
 type_synonym 'a' eval_witness = "'a'"
 
+type_synonym ('e', 'a') witness_tuple = "'e' eval_position \<times> 'e' eval_value \<times> 'a' eval_witness"
+
 subsection\<open>Setup: 
 we do not compute the Groups for the bilinear pairing but assume them and compute 
 a uniformly random secret key \<alpha> and from that the public key PK = (g, g^\<alpha>, ... , g^(\<alpha>^t) ).

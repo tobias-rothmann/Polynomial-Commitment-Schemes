@@ -262,7 +262,7 @@ lemma set_spmf_sample_distinct_coordinates_uniform_list [simp]:
   "set_spmf (sample_distinct_coordinates_uniform k n) 
   = pair_lists `
     ({xs. length xs = k \<and> distinct xs \<and> set xs \<subseteq> {..<n}} \<times>
-     {x. set x \<subseteq> {..<n} \<and> length x = k})"
+     {xs. set xs \<subseteq> {..<n} \<and> length xs = k})"
   by (simp add: sample_distinct_coordinates_uniform_def)
 
 end

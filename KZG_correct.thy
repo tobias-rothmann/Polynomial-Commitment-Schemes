@@ -412,8 +412,6 @@ proof -
   also have "fold (\<lambda>pk g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (?PK)!pk ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> pk)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>
            = fold (\<lambda>pk g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^pk)) ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> pk)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>" 
   proof(rule List.fold_cong)
-    show "\<one>\<^bsub>G\<^sub>p\<^esub> = \<one>\<^bsub>G\<^sub>p\<^esub>" by simp
-    show "[0..<Suc (degree \<phi>)] = [0..<Suc (degree \<phi>)]" by blast
     show "\<And>x. x \<in> set [0..<Suc (degree \<phi>)] \<Longrightarrow>
          (\<lambda>g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> ?PK ! x       ^\<^bsub>G\<^sub>p\<^esub> poly.coeff \<phi> x) 
        = (\<lambda>g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ x) ^\<^bsub>G\<^sub>p\<^esub> poly.coeff \<phi> x)"
@@ -426,7 +424,7 @@ proof -
       then show "g \<otimes>\<^bsub>G\<^sub>p\<^esub> ?PK ! x ^\<^bsub>G\<^sub>p\<^esub> poly.coeff \<phi> x = g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ x) ^\<^bsub>G\<^sub>p\<^esub> poly.coeff \<phi> x" 
         by presburger
     qed
-  qed
+  qed simp_all
   ultimately show "g_pow_PK_Prod ?PK \<phi> = fold (\<lambda>pk g. g \<otimes>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ pk) ^\<^bsub>G\<^sub>p\<^esub> poly.coeff \<phi> pk) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>"
     by argo
 qed
