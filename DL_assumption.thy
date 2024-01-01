@@ -28,6 +28,7 @@ text \<open>The advantage is that the Adversary wins the game.
 For the DL assumption to hold this advantage should be negligible.\<close>
 definition advantage :: " ('a,'c) adversary \<Rightarrow> real"
   where "advantage \<A> = spmf (game \<A>) True" 
+  
 
 text \<open>An alternative but equivalent game for the DL-game. This alternative game capsulates the 
 event that the Adversary wins in the assert_spmf statement.

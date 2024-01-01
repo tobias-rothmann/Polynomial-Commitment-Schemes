@@ -44,7 +44,6 @@ definition bind_game :: "('a, 'e) adversary \<Rightarrow> bool spmf"
   PK \<leftarrow> key_gen;
   (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
   _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i); 
-    \<comment>\<open>maybe \<or> for w_i or no w_i at all?\<close>
   let b = VerifyEval PK C i \<phi>_i w_i;
   let b' = VerifyEval PK C i \<phi>'_i w'_i;
   return_spmf (b \<and> b')} ELSE return_spmf False"

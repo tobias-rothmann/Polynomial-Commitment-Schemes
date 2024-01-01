@@ -323,7 +323,6 @@ proof -
   qed
 qed
 
-(*TODO goal \<Rightarrow> have to implement algorithm that produces square-free polys from non-square-free ones*)
 text \<open>show find_\<alpha> correctly finds(factorizes) \<alpha>, if \<alpha> is a root and \<phi> is not a zero-polynomial.\<close>
 lemma poly_eq0_imp_find_\<alpha>_eq_\<alpha>: "\<phi> \<noteq> 0 \<Longrightarrow> poly \<phi> \<alpha> = 0 \<Longrightarrow> find_\<alpha> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<phi> = \<alpha>"
 proof -
