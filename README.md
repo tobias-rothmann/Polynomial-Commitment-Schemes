@@ -36,6 +36,10 @@ Though this property is not explicitly stated in the original paper, it is commo
 
 ## Batch version
 
+### Correctness
+
+#### Open.
+
 ### Binding
 
 #### Open.
