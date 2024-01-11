@@ -37,28 +37,14 @@ type_synonym ('a', 'e')  adversary =
   "'a' commit \<Rightarrow> ('e' eval_position \<times> 'e' eval_value \<times> 'a' eval_witness) list \<Rightarrow> 
  'e' polynomial spmf"
 
-
-
 definition hiding_game :: "'e eval_position list \<Rightarrow> 'e polynomial \<Rightarrow> ('a, 'e) adversary \<Rightarrow> bool spmf"
   where "hiding_game eval_pos \<phi> \<A> = TRY do {
-  _ :: unit \<leftarrow> assert_spmf (length eval_pos = max_deg);
+  _ :: unit \<leftarrow> assert_spmf (length eval_pos = max_deg \<and> distinct eval_pos);
   PK \<leftarrow> key_gen;
   let C = Commit PK \<phi>;
   let witn_tupel = map (\<lambda>i. (i, poly \<phi> i, createWitness PK \<phi> i)) eval_pos;
   \<phi>' \<leftarrow> \<A> C witn_tupel;
   return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
-
-
-definition hiding_game :: "'a commit \<Rightarrow>(('e,'a) witness_tuple) list \<Rightarrow> ('a, 'e) adversary 
-  \<Rightarrow> bool spmf" where
-  "hiding_game C witn_tpl_list \<A> = TRY do {
-      \<phi>' \<leftarrow> \<A> C witn_tpl_list;
-      PK \<leftarrow> key_gen;
-      _::unit \<leftarrow> assert_spmf (\<exists>\<phi> eval_pos_list. C = Commit PK \<phi> 
-           \<and> witn_tpl_list = map (\<lambda>i. (i, poly \<phi> i, createWitness PK \<phi> i)) eval_pos_list
-           \<and> \<phi> = \<phi>');
-      return_spmf True
-    } ELSE return_spmf False"
 
 text \<open>put C and eval_poses in parameter and assert\<close>
 
@@ -137,10 +123,25 @@ definition compute_g_pow_\<phi>_of_\<alpha> :: "('e mod_ring \<times> 'a) list \
   let lagrange_exp = map (\<lambda>(xj,yj). yj ^\<^bsub>G\<^sub>p\<^esub> (poly (lagrange_basis_poly xs xj) \<alpha>)) xs_ys;
   fold (\<lambda>x prod. prod \<otimes>\<^bsub>G\<^sub>p\<^esub> x) lagrange_exp \<one>}"
 
+lemma compute_g_pow_\<phi>_of_\<alpha>_is_Commit:
+  assumes dist: "distinct (map fst xs_ys)"
+shows "compute_g_pow_\<phi>_of_\<alpha> (map (\<lambda>(x,y).(x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) xs_ys) \<alpha> = Commit 
+    (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly xs_ys)"
+proof -
+  have "compute_g_pow_\<phi>_of_\<alpha> (map (\<lambda>(x,y).(x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) xs_ys) \<alpha> = 
+    (let xs = map fst (map (\<lambda>(x, y). (x, \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> y)) xs_ys);
+         lagrange_exp =
+           map (\<lambda>(xj, y). (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> poly (lagrange_basis_poly xs xj) \<alpha>) xs_ys 
+     in fold (\<lambda>x prod. prod \<otimes> x) lagrange_exp \<one>)"
+    by (smt (verit) case_prod_unfold compute_g_pow_\<phi>_of_\<alpha>_def length_map nth_equalityI nth_map prod.simps(2))
+  show ?thesis sorry
+qed
+
 fun reduction
-  :: "('e eval_position \<times> 'e eval_value) list \<Rightarrow> ('a, 'e) adversary \<Rightarrow> ('a,'e) DL.adversary"                     
+  :: "('a, 'e) adversary \<Rightarrow> ('a,'e) DL.adversary"                     
 where
-  "reduction coords \<A> g_pow_a = do {
+  "reduction \<A> g_pow_a = do {
+    coords \<leftarrow> sample_coords;
     let exp_coords = (0,g_pow_a)#map (\<lambda>(x,y). (x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) coords;
     (\<alpha>, PK) \<leftarrow> Setup;
     let g_pow_\<phi>_of_\<alpha> = compute_g_pow_\<phi>_of_\<alpha> exp_coords \<alpha>;
@@ -149,46 +150,22 @@ where
     _::unit \<leftarrow> assert_spmf (True); \<comment>\<open>\<phi>'= \<phi> coords (exp?)\<close>
     return_spmf (poly \<phi>' 0)}"
 
+subsection \<open>Reduction proof\<close>
 
-definition hiding_coord :: "('e eval_position \<times> 'e eval_value) list \<Rightarrow> ('a, 'e) adversary \<Rightarrow> bool spmf" where
-"hiding_coord coords \<A> = TRY do {
- let exp_coords = map (\<lambda>(x,y). (x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) coords;
-  (\<alpha>, PK) \<leftarrow> Setup;
-  let g_pow_\<phi>_of_\<alpha> = compute_g_pow_\<phi>_of_\<alpha> exp_coords \<alpha>;
-  let wtn_tuples = map (\<lambda>(x,y). (x,y,(g_pow_\<phi>_of_\<alpha>  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/\<alpha>-x))) coords;
-  \<phi>' \<leftarrow> \<A> g_pow_\<phi>_of_\<alpha> wtn_tuples;
-  _::unit \<leftarrow> assert_spmf (lagrange_interpolation_poly coords = \<phi>'); \<comment>\<open>\<phi>'= \<phi> coords (exp?)\<close>
-  return_spmf True} ELSE return_spmf False"
-
-definition hiding_game_2 :: "'e eval_position list \<Rightarrow> 'e polynomial \<Rightarrow> ('a, 'e) adversary \<Rightarrow> bool spmf"
-  where "hiding_game_2 eval_pos \<phi> \<A> = TRY do {
-  _ :: unit \<leftarrow> assert_spmf (length eval_pos = max_deg);
-  PK \<leftarrow> key_gen;
-  let C = Commit PK \<phi>;
-  let witn_tupel = map (\<lambda>i. (i, poly \<phi> i, createWitness PK \<phi> i)) eval_pos;
-  \<phi>' \<leftarrow> \<A> C witn_tupel;
-  _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>');
-  return_spmf True} ELSE return_spmf False"
+subsubsection \<open>helping lemmas\<close>
 
 
+subsubsection \<open>reduction proof\<close>
 
-definition hiding_game_1 :: "'a commit \<Rightarrow>(('e,'a) witness_tuple) list \<Rightarrow> ('a, 'e) adversary 
-  \<Rightarrow> bool spmf" where
-  "hiding_game_1 C witn_tpl_list \<A> = TRY do {
-      PK \<leftarrow> key_gen;
-      \<phi>' \<leftarrow> \<A> C witn_tpl_list;
-      _::unit \<leftarrow> assert_spmf (\<exists>\<phi> eval_pos_list. C = Commit PK \<phi> 
-           \<and> witn_tpl_list = map (\<lambda>i. (i, poly \<phi> i, createWitness PK \<phi> i)) eval_pos_list
-           \<and> \<phi> = \<phi>');
-      return_spmf True
-    } ELSE return_spmf False"
+theorem
+  assumes "\<And>\<phi>. spmf (hiding_game eval_pos \<phi> \<A>) True = 1"
+  shows "spmf (DL_G\<^sub>p.game (reduction \<A>)) True = 1"
+  using assms unfolding DL_G\<^sub>p.game_def hiding_game_def reduction.simps
+  key_gen_def Let_def Setup_def
+  sorry
 
 end
 
 
-
-
-
-end 
 
 end
