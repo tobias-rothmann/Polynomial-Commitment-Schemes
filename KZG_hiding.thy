@@ -125,6 +125,7 @@ definition compute_g_pow_\<phi>_of_\<alpha> :: "('e mod_ring \<times> 'a) list \
 
 lemma compute_g_pow_\<phi>_of_\<alpha>_is_Commit:
   assumes dist: "distinct (map fst xs_ys)"
+  and length_xs_ys: "length xs_ys \<le> max_deg"
 shows "compute_g_pow_\<phi>_of_\<alpha> (map (\<lambda>(x,y).(x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) xs_ys) \<alpha> = Commit 
     (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly xs_ys)"
 proof -
@@ -134,7 +135,36 @@ proof -
            map (\<lambda>(xj, y). (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> poly (lagrange_basis_poly xs xj) \<alpha>) xs_ys 
      in fold (\<lambda>x prod. prod \<otimes> x) lagrange_exp \<one>)"
     by (smt (verit) case_prod_unfold compute_g_pow_\<phi>_of_\<alpha>_def length_map nth_equalityI nth_map prod.simps(2))
-  show ?thesis sorry
+  also have "\<dots> = (let xs = map fst (map (\<lambda>(x, y). (x, \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> y)) xs_ys);
+         lagrange_exp =
+           map (\<lambda>(xj, y). \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (y * poly (lagrange_basis_poly xs xj) \<alpha>)) xs_ys 
+     in fold (\<lambda>x prod. prod \<otimes> x) lagrange_exp \<one>)"
+    using mod_ring_pow_pow_G\<^sub>p by presburger
+  also have "\<dots> = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub>
+  (\<Sum>(xj,
+      y)\<leftarrow>xs_ys. y * poly (lagrange_basis_poly
+                            (map fst (map (\<lambda>(x, y). (x, \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> y)) xs_ys)) xj)
+                      \<alpha>)"
+    using fold_on_G\<^sub>p_is_sum_list[of "(\<lambda>(xj, y). (y *
+               poly
+                (lagrange_basis_poly (map fst (map (\<lambda>(x, y). (x, \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> y)) xs_ys))
+                  xj)
+                \<alpha>))" xs_ys 0]
+    unfolding Let_def split_def by force
+  also have "\<dots> =  \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (poly (lagrange_interpolation_poly xs_ys) \<alpha>)"
+    using eval_on_lagrange_basis
+    by (smt (verit, ccfv_SIG) fst_conv length_map nth_equalityI nth_map split_def)
+  also have "\<dots> = Commit 
+    (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly xs_ys)"
+  proof -
+    have "degree (lagrange_interpolation_poly xs_ys) \<le> max_deg"
+      by (meson assms(2) degree_lagrange_interpolation_poly le_diff_conv le_trans nat_le_iff_add)
+    then show "\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (lagrange_interpolation_poly xs_ys) \<alpha> =  Commit 
+    (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly xs_ys)"
+    unfolding Commit_def 
+    using g_pow_PK_Prod_correct by presburger
+  qed
+  finally show ?thesis by fast
 qed
 
 fun reduction
