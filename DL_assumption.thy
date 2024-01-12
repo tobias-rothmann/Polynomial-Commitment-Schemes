@@ -19,9 +19,9 @@ type_synonym ('grp,'mr) adversary = "'grp \<Rightarrow> 'mr mod_ring spmf"
 text \<open>The discrete Logarithm game\<close>
 definition game :: "('a,'c) adversary \<Rightarrow> bool spmf" where 
   "game \<A> = TRY do { 
-    \<alpha> \<leftarrow> sample_uniform (Coset.order G);
-    \<alpha>' \<leftarrow> \<A> (exp \<^bold>g (to_type \<alpha>));
-    return_spmf (to_type \<alpha> = \<alpha>') 
+    a \<leftarrow> sample_uniform (Coset.order G);
+    a' \<leftarrow> \<A> (exp \<^bold>g (to_type a));
+    return_spmf (to_type a = a') 
   } ELSE return_spmf False"
 
 text \<open>The advantage is that the Adversary wins the game. 
@@ -35,30 +35,30 @@ event that the Adversary wins in the assert_spmf statement.
 adapted proof from Sigma_Commit_Crypto.Commitment_Schemes bind_game_alt_def\<close>
 lemma game_alt_def:
   "game \<A> = TRY do { 
-    \<alpha> \<leftarrow> sample_uniform (Coset.order G);
-    \<alpha>' \<leftarrow> \<A> (exp \<^bold>g (to_type \<alpha>));
-    _::unit \<leftarrow> assert_spmf (to_type \<alpha> = \<alpha>');
+    a \<leftarrow> sample_uniform (Coset.order G);
+    a' \<leftarrow> \<A> (exp \<^bold>g (to_type a));
+    _::unit \<leftarrow> assert_spmf (to_type a = a');
     return_spmf True 
   } ELSE return_spmf False"
   (is "?lhs = ?rhs")
 proof -
    have "?lhs =  TRY do { 
-    \<alpha> \<leftarrow> sample_uniform (Coset.order G);
+    a \<leftarrow> sample_uniform (Coset.order G);
     TRY do {
-    \<alpha>' \<leftarrow> \<A> (exp \<^bold>g (to_type \<alpha>));
+    a' \<leftarrow> \<A> (exp \<^bold>g (to_type a));
     TRY do {
-   return_spmf (to_type \<alpha> = \<alpha>')
+   return_spmf (to_type a = a')
   } ELSE return_spmf False
   } ELSE return_spmf False
   } ELSE return_spmf False"
     unfolding split_def game_def
     by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
   also have "\<dots> = TRY do {
-      \<alpha> \<leftarrow> sample_uniform (Coset.order G);
+      a \<leftarrow> sample_uniform (Coset.order G);
       TRY do {
-        \<alpha>' \<leftarrow> \<A> (exp \<^bold>g (to_type \<alpha>));
+        a' \<leftarrow> \<A> (exp \<^bold>g (to_type a));
           TRY do {
-            _ :: unit \<leftarrow> assert_spmf (to_type \<alpha> = \<alpha>');
+            _ :: unit \<leftarrow> assert_spmf (to_type a = a');
             return_spmf True
         } ELSE return_spmf False
       } ELSE return_spmf False
