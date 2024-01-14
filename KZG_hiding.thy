@@ -1,6 +1,6 @@
 theory KZG_hiding
 
-imports KZG_correct DL_assumption Cyclic_Group_SPMF_ext Polynomial_Interpolation.Lagrange_Interpolation
+imports KZG_correct DL_assumption Cyclic_Group_SPMF_ext Polynomial_Interpolation.Lagrange_Interpolation 
 
 begin
 
@@ -68,6 +68,7 @@ lemma split_sample_distinct_coordinates_uniform_into_points:
   unfolding sample_distinct_coordinates_uniform_def 
   by (smt (verit) bind_return_spmf bind_spmf_cong map_spmf_bind_spmf pair_spmf_alt_def return_bind_spmf)
 
+(* TODO delete +  lemma after this*)
 definition sample_n_coords :: "nat \<Rightarrow> ('e mod_ring \<times> 'e mod_ring) list spmf"
 where 
   "sample_n_coords n =
@@ -76,34 +77,6 @@ where
 
 lemma length_pair_lists: "length xs = n \<Longrightarrow> length ys = n \<Longrightarrow> length (pair_lists (xs,ys)) = n"
   by (induction "(xs,ys)" arbitrary: n xs ys rule: pair_lists.induct)simp+
-
-lemma sample_n_coords_length: "\<forall>xs \<in> set_spmf (sample_n_coords n). length xs \<le> n"
-proof -
-  have "length ` set_spmf (sample_n_coords n) = {n}"
-  proof -
-    have "length ` set_spmf (sample_n_coords n) = (length \<circ> (map (\<lambda>(x, y). (of_int_mod_ring (int x), of_int_mod_ring (int y)))) \<circ> pair_lists) ` ({xs. length xs = n \<and> distinct xs \<and> set xs \<subseteq> {..<order G\<^sub>p}} \<times> {xs. set xs \<subseteq> {..<order G\<^sub>p} \<and> length xs = n})"
-     unfolding sample_n_coords_def 
-    using set_spmf_sample_distinct_coordinates_uniform_list
-    by (simp add: image_comp)
-  also have "(length \<circ> (map (\<lambda>(x, y). (of_int_mod_ring (int x), of_int_mod_ring (int y)))) \<circ> pair_lists) ` ({xs. length xs = n \<and> distinct xs \<and> set xs \<subseteq> {..<order G\<^sub>p}} \<times> {xs. set xs \<subseteq> {..<order G\<^sub>p} \<and> length xs = n})
-    = (length \<circ> pair_lists) ` ({xs. length xs = n \<and> distinct xs \<and> set xs \<subseteq> {..<order G\<^sub>p}} \<times> {xs. set xs \<subseteq> {..<order G\<^sub>p} \<and> length xs = n})"
-    using length_map by simp
-  also have "(length \<circ> pair_lists) ` ({xs. length xs = n \<and> distinct xs \<and> set xs \<subseteq> {..<order G\<^sub>p}} \<times> {xs. set xs \<subseteq> {..<order G\<^sub>p} \<and> length xs = n}) = {n}"
-  proof -
-    have "length `{xs. length xs = n \<and> distinct xs \<and> set xs \<subseteq> {..<order G\<^sub>p}} = {n}"
-      sorry
-    moreover have "length `{xs. set xs \<subseteq> {..<order G\<^sub>p} \<and> length xs = n} = {n}"
-      sorry
-    ultimately show ?thesis using length_pair_lists sorry
-  qed
-  then show?thesis sorry
-  qed
-  then show ?thesis by fast
-qed
-    
-lemma sample_n_coords_dist: "\<forall>xs \<in> set_spmf (sample_n_coords n). distinct (map fst xs)"
-  sorry
-  
 
 
 lemma eval_on_lagrange_basis: "poly (lagrange_interpolation_poly xs_ys) x \<equiv> (let 
@@ -155,7 +128,7 @@ definition compute_g_pow_\<phi>_of_\<alpha> :: "('e mod_ring \<times> 'a) list \
 
 lemma compute_g_pow_\<phi>_of_\<alpha>_is_Commit:
   assumes dist: "distinct (map fst xs_ys)"
-  and length_xs_ys: "length xs_ys \<le> max_deg"
+  and length_xs_ys: "length xs_ys \<le> max_deg+1"
 shows "compute_g_pow_\<phi>_of_\<alpha> (map (\<lambda>(x,y).(x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) xs_ys) \<alpha> = Commit 
     (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly xs_ys)"
 proof -
@@ -204,7 +177,7 @@ lemma split_pow_div_G\<^sub>p[simp]:
 
 lemma witness_calc_correct: 
   assumes dist: "distinct (map fst xs_ys)"
-  and length_xs_ys: "length xs_ys \<le> max_deg"
+  and length_xs_ys: "length xs_ys \<le> max_deg + 1"
   and \<alpha>_nin_xs: "\<alpha> \<notin> set (map fst xs_ys)"
   shows "map (\<lambda>i. (i, poly (lagrange_interpolation_poly xs_ys) i, createWitness (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly xs_ys) i)) (map fst xs_ys)
     =  map (\<lambda>(x,y). (x,y,( \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (lagrange_interpolation_poly xs_ys) \<alpha>)  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) xs_ys"
@@ -235,7 +208,7 @@ proof -
           have "?lhs = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (poly (\<psi>_of (lagrange_interpolation_poly xs_ys) xj) \<alpha>)"
             unfolding createWitness.simps Let_def 
             using g_pow_PK_Prod_correct
-            by (meson assms(2) degree_lagrange_interpolation_poly degree_q_le_\<phi> diff_le_self le_trans)
+            by (meson assms(2) degree_lagrange_interpolation_poly degree_q_le_\<phi> le_diff_conv le_trans)
           also have "\<dots> = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> ((poly (lagrange_interpolation_poly xs_ys) \<alpha> - poly (lagrange_interpolation_poly xs_ys) xj)/(\<alpha>-xj))"
               using \<alpha>_neg_xj \<phi>x_m_\<phi>u_eq_xmu_\<psi>x by simp
           also have "\<dots> =  \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> ((poly (lagrange_interpolation_poly xs_ys) \<alpha> - yj)/(\<alpha>-xj))"
@@ -264,7 +237,7 @@ fun reduction
   :: "('a, 'e) adversary \<Rightarrow> ('a,'e) DL.adversary"                     
 where
   "reduction \<A> g_pow_a = do {
-    coords \<leftarrow> sample_n_coords (max_deg); 
+    let coords = zip (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1]) (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1]); 
     let exp_coords = (fst (hd coords),g_pow_a)#map (\<lambda>(x,y). (x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) (tl coords);
     (\<alpha>, PK) \<leftarrow> Setup;
     let g_pow_\<phi>_of_\<alpha> = compute_g_pow_\<phi>_of_\<alpha> exp_coords \<alpha>;
@@ -280,7 +253,7 @@ subsubsection \<open>helping lemmas\<close>
 
 lemma helping_lemma_1:
   assumes dist: "distinct (map fst (coords))"
-  and length_coords: "length coords \<le> max_deg"
+  and length_coords: "length coords \<le> max_deg+1"
   shows
 "compute_g_pow_\<phi>_of_\<alpha> ((fst (hd coords),\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> a)#map (\<lambda>(x,y). (x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) (tl coords)) \<alpha>
   = Commit (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (lagrange_interpolation_poly ((fst (hd coords),a)#tl coords))"
@@ -289,11 +262,85 @@ proof -
   have dist_xs_ys: "distinct (map fst xs_ys)"
     using xs_ys dist
     by (metis (no_types, lifting) distinct_singleton fst_conv list.collapse list.sel(2) list.simps(8) list.simps(9))
-  have length_xs_ys: "length xs_ys \<le> max_deg"
+  have length_xs_ys: "length xs_ys \<le> max_deg+1"
     using assms(2) d_pos xs_ys by auto
   show ?thesis 
     using compute_g_pow_\<phi>_of_\<alpha>_is_Commit[OF dist_xs_ys length_xs_ys]
     unfolding xs_ys by force
+qed
+
+lemma of_int_mod_inj_on_ff: "inj_on (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) {0..<CARD ('e)}"
+proof 
+  fix x 
+  fix y
+  assume x: "x \<in> {0..<CARD('e)}"
+  assume y: "y \<in> {0..<CARD('e)}"
+  assume app_x_eq_y: "(of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) x = (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) y"
+  show "x = y"
+    using x y app_x_eq_y 
+    by (metis atLeastLessThan_iff nat_int o_apply of_nat_0_le_iff of_nat_less_iff to_int_mod_ring_of_int_mod_ring)
+qed
+    
+
+lemma literal_helping_1: 
+  assumes "max_deg + 1 < CARD ('e)"
+  shows "(let coords = zip (map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) [0..<max_deg + 1]) (map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) [0..<max_deg + 1]);
+        exp_coords = (fst (hd coords),(\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> a))#map (\<lambda>(x,y). (x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) (tl coords) in 
+  compute_g_pow_\<phi>_of_\<alpha> exp_coords \<alpha> 
+  = Commit (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (lagrange_interpolation_poly ((fst (hd coords),a)#tl coords)))"
+proof -
+  let ?coords = "zip (map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) [0..<max_deg + 1]) (map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) [0..<max_deg + 1])::('e mod_ring*'e mod_ring) list"
+  let ?exp_coords = "(fst (hd ?coords),(\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> a))#map (\<lambda>(x,y). (x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) (tl ?coords)"
+  let ?PK = "(map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1])"
+
+  have "compute_g_pow_\<phi>_of_\<alpha> ?exp_coords \<alpha> = Commit ?PK (lagrange_interpolation_poly ((fst (hd ?coords), a)#tl ?coords))"
+  proof -
+    obtain xs_ys where xs_ys: "xs_ys = (fst (hd ?coords),a)#tl ?coords" by fast
+    then have exp_coords_is_map_xs_ys: "?exp_coords = (map (\<lambda>(x, y). (x, \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> y)) xs_ys)" by force
+    from xs_ys have dist_xs_ys: "distinct (map fst xs_ys)"
+    proof -
+      have "(map fst xs_ys) = (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1])"
+      proof -
+        have "map fst ((fst (hd ?coords),a)#tl ?coords) = fst (fst (hd ?coords),a) # map fst (tl ?coords)"
+          by force
+        also have "\<dots> = fst (hd ?coords) # map fst (tl ?coords)"
+          by fastforce
+        also have "\<dots> = map fst (?coords)"
+          by (simp add: d_pos hd_zip map_tl)
+        also have "\<dots> = map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) [0..<max_deg + 1]"
+          by force
+        finally show ?thesis unfolding xs_ys .
+      qed
+      moreover have "distinct (map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) [0..<max_deg + 1])"
+      proof -
+        have "distinct [0..<max_deg + 1]"
+          by auto
+        moreover have "inj_on (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) (set [0..<max_deg + 1])"
+        proof - 
+          have "(set [0..<max_deg + 1]) \<subseteq> {0..<CARD ('e)}"
+            using assms by auto
+          then show ?thesis 
+            using of_int_mod_inj_on_ff inj_on_subset by blast 
+        qed
+        ultimately show ?thesis
+          using distinct_map[of "(of_int_mod_ring \<circ> int)" "[0..<max_deg + 1]"] by blast
+      qed
+      ultimately show ?thesis by argo
+    qed
+    moreover have length_xs_ys: "length xs_ys \<le> max_deg +1"
+    proof -
+      have "length xs_ys = length ?coords"
+        unfolding xs_ys 
+        by force
+      also have "\<dots> = max_deg +1"
+        by fastforce
+      finally show ?thesis by simp
+    qed
+    show ?thesis using compute_g_pow_\<phi>_of_\<alpha>_is_Commit[OF dist_xs_ys length_xs_ys]
+      unfolding xs_ys
+      by fastforce
+  qed
+  then show ?thesis unfolding Let_def .
 qed
   
 
@@ -301,6 +348,7 @@ subsubsection \<open>reduction proof\<close>
 
 theorem
   assumes "\<And>\<phi> eval_pos. length eval_pos \<le> max_deg \<and> distinct eval_pos \<longrightarrow> spmf (hiding_game eval_pos \<phi> \<A>) \<phi> = 1"
+  and "max_deg + 1 < CARD ('e)"
   shows "spmf (DL_G\<^sub>p.game (reduction \<A>)) True = 1"
 proof -
    note [simp] = Let_def split_def
@@ -319,7 +367,7 @@ proof -
   also have "\<dots> = TRY do { 
     a \<leftarrow> sample_uniform (Coset.order G\<^sub>p);
     a' \<leftarrow>  do {
-    coords \<leftarrow> sample_n_coords (max_deg);
+    let coords = zip (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1]) (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1]);
     let exp_coords = (fst (hd coords),(\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (?mr a)))#map (\<lambda>(x,y). (x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) (tl coords);
     (\<alpha>, PK) \<leftarrow> Setup;
     let g_pow_\<phi>_of_\<alpha> = compute_g_pow_\<phi>_of_\<alpha> exp_coords \<alpha>;
@@ -331,7 +379,7 @@ proof -
     unfolding reduction.simps by fast
   also have "\<dots> = TRY do { 
     a \<leftarrow> sample_uniform (Coset.order G\<^sub>p);
-    coords \<leftarrow> sample_n_coords (max_deg);
+    let coords = zip (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1]) (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1]);
     \<phi>' \<leftarrow> do {
     let exp_coords = (fst (hd coords),(\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (?mr a)))#map (\<lambda>(x,y). (x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) (tl coords);
     (\<alpha>, PK) \<leftarrow> Setup;
@@ -345,8 +393,8 @@ proof -
     by force
   also have "\<dots> = TRY do { 
     a \<leftarrow> sample_uniform (Coset.order G\<^sub>p);
-    coords \<leftarrow> sample_n_coords (max_deg);
     \<phi>' \<leftarrow> do {
+    let coords = zip (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1]) (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1]);
     let exp_coords = (fst (hd coords),(\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (?mr a)))#map (\<lambda>(x,y). (x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) (tl coords);
     \<alpha> :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
     let g_pow_\<phi>_of_\<alpha> = compute_g_pow_\<phi>_of_\<alpha> exp_coords (?mr \<alpha>);
@@ -359,8 +407,8 @@ proof -
     unfolding Setup_def by force
   also have "\<dots> = TRY do { 
     a \<leftarrow> sample_uniform (Coset.order G\<^sub>p);
-    coords \<leftarrow> sample_n_coords (max_deg);
     \<phi>' \<leftarrow> do {
+    let coords = zip (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1]) (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1]);
     let exp_coords = (fst (hd coords),(\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (?mr a)))#map (\<lambda>(x,y). (x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) (tl coords);
     \<alpha> :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
     let g_pow_\<phi>_of_\<alpha> = Commit (?PK \<alpha>) (lagrange_interpolation_poly ((fst (hd coords),?mr a)#tl coords));
@@ -370,7 +418,8 @@ proof -
     let a' = (poly \<phi>' 0);
     return_spmf (of_int_mod_ring (int a) = a') 
   } ELSE return_spmf False"
-    using helping_lemma_1 sample_n_coords_length sample_n_coords_dist sorry
+    unfolding Let_def using literal_helping_1[OF assms(2)] unfolding Let_def
+    by algebra
   
 
   show ?thesis
