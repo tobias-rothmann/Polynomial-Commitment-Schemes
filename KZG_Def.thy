@@ -378,6 +378,7 @@ definition \<psi>_of :: "'e polynomial \<Rightarrow> 'e mod_ring \<Rightarrow> '
      \<psi>_coeffs = foldl (coeffs_n \<phi> u) [] [0..<Suc (degree \<phi>)] \<comment>\<open>coefficients of \<psi>\<close>
     in Poly \<psi>_coeffs) \<comment>\<open>\<psi>\<close>"
 
+
 subsubsection \<open>actual CreateWitness:
 computes the evalutation at position i, \<phi>(i), and the witness g^\<psi>(\<alpha>)\<close>
 definition CreateWitness :: "'a pk \<Rightarrow> 'e polynomial \<Rightarrow> 'e eval_position 
