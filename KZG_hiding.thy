@@ -251,24 +251,6 @@ subsection \<open>Reduction proof\<close>
 
 subsubsection \<open>helping lemmas\<close>
 
-lemma helping_lemma_1:
-  assumes dist: "distinct (map fst (coords))"
-  and length_coords: "length coords \<le> max_deg+1"
-  shows
-"compute_g_pow_\<phi>_of_\<alpha> ((fst (hd coords),\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> a)#map (\<lambda>(x,y). (x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) (tl coords)) \<alpha>
-  = Commit (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (lagrange_interpolation_poly ((fst (hd coords),a)#tl coords))"
-proof -
-  obtain xs_ys where xs_ys: "xs_ys = (fst (hd coords),a)#tl coords" by simp
-  have dist_xs_ys: "distinct (map fst xs_ys)"
-    using xs_ys dist
-    by (metis (no_types, lifting) distinct_singleton fst_conv list.collapse list.sel(2) list.simps(8) list.simps(9))
-  have length_xs_ys: "length xs_ys \<le> max_deg+1"
-    using assms(2) d_pos xs_ys by auto
-  show ?thesis 
-    using compute_g_pow_\<phi>_of_\<alpha>_is_Commit[OF dist_xs_ys length_xs_ys]
-    unfolding xs_ys by force
-qed
-
 lemma of_int_mod_inj_on_ff: "inj_on (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) {0..<CARD ('e)}"
 proof 
   fix x 
@@ -350,6 +332,11 @@ fun coords_for_witn_tupl :: "('e eval_position * 'e mod_ring) list \<Rightarrow>
 fun cut_coords :: "'e mod_ring list \<Rightarrow> 'e mod_ring \<Rightarrow> 'e mod_ring list" where
   "cut_coords coords \<alpha> = (if \<alpha> \<in> set coords then remove1 \<alpha> coords else tl coords)"
 
+declare [[show_types]]
+lemma "x < order G\<^sub>p \<Longrightarrow> spmf (sample_uniform (order G\<^sub>p)) x = (1::real)/(order G\<^sub>p)"
+  using spmf_sample_uniform by simp
+
+
 subsubsection \<open>reduction proof\<close>
 
 theorem
@@ -363,7 +350,7 @@ proof -
   and the public key\<close>
   let ?mr = "\<lambda>\<alpha>. (of_int_mod_ring (int \<alpha>)::'e mod_ring)"
   let ?PK = "\<lambda>\<alpha>. (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?mr \<alpha>)^t)) [0..<max_deg+1])"
-
+      
   have "DL_G\<^sub>p.game (reduction \<A>) = TRY do { 
     a \<leftarrow> sample_uniform (Coset.order G\<^sub>p);
     a' \<leftarrow> reduction \<A> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (?mr a));
@@ -443,9 +430,9 @@ proof -
     let a' = (poly \<phi>' 0);
     return_spmf (of_int_mod_ring (int a) = a') 
   } ELSE return_spmf False"
-    using assms unfolding hiding_game_def
+    using assms unfolding 
     key_gen_def Setup_def Let_def
-    sorry
+    sorry           
   
 
   show ?thesis

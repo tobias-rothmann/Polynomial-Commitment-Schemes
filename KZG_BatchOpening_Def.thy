@@ -102,6 +102,7 @@ thm degree_mult_eq
 lemma "(\<Prod>i\<in>B. [:- i, 1:]) dvd \<phi> \<Longrightarrow> \<phi> mod (\<Prod>i\<in>B. [:- i, 1:]) = 0 "
   by fastforce
 
+(*
 lemma "degree (r B \<phi>) = card B"
 proof (cases "(\<Prod>i\<in>B. [:- i, 1:]) dvd \<phi>")
   case True
@@ -117,7 +118,7 @@ next
   degree_mod_less_degree[OF neq_0 False]
   
   sorry
-qed
+qed*)
 
   
 
@@ -140,7 +141,7 @@ where
   "VerifyEvalBatch PK C B r_x w\<^sub>B = (
     let g_pow_prod_B = g_pow_PK_Prod PK (prod (\<lambda>i. [:-i,1:]) B);
         g_pow_r = g_pow_PK_Prod PK r_x in
-    (e g_pow_prod_B w\<^sub>B \<otimes>\<^bsub>G\<^sub>T\<^esub> (e \<^bold>g g_pow_r) = e C \<^bold>g) \<and> degree r_x = card B)
+    (e g_pow_prod_B w\<^sub>B \<otimes>\<^bsub>G\<^sub>T\<^esub> (e \<^bold>g g_pow_r) = e C \<^bold>g))
     \<comment>\<open>e(g^(\<Prod>i\<in>B. (\<alpha>-i)), g^\<psi>(\<alpha>)) \<otimes> e(g,g^r(\<alpha>)) = e(C, g)\<close>"
 
 end

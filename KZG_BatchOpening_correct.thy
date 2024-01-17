@@ -53,10 +53,9 @@ proof -
   also have "\<dots> = spmf (do{
     x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
     return_spmf (
-    (e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (\<Prod>i\<in>B. [:- i, 1:]) (of_int_mod_ring (int x))) (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (\<psi>\<^sub>B B \<phi>) (of_int_mod_ring (int x))) 
+    e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (\<Prod>i\<in>B. [:- i, 1:]) (of_int_mod_ring (int x))) (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (\<psi>\<^sub>B B \<phi>) (of_int_mod_ring (int x))) 
   \<otimes>\<^bsub>G\<^sub>T\<^esub> (e \<^bold>g (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (r B \<phi>) (of_int_mod_ring (int x)))) 
-  = e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly \<phi> (of_int_mod_ring (int x))) \<^bold>g) 
-      \<and> degree (r B \<phi>) = card B)
+  = e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly \<phi> (of_int_mod_ring (int x))) \<^bold>g)
     }) True"
     unfolding CreateWitnessBatch_def VerifyEvalBatch_def Commit_def Let_def split_def
     g_pow_PK_Prod_correct[OF assms(1)]
@@ -66,14 +65,11 @@ proof -
     x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
     return_spmf (True
   )}) True"
-    using eq_on_e deg_Prod sledgehammer
-  show ?thesis 
-    unfolding BatchEval_game_def 
-    CreateWitnessBatch_def
-    VerifyEvalBatch_def
-    Commit_def
-    Setup_def
-    Let_def
-    sorry
+    using eq_on_e deg_Prod by algebra
+  also have "\<dots> = spmf (scale_spmf (weight_spmf (sample_uniform (Coset.order G\<^sub>p))) (return_spmf True)) True"
+    using bind_spmf_const[of "sample_uniform (Coset.order G\<^sub>p)" "return_spmf True"] by presburger
+  also have "\<dots> = 1"
+    using weight_sample_uniform_gt_0 CARD_G\<^sub>p p_gr_two by simp
+  finally show ?thesis .
 qed
 end

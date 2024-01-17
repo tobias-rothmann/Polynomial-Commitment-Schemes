@@ -9,7 +9,7 @@ subsection \<open>sample uniform set\<close>
 definition sample_uniform_set :: "nat \<Rightarrow> nat \<Rightarrow> nat set spmf"
   where "sample_uniform_set k n = spmf_of_set {x. x \<subseteq> {..<n} \<and> card x = k}"
 
-lemma spmf_sample_uniform: "spmf (sample_uniform_set k n) x 
+lemma spmf_sample_uniform_set: "spmf (sample_uniform_set k n) x 
   = indicator {x. x \<subseteq> {..<n} \<and> card x = k} x / (n choose k)"
   by (simp add: n_subsets sample_uniform_set_def spmf_of_set)
 
