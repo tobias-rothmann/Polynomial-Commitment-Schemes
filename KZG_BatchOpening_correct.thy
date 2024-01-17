@@ -15,10 +15,15 @@ definition BatchEval_game:: "'e polynomial \<Rightarrow> 'e eval_position set \<
     return_spmf (VerifyEvalBatch PK C B' r_x w_B)
     }"
 
-lemma eq_on_e: "(e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (\<Prod>i\<in>B. [:- i, 1:]) (of_int_mod_ring (int x))) (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (\<psi>\<^sub>B B \<phi>) (of_int_mod_ring (int x))) 
-  \<otimes>\<^bsub>G\<^sub>T\<^esub> (e \<^bold>g (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (r B \<phi>) (of_int_mod_ring (int x)))) 
-  = e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly \<phi> (of_int_mod_ring (int x))) \<^bold>g)"
-  sorry
+lemma eq_on_e: "(e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (\<Prod>i\<in>B. [:- i, 1:]) \<alpha>) (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (\<psi>\<^sub>B B \<phi>) \<alpha>) 
+  \<otimes>\<^bsub>G\<^sub>T\<^esub> (e \<^bold>g (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (r B \<phi>) \<alpha>)) 
+  = e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly \<phi> \<alpha>) \<^bold>g)"
+proof -
+  have "(poly (\<Prod>i\<in>B. [:- i, 1:]) \<alpha>) * ( poly (\<psi>\<^sub>B B \<phi>) \<alpha>) + poly (r B \<phi>) \<alpha> = poly \<phi> \<alpha>"
+    by (metis (no_types, lifting) \<psi>\<^sub>B.simps add.commute add_diff_cancel_right' div_poly_eq_0_iff minus_mod_eq_mult_div mod_div_mult_eq nonzero_mult_div_cancel_left poly_hom.hom_add poly_mult r.elims)
+  then show ?thesis 
+    using e_bilinear e_linear_in_fst e_linear_in_snd by fastforce
+qed
 
 theorem Eval_Commit_correct:  
   assumes "degree \<phi> \<le> max_deg"
