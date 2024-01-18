@@ -55,7 +55,7 @@ where
                             \<and> VerifyEval PK C i \<phi>_i w_i \<and> VerifyEvalBatch PK C B r_x w_B);
   let p' = g_pow_PK_Prod PK (prod (\<lambda>i. [:-i,1:]) B div [:-i,1:]);
   let r' = g_pow_PK_Prod PK ((r_x - [:poly r_x i:]) div [:-i,1:]);
-  return_spmf (-i::'e mod_ring, e p' w_B \<otimes>\<^bsub>G\<^sub>T\<^esub> e (r' \<div>\<^bsub>G\<^sub>p\<^esub> w_i) \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> (1/(\<phi>_i - poly r_x i))) }"
+  return_spmf (-i::'e mod_ring, (e p' w_B \<otimes>\<^bsub>G\<^sub>T\<^esub> e (r' \<div>\<^bsub>G\<^sub>p\<^esub> w_i) \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub> (1/(\<phi>_i - poly r_x i))) }"
 
 text \<open>An alternative but equivalent game for the binding game. 
 This alternative game capsulates the 
@@ -134,15 +134,16 @@ lemma verifys_impl_t_BSDH_break:
                      w_B"
   shows " e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> (1 / (\<alpha> + - i))
         =
-          e (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1])
+          (e (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1])
               ((\<Prod>i\<in>B. [:- i, 1:]) div [:- i, 1:]))
            w_B 
         \<otimes>\<^bsub>G\<^sub>T\<^esub>
           e (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1])
               ((r_x - [:poly r_x i:]) div [:- i, 1:]) \<otimes>
              inv w_i)
-           \<^bold>g ^\<^bsub>G\<^sub>T\<^esub>
+           \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub>
           (1 / (\<phi>_i - poly r_x i))"
+  (is "?goal = ?cmpt")
 proof -
   obtain b where b: "w_B = \<^bold>g ^ b"
     using assms unfolding valid_batch_msg_def
@@ -150,7 +151,14 @@ proof -
   obtain y where y: "w_i = \<^bold>g ^ y"
     using assms unfolding valid_msg_def
     by (metis G\<^sub>p.generatorE g_pow_to_int_mod_ring_of_int_mod_ring int_pow_int)
-
+  obtain r'_x where r'_x: "r'_x = (r_x - [:poly r_x i:]) div [:- i, 1:]" by blast
+  then have r'_x_r_x: "r_x = r'_x *[:- i, 1:] + [:poly r_x i:]" 
+    by (metis Groups.mult_ac(2) diff_eq_eq nonzero_mult_div_cancel_left one_neq_zero pCons_eq_0_iff synthetic_div_correct')
+  obtain p'_x where p'_x:"p'_x = (\<Prod>i\<in>B. [:- i, 1:]) div [:- i, 1:]" by blast
+  then have p'_x_p_x: "(\<Prod>i\<in>B. [:- i, 1:]) = p'_x *  [:- i, 1:]"
+    using assms 
+    by (metis (no_types, lifting) Groups.mult_ac(2) arith_extra_simps(6) i_in_B_prod_B_zero nonzero_mult_div_cancel_left one_neq_zero pCons_eq_0_iff synthetic_div_correct')
+  
   from assms have "e w_i (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1] ! 1 \<otimes> inv (\<^bold>g ^ i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> \<phi>_i
     = e (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1]) (\<Prod>i\<in>B. [:- i, 1:])) w_B \<otimes>\<^bsub>G\<^sub>T\<^esub>
   e \<^bold>g (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1]) r_x)" (is "?lhs = ?rhs")
@@ -158,11 +166,65 @@ proof -
   moreover have "?lhs = e (\<^bold>g ^ y) (\<^bold>g ^ (\<alpha>-i) ) \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> \<phi>_i"
     unfolding y using PK_i d_pos mod_ring_pow_mult_inv_G\<^sub>p by auto
   moreover have "?rhs = e (\<^bold>g ^ poly (\<Prod>i\<in>B. [:- i, 1:]) \<alpha>) (\<^bold>g ^ b) \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g (\<^bold>g ^ poly r_x \<alpha>)"
-    using g_pow_PK_Prod_correct sorry
-  show ?thesis
-    using assms unfolding VerifyEval_def VerifyEvalBatch_def Let_def
-    
-    sorry
+  proof -
+    have "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1]) (\<Prod>i\<in>B. [:- i, 1:]) 
+        = \<^bold>g ^ poly (\<Prod>i\<in>B. [:- i, 1:]) \<alpha>"
+      using g_pow_PK_Prod_correct assms deg_Prod le_simps(1) by presburger
+    moreover have "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1]) r_x = \<^bold>g ^ poly r_x \<alpha>"
+      using g_pow_PK_Prod_correct assms unfolding VerifyEvalBatch_def 
+      by (meson assms le_trans less_imp_le_nat valid_batch_msg_def)
+    ultimately show ?thesis unfolding b by argo
+  qed
+  ultimately have "e (\<^bold>g ^ y) (\<^bold>g ^ (\<alpha>-i) ) \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> \<phi>_i = e (\<^bold>g ^ poly (\<Prod>i\<in>B. [:- i, 1:]) \<alpha>) (\<^bold>g ^ b) \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g (\<^bold>g ^ poly r_x \<alpha>)"
+    by argo
+  then have "y*(\<alpha>-i) + \<phi>_i = (poly (\<Prod>i\<in>B. [:- i, 1:]) \<alpha>)*b + poly r_x \<alpha>"
+    using e_bilinear e_linear_in_snd by force
+  text \<open>mimicking steps from batching opening binding proof in the paper. See Appendix C.3\<close>
+  then have "(poly (\<Prod>i\<in>B. [:- i, 1:]) \<alpha>)*b - (\<alpha>-i)*y = \<phi>_i -  poly r_x \<alpha>"
+    by (metis (no_types, lifting) add_diff_cancel_left' add_diff_cancel_right' add_diff_eq mult.commute)
+  then have "(poly (\<Prod>i\<in>B. [:- i, 1:]) \<alpha>)*b - (\<alpha>-i)*y = \<phi>_i - (poly r'_x \<alpha>)*(\<alpha>-i) - poly [:poly r_x i:] \<alpha>"
+    using r'_x_r_x poly_mult poly_add 
+    by (metis (no_types, lifting) diff_diff_eq mult.right_neutral poly_const_conv poly_pCons uminus_add_conv_diff)
+  then have "(\<alpha>-i)*(poly p'_x \<alpha>)*b - (\<alpha>-i)*y = \<phi>_i - (poly r'_x \<alpha>)*(\<alpha>-i) - poly [:poly r_x i:] \<alpha>"
+    using p'_x_p_x
+    by (metis (no_types, lifting) more_arith_simps(6) mpoly_base_conv(2) mult.commute poly_mult poly_pCons uminus_add_conv_diff)
+  then have "(\<alpha>-i)*((poly p'_x \<alpha>)*b - y + poly r'_x \<alpha>) = \<phi>_i - poly [:poly r_x i:] \<alpha>"
+    by (simp add: Groups.mult_ac(2) Groups.mult_ac(3) Rings.ring_distribs(1) Rings.ring_distribs(4))
+  then have "(\<alpha>-i)*((poly p'_x \<alpha>)*b - y + poly r'_x \<alpha>) = \<phi>_i - poly r_x i"
+    by auto
+  then have poly_eq_res: "1/(\<alpha>-i) = ((poly p'_x \<alpha>)*b - y + poly r'_x \<alpha>)/(\<phi>_i - poly r_x i)"
+    by (metis (no_types, lifting) assms div_self divide_divide_eq_left mult.commute mult_eq_0_iff right_minus_eq)
+  moreover have "?cmpt = (e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (poly p'_x \<alpha>)) (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> b) \<otimes>\<^bsub>G\<^sub>T\<^esub> e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (poly r'_x \<alpha>) \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> y))
+     \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub> (1 / (\<phi>_i - poly r_x i))"
+  proof -
+    have "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1]) ((\<Prod>i\<in>B. [:- i, 1:]) div [:- i, 1:])
+        = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (poly p'_x \<alpha>)" 
+      unfolding p'_x 
+      by (rule g_pow_PK_Prod_correct)(metis (no_types, lifting) assms deg_Prod deg_div le_trans nat_le_linear not_less)
+    moreover have "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1]) ((r_x - [:poly r_x i:]) div [:- i, 1:])
+      = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (poly r'_x \<alpha>)"
+      unfolding r'_x 
+      by (rule g_pow_PK_Prod_correct)(metis (mono_tags, opaque_lifting) assms deg_div degree_diff_le degree_pCons_0 le_trans less_or_eq_imp_le valid_batch_msg_def zero_le)
+    ultimately show ?thesis unfolding y b by argo
+  qed
+  moreover have "\<dots> = e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> (((poly p'_x \<alpha>)*b - y + poly r'_x \<alpha>)/(\<phi>_i - poly r_x i))"
+  proof -
+    have "(e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly p'_x \<alpha>) (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> b) \<otimes>\<^bsub>G\<^sub>T\<^esub>
+    e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly r'_x \<alpha> \<otimes> inv (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> y)) \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub> (1 / (\<phi>_i - poly r_x i)) 
+    = (e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly p'_x \<alpha>) (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> b) \<otimes>\<^bsub>G\<^sub>T\<^esub>
+    e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (poly r'_x \<alpha> - y)) \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub> (1 / (\<phi>_i - poly r_x i))"
+      using mod_ring_pow_mult_inv_G\<^sub>p by presburger
+    also have "\<dots> = (e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> ((poly p'_x \<alpha>)*b) \<otimes>\<^bsub>G\<^sub>T\<^esub>
+    e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> (poly r'_x \<alpha> - y)) ^\<^bsub>G\<^sub>T\<^esub> (1 / (\<phi>_i - poly r_x i))"
+      using e_linear_in_fst G\<^sub>p.generator_closed e_bilinear by presburger
+    also have "\<dots> = (e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> ((poly p'_x \<alpha>)*b + poly r'_x \<alpha> - y)) ^\<^bsub>G\<^sub>T\<^esub> (1 / (\<phi>_i - poly r_x i))"
+      by (simp add: add_diff_eq)
+    also have "\<dots> = e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> (((poly p'_x \<alpha>)*b + poly r'_x \<alpha> - y)/(\<phi>_i - poly r_x i))"
+      by (smt (verit) G\<^sub>p.generator_closed G\<^sub>p.int_pow_closed Groups.mult_ac(2) e_linear_in_snd mod_ring_pow_pow_G\<^sub>p more_arith_simps(5) times_divide_eq_right)
+    finally show ?thesis by simp
+  qed
+  ultimately
+  show ?thesis by fastforce
 qed
 
 lemma literal_helping: 
@@ -172,13 +234,13 @@ lemma literal_helping:
                     VerifyEval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) C i \<phi>_i w_i \<and>
                     VerifyEvalBatch (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>::'e mod_ring) ^ t) [0..<max_deg + 1]) C B r_x w_B \<and>
                     e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> (1 / (\<alpha> + - i)) =
-                    e (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1])
+                    (e (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1])
                         ((\<Prod>i\<in>B. [:- i, 1:]) div [:- i, 1:]))
                      w_B \<otimes>\<^bsub>G\<^sub>T\<^esub>
                     e (g_pow_PK_Prod (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1])
                         ((r_x - [:poly r_x i:]) div [:- i, 1:]) \<otimes>
                        inv w_i)
-                     \<^bold>g ^\<^bsub>G\<^sub>T\<^esub>
+                     \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub>
                     ((1::'e mod_ring) / (\<phi>_i - poly r_x i)))
   \<longleftrightarrow>
   (card B < max_deg \<and> i \<in> B \<and>
@@ -213,7 +275,7 @@ proof -
                               \<and> VerifyEval (?PK \<alpha>) C i \<phi>_i w_i \<and> VerifyEvalBatch (?PK \<alpha>) C B r_x w_B);
     let p' = g_pow_PK_Prod (?PK \<alpha>) (prod (\<lambda>i. [:-i,1:]) B div [:-i,1:]);
     let r' = g_pow_PK_Prod (?PK \<alpha>) ((r_x - [:poly r_x i:]) div [:-i,1:]);
-    _::unit \<leftarrow>  assert_spmf ((e \<^bold>g \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub> (1/((?mr \<alpha>)+(-i))) = e p' w_B \<otimes>\<^bsub>G\<^sub>T\<^esub> e (r' \<div>\<^bsub>G\<^sub>p\<^esub> w_i) \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> (1/(\<phi>_i - poly r_x i))); 
+    _::unit \<leftarrow>  assert_spmf ((e \<^bold>g \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub> (1/((?mr \<alpha>)+(-i))) = (e p' w_B \<otimes>\<^bsub>G\<^sub>T\<^esub> e (r' \<div>\<^bsub>G\<^sub>p\<^esub> w_i) \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub> (1/(\<phi>_i - poly r_x i))); 
     return_spmf True  
   } ELSE return_spmf False"
     by force
@@ -227,7 +289,7 @@ proof -
                               \<and> VerifyEval (?PK \<alpha>) C i \<phi>_i w_i \<and> VerifyEvalBatch (?PK \<alpha>) C B r_x w_B);
     let p' = g_pow_PK_Prod (?PK \<alpha>) (prod (\<lambda>i. [:-i,1:]) B div [:-i,1:]);
     let r' = g_pow_PK_Prod (?PK \<alpha>) ((r_x - [:poly r_x i:]) div [:-i,1:]);
-    _::unit \<leftarrow>  assert_spmf ((e \<^bold>g \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub> (1/((?mr \<alpha>)+(-i))) = e p' w_B \<otimes>\<^bsub>G\<^sub>T\<^esub> e (r' \<div>\<^bsub>G\<^sub>p\<^esub> w_i) \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> (1/(\<phi>_i - poly r_x i))); 
+    _::unit \<leftarrow>  assert_spmf ((e \<^bold>g \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub> (1/((?mr \<alpha>)+(-i))) = (e p' w_B \<otimes>\<^bsub>G\<^sub>T\<^esub> e (r' \<div>\<^bsub>G\<^sub>p\<^esub> w_i) \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub> (1/(\<phi>_i - poly r_x i))); 
     return_spmf True  
     } ELSE return_spmf False
     } ELSE return_spmf False
@@ -244,7 +306,7 @@ proof -
     _ :: unit \<leftarrow> assert_spmf (card B < max_deg \<and> i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B
                               \<and> VerifyEval (?PK \<alpha>) C i \<phi>_i w_i \<and> VerifyEvalBatch (?PK \<alpha>) C B r_x w_B
                               \<and> (e \<^bold>g \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub> (1/((?mr \<alpha>)+(-i))) 
-                                = e p' w_B \<otimes>\<^bsub>G\<^sub>T\<^esub> e (r' \<div>\<^bsub>G\<^sub>p\<^esub> w_i) \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> (1/(\<phi>_i - poly r_x i))); 
+                                = (e p' w_B \<otimes>\<^bsub>G\<^sub>T\<^esub> e (r' \<div>\<^bsub>G\<^sub>p\<^esub> w_i) \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub> (1/(\<phi>_i - poly r_x i))); 
     return_spmf True  
     } ELSE return_spmf False
     } ELSE return_spmf False
@@ -258,7 +320,7 @@ proof -
     _ :: unit \<leftarrow> assert_spmf (card B < max_deg \<and> i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B
                               \<and> VerifyEval (?PK \<alpha>) C i \<phi>_i w_i \<and> VerifyEvalBatch (?PK \<alpha>) C B r_x w_B
                               \<and> (e \<^bold>g \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub> (1/((?mr \<alpha>)+(-i))) 
-                                = e p' w_B \<otimes>\<^bsub>G\<^sub>T\<^esub> e (r' \<div>\<^bsub>G\<^sub>p\<^esub> w_i) \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> (1/(\<phi>_i - poly r_x i))); 
+                                = (e p' w_B \<otimes>\<^bsub>G\<^sub>T\<^esub> e (r' \<div>\<^bsub>G\<^sub>p\<^esub> w_i) \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub> (1/(\<phi>_i - poly r_x i))); 
     return_spmf True  
   } ELSE return_spmf False"
    unfolding split_def Let_def
