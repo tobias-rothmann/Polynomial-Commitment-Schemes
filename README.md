@@ -42,7 +42,7 @@ Though this property is not explicitly stated in the original paper, it is commo
 
 ### Binding
 
-#### In progress..
+#### Proven.
 
 ### Hiding 
 
@@ -50,6 +50,6 @@ Though this property is not explicitly stated in the original paper, it is commo
 
 ### Knowledge Soundness
 
-#### Open.
+#### In Progress..
 
 
