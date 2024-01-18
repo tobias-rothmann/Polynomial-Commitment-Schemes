@@ -77,4 +77,8 @@ proof -
     using weight_sample_uniform_gt_0 CARD_G\<^sub>p p_gr_two by simp
   finally show ?thesis .
 qed
+
+
+end
+
 end
