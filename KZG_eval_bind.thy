@@ -53,7 +53,7 @@ definition bind_advantage :: "('a, 'e) adversary \<Rightarrow> real"
                                                         
 subsection \<open>t-SDH game\<close>
 
-sublocale t_SDH_G\<^sub>p: t_SDH G\<^sub>p max_deg "of_int_mod_ring \<circ> int" pow_mod_ring_G\<^sub>p
+sublocale t_SDH_G\<^sub>p: t_SDH G\<^sub>p max_deg "of_int_mod_ring \<circ> int" "pow_mod_ring G\<^sub>p"
   unfolding t_SDH_def 
   by (rule G\<^sub>p.cyclic_group_axioms)
 
@@ -152,53 +152,7 @@ lemma assert_anding: "TRY do {
           _ :: unit \<leftarrow> assert_spmf (a \<and> b);
           return_spmf True
       } ELSE return_spmf False"
-  by (simp add: try_bind_assert_spmf)
-
-lemma pow_on_eq_card_GT[simp]: "(\<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> x = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> y) = (x=y)"
-proof
-  assume assm: "\<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> x = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> y"
-  then have "\<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring x = \<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring y"
-    using assm by blast
-  then have "\<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> nat (to_int_mod_ring x) = \<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> nat (to_int_mod_ring y)" 
-    using to_int_mod_ring_ge_0[of "x"] to_int_mod_ring_ge_0[of "y"] by fastforce
-  then have "[nat (to_int_mod_ring x) = nat (to_int_mod_ring y)] (mod order G\<^sub>T)"
-    using G\<^sub>T.pow_generator_eq_iff_cong G\<^sub>T.finite_carrier by fast
-  then have "[to_int_mod_ring x = to_int_mod_ring y] (mod order G\<^sub>T)" 
-    using to_int_mod_ring_ge_0[of "x"] to_int_mod_ring_ge_0[of "y"]
-    by (metis cong_int_iff int_nat_eq)
-  then have "[to_int_mod_ring x = to_int_mod_ring y] (mod p)" 
-    using CARD_G\<^sub>T by fast
-  then have "to_int_mod_ring x = to_int_mod_ring y" using range_to_int_mod_ring CARD_q
-    by (metis cong_def of_int_mod_ring.rep_eq of_int_mod_ring_to_int_mod_ring to_int_mod_ring.rep_eq)
-  then show "x = y" by force
-next 
-  assume "x = y"
-  then show "\<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> x = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> y" by fast
-qed
-
-lemma pow_on_eq_card_GT_carrier_ext'[simp]: 
-  "((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>))^\<^bsub>G\<^sub>T\<^esub> x = ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>))^\<^bsub>G\<^sub>T\<^esub> y \<longleftrightarrow> x=y"
-proof 
-  assume g_pow_x_eq_g_pow_y: "e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> x = e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> y"
-  obtain g_exp::nat where "e \<^bold>g \<^bold>g = \<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> g_exp"
-    using G\<^sub>T.generatorE e_g_g_in_carrier_GT by blast
-  then have g_exp: "e \<^bold>g \<^bold>g = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> (of_int_mod_ring (int g_exp))"
-    by (metis CARD_G\<^sub>T G\<^sub>T.pow_generator_mod_int crypto_primitives.CARD_q crypto_primitives_axioms int_pow_int of_int_mod_ring.rep_eq to_int_mod_ring.rep_eq)
-  let ?g_exp = "of_int_mod_ring (int g_exp)"
-  have "(e \<^bold>g \<^bold>g)^\<^bsub>G\<^sub>T\<^esub> x =  \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> (of_int_mod_ring (int g_exp) * x)"
-    using g_exp
-    by (metis CARD_G\<^sub>T G\<^sub>T.generator_closed G\<^sub>T.int_pow_pow G\<^sub>T.pow_generator_mod_int crypto_primitives.CARD_q crypto_primitives_axioms times_mod_ring.rep_eq to_int_mod_ring.rep_eq)
-  moreover have "(e \<^bold>g \<^bold>g)^\<^bsub>G\<^sub>T\<^esub> y = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> (of_int_mod_ring (int g_exp) * y)"
-    using g_exp
-    by (metis CARD_G\<^sub>T G\<^sub>T.generator_closed G\<^sub>T.int_pow_pow G\<^sub>T.pow_generator_mod_int crypto_primitives.CARD_q crypto_primitives_axioms times_mod_ring.rep_eq to_int_mod_ring.rep_eq)
-  ultimately show "x =y"
-    using g_pow_x_eq_g_pow_y pow_on_eq_card_GT e_from_generators_ne_1 g_exp by force
-next 
-    assume "x = y"
-    then show "(e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> x = (e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> y" 
-      by blast
-qed
- 
+  by (simp add: try_bind_assert_spmf) 
 
 lemma two_eval_verify_imp_tSDH_break: 
   assumes "\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 

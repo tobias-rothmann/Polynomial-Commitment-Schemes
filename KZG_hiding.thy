@@ -436,7 +436,7 @@ proof -
   
 
   show ?thesis
-  using assms unfolding DL_G\<^sub>p.game_def hiding_game_def reduction.simps
+  using assms unfolding DL_G\<^sub>p.game_def reduction.simps
   key_gen_def Let_def Setup_def
   sorry
 qed

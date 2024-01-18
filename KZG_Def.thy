@@ -7,7 +7,7 @@ begin
 
 locale crypto_primitives = 
 G\<^sub>p : cyclic_group G\<^sub>p + G\<^sub>T : cyclic_group G\<^sub>T 
-for G\<^sub>p  (structure) and G\<^sub>T  (structure) +
+for G\<^sub>p :: "('a, 'b) cyclic_group_scheme" (structure) and G\<^sub>T:: "('c, 'd) cyclic_group_scheme"  (structure) +
 fixes "type_a" :: "('q :: qr_spec) itself"
   and p::int
   and e
@@ -28,11 +28,8 @@ d_pos: "max_deg > 0" and
 CARD_q: "int (CARD('q)) = p"
 begin
 
-abbreviation pow_mod_ring_G\<^sub>p :: "'a \<Rightarrow>'q mod_ring \<Rightarrow> 'a" (infixr "^\<^bsub>G\<^sub>p\<^esub>" 75)
-  where "x ^\<^bsub>G\<^sub>p\<^esub> q \<equiv> x [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring q)"
-
-abbreviation pow_mod_ring_G\<^sub>T :: "'c \<Rightarrow>'q mod_ring \<Rightarrow> 'c" (infixr "^\<^bsub>G\<^sub>T\<^esub>" 75)
-  where "x ^\<^bsub>G\<^sub>T\<^esub> q \<equiv> x [^]\<^bsub>G\<^sub>T\<^esub> (to_int_mod_ring q)"
+abbreviation pow_mod_ring (infixr "^\<index>" 75)
+  where "x ^\<index> y \<equiv>  x [^]\<index> (to_int_mod_ring (y::'q mod_ring))"
 
 abbreviation div_in_grp (infixr "\<div>\<index>" 70)
   where "x \<div>\<index> y \<equiv> x \<otimes>\<index> inv\<index> y"
@@ -240,6 +237,50 @@ qed
 lemma e_g_g_in_carrier_GT[simp]: "e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<in> carrier G\<^sub>T"
   using e_symmetric by fast
 
+lemma pow_on_eq_card_GT[simp]: "(\<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> x = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> y) = (x=y)"
+proof
+  assume assm: "\<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> x = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> y"
+  then have "\<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring x = \<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> to_int_mod_ring y"
+    using assm by blast
+  then have "\<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> nat (to_int_mod_ring x) = \<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> nat (to_int_mod_ring y)" 
+    using to_int_mod_ring_ge_0[of "x"] to_int_mod_ring_ge_0[of "y"] by fastforce
+  then have "[nat (to_int_mod_ring x) = nat (to_int_mod_ring y)] (mod order G\<^sub>T)"
+    using G\<^sub>T.pow_generator_eq_iff_cong G\<^sub>T.finite_carrier by fast
+  then have "[to_int_mod_ring x = to_int_mod_ring y] (mod order G\<^sub>T)" 
+    using to_int_mod_ring_ge_0[of "x"] to_int_mod_ring_ge_0[of "y"]
+    by (metis cong_int_iff int_nat_eq)
+  then have "[to_int_mod_ring x = to_int_mod_ring y] (mod p)" 
+    using CARD_G\<^sub>T by fast
+  then have "to_int_mod_ring x = to_int_mod_ring y" using range_to_int_mod_ring CARD_q
+    by (metis cong_def of_int_mod_ring.rep_eq of_int_mod_ring_to_int_mod_ring to_int_mod_ring.rep_eq)
+  then show "x = y" by force
+next 
+  assume "x = y"
+  then show "\<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> x = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> y" by fast
+qed
+
+lemma pow_on_eq_card_GT_carrier_ext'[simp]: 
+  "((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>))^\<^bsub>G\<^sub>T\<^esub> x = ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>))^\<^bsub>G\<^sub>T\<^esub> y \<longleftrightarrow> x=y"
+proof 
+  assume g_pow_x_eq_g_pow_y: "e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> x = e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> y"
+  obtain g_exp::nat where "e \<^bold>g \<^bold>g = \<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> g_exp"
+    using G\<^sub>T.generatorE e_g_g_in_carrier_GT by blast
+  then have g_exp: "e \<^bold>g \<^bold>g = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> (of_int_mod_ring (int g_exp))"
+    by (metis CARD_G\<^sub>T G\<^sub>T.pow_generator_mod_int crypto_primitives.CARD_q crypto_primitives_axioms int_pow_int of_int_mod_ring.rep_eq to_int_mod_ring.rep_eq)
+  let ?g_exp = "of_int_mod_ring (int g_exp)"
+  have "(e \<^bold>g \<^bold>g)^\<^bsub>G\<^sub>T\<^esub> x =  \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> (of_int_mod_ring (int g_exp) * x)"
+    using g_exp
+    by (metis CARD_G\<^sub>T G\<^sub>T.generator_closed G\<^sub>T.int_pow_pow G\<^sub>T.pow_generator_mod_int crypto_primitives.CARD_q crypto_primitives_axioms times_mod_ring.rep_eq to_int_mod_ring.rep_eq)
+  moreover have "(e \<^bold>g \<^bold>g)^\<^bsub>G\<^sub>T\<^esub> y = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> (of_int_mod_ring (int g_exp) * y)"
+    using g_exp
+    by (metis CARD_G\<^sub>T G\<^sub>T.generator_closed G\<^sub>T.int_pow_pow G\<^sub>T.pow_generator_mod_int crypto_primitives.CARD_q crypto_primitives_axioms times_mod_ring.rep_eq to_int_mod_ring.rep_eq)
+  ultimately show "x =y"
+    using g_pow_x_eq_g_pow_y pow_on_eq_card_GT e_from_generators_ne_1 g_exp by force
+next 
+    assume "x = y"
+    then show "(e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> x = (e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> y" 
+      by blast
+qed
 
 end
 

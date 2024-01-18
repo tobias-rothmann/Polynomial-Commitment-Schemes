@@ -70,7 +70,7 @@ sublocale bind_commit: abstract_commitment SCC_key_gen SCC_Commit SCC_verify SCC
 subsection \<open>t-SDH game\<close>
 
 
-sublocale t_SDH_G\<^sub>p: t_SDH G\<^sub>p max_deg "of_int_mod_ring \<circ> int" pow_mod_ring_G\<^sub>p
+sublocale t_SDH_G\<^sub>p: t_SDH G\<^sub>p max_deg "of_int_mod_ring \<circ> int" "pow_mod_ring G\<^sub>p"
   unfolding t_SDH_def 
   by (rule G\<^sub>p.cyclic_group_axioms)
 
