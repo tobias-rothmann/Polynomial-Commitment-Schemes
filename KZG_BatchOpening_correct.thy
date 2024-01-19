@@ -15,7 +15,7 @@ definition BatchEval_game:: "'e polynomial \<Rightarrow> 'e eval_position set \<
     return_spmf (VerifyEvalBatch PK C B' r_x w_B)
     }"
 
-lemma eq_on_e: "(e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (\<Prod>i\<in>B. [:- i, 1:]) \<alpha>) (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (\<psi>\<^sub>B B \<phi>) \<alpha>) 
+lemma eq_on_e_Batch: "(e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (\<Prod>i\<in>B. [:- i, 1:]) \<alpha>) (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (\<psi>\<^sub>B B \<phi>) \<alpha>) 
   \<otimes>\<^bsub>G\<^sub>T\<^esub> (e \<^bold>g (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly (r B \<phi>) \<alpha>)) 
   = e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> poly \<phi> \<alpha>) \<^bold>g)"
 proof -
@@ -70,7 +70,7 @@ proof -
     x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
     return_spmf (True
   )}) True"
-    using eq_on_e deg_Prod by algebra
+    using eq_on_e_Batch deg_Prod by algebra
   also have "\<dots> = spmf (scale_spmf (weight_spmf (sample_uniform (Coset.order G\<^sub>p))) (return_spmf True)) True"
     using bind_spmf_const[of "sample_uniform (Coset.order G\<^sub>p)" "return_spmf True"] by presburger
   also have "\<dots> = 1"
