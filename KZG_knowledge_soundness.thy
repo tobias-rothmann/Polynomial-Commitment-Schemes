@@ -29,7 +29,6 @@ type_synonym ('a', 'e') extractor =
   "'a' commit \<Rightarrow> 'e' calc_vector \<Rightarrow> 
     'e' mod_ring poly"
 
-(* TODO add valid_msg check for the adversaries output of the witness and the polynomial*)
 definition knowledge_soundness_game :: "('a, 'e) extractor \<Rightarrow> ('a, 'e) adversary_1 \<Rightarrow> ('a, 'e) adversary_2 
   \<Rightarrow> bool spmf"
   where "knowledge_soundness_game E \<A> \<A>' = TRY do {

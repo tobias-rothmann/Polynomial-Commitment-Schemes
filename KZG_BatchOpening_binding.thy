@@ -17,7 +17,7 @@ definition valid_msg :: "'e eval_value \<Rightarrow> 'a eval_witness \<Rightarro
   "valid_msg \<phi>_i w_i = (w_i \<in> carrier G\<^sub>p)"
 
 definition valid_batch_msg :: "'e polynomial \<Rightarrow> 'a eval_witness \<Rightarrow> 'e eval_position set \<Rightarrow> bool" where 
-  "valid_batch_msg r_x w_B B = (w_B \<in> carrier G\<^sub>p \<and> degree r_x < card B)"
+  "valid_batch_msg r_x w_B B = (w_B \<in> carrier G\<^sub>p \<and> degree r_x < card B \<and> card B < max_deg)"
                     
 subsection \<open>Game definition\<close>
 
@@ -30,7 +30,7 @@ definition bind_game :: "('a, 'e) adversary \<Rightarrow> bool spmf"
   where "bind_game \<A> = TRY do {
   PK \<leftarrow> key_gen;
   (C, i, \<phi>_i, w_i, B, w_B, r_x) \<leftarrow> \<A> PK;
-  _ :: unit \<leftarrow> assert_spmf (card B < max_deg \<and> i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B); 
+  _ :: unit \<leftarrow> assert_spmf (i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B); 
   let b = VerifyEval PK C i \<phi>_i w_i;
   let b' = VerifyEvalBatch PK C B r_x w_B;
   return_spmf (b \<and> b')} ELSE return_spmf False"
@@ -51,7 +51,7 @@ fun bind_reduction
 where
   "bind_reduction \<A> PK = do {
    (C, i, \<phi>_i, w_i, B, w_B, r_x) \<leftarrow> \<A> PK;
-  _ :: unit \<leftarrow> assert_spmf (card B < max_deg \<and> i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B
+  _ :: unit \<leftarrow> assert_spmf (i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B
                             \<and> VerifyEval PK C i \<phi>_i w_i \<and> VerifyEvalBatch PK C B r_x w_B);
   let p' = g_pow_PK_Prod PK (prod (\<lambda>i. [:-i,1:]) B div [:-i,1:]);
   let r' = g_pow_PK_Prod PK ((r_x - [:poly r_x i:]) div [:-i,1:]);
@@ -65,7 +65,7 @@ lemma bind_game_alt_def:
   "bind_game \<A> = TRY do {
   PK \<leftarrow> key_gen;
   (C, i, \<phi>_i, w_i, B, w_B, r_x) \<leftarrow> \<A> PK;
-  _ :: unit \<leftarrow> assert_spmf (card B < max_deg \<and> i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B); 
+  _ :: unit \<leftarrow> assert_spmf (i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B); 
   let b = VerifyEval PK C i \<phi>_i w_i;
   let b' = VerifyEvalBatch PK C B r_x w_B;
   _::unit \<leftarrow> assert_spmf (b \<and> b');
@@ -77,7 +77,7 @@ proof -
     TRY do {
     (C, i, \<phi>_i, w_i, B, w_B, r_x) \<leftarrow> \<A> PK;
     TRY do {
-    _ :: unit \<leftarrow> assert_spmf (card B < max_deg \<and> i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B); 
+    _ :: unit \<leftarrow> assert_spmf (i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B); 
     TRY do {
     let b = VerifyEval PK C i \<phi>_i w_i;
     let b' = VerifyEvalBatch PK C B r_x w_B;
@@ -93,7 +93,7 @@ proof -
     TRY do {
     (C, i, \<phi>_i, w_i, B, w_B, r_x) \<leftarrow> \<A> PK;
     TRY do {
-    _ :: unit \<leftarrow> assert_spmf (card B < max_deg \<and> i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B); 
+    _ :: unit \<leftarrow> assert_spmf (i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B); 
     TRY do {
     let b = VerifyEval PK C i \<phi>_i w_i;
     let b' = VerifyEvalBatch PK C B r_x w_B;
@@ -128,7 +128,7 @@ lemma assert_anding: "TRY do {
 
 lemma verifys_impl_t_BSDH_break: 
   assumes 
-    "card B < max_deg \<and> i \<in> B \<and>  \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B \<and>
+    "i \<in> B \<and>  \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B \<and>
     VerifyEval (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1]) C i \<phi>_i w_i \<and>
     VerifyEvalBatch (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1]) C B r_x
                      w_B"
@@ -169,7 +169,8 @@ proof -
   proof -
     have "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1]) (\<Prod>i\<in>B. [:- i, 1:]) 
         = \<^bold>g ^ poly (\<Prod>i\<in>B. [:- i, 1:]) \<alpha>"
-      using g_pow_PK_Prod_correct assms deg_Prod le_simps(1) by presburger
+      using g_pow_PK_Prod_correct assms deg_Prod le_simps(1)
+      unfolding valid_batch_msg_def by presburger
     moreover have "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1]) r_x = \<^bold>g ^ poly r_x \<alpha>"
       using g_pow_PK_Prod_correct assms unfolding VerifyEvalBatch_def 
       by (meson assms le_trans less_imp_le_nat valid_batch_msg_def)
@@ -200,7 +201,7 @@ proof -
     have "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1]) ((\<Prod>i\<in>B. [:- i, 1:]) div [:- i, 1:])
         = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (poly p'_x \<alpha>)" 
       unfolding p'_x 
-      by (rule g_pow_PK_Prod_correct)(metis (no_types, lifting) assms deg_Prod deg_div le_trans nat_le_linear not_less)
+      by (rule g_pow_PK_Prod_correct)(metis (no_types, lifting) assms valid_batch_msg_def deg_Prod deg_div le_trans nat_le_linear not_less)
     moreover have "g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1]) ((r_x - [:poly r_x i:]) div [:- i, 1:])
       = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (poly r'_x \<alpha>)"
       unfolding r'_x 
@@ -228,7 +229,7 @@ proof -
 qed
 
 lemma literal_helping: 
-  "(card B < max_deg \<and> i \<in> (B::'e eval_position set) \<and>
+  "(i \<in> (B::'e eval_position set) \<and>
                     (\<phi>_i:: 'e eval_value) \<noteq> (poly r_x i:: 'e eval_value) \<and>
                     valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B \<and> 
                     VerifyEval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) C i \<phi>_i w_i \<and>
@@ -243,7 +244,7 @@ lemma literal_helping:
                      \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub>
                     ((1::'e mod_ring) / (\<phi>_i - poly r_x i)))
   \<longleftrightarrow>
-  (card B < max_deg \<and> i \<in> B \<and>
+  (i \<in> B \<and>
                     \<phi>_i \<noteq> poly r_x i \<and> 
                     valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B \<and>
                     VerifyEval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) C i \<phi>_i w_i \<and>
@@ -271,7 +272,7 @@ proof -
   also have "\<dots> = TRY do { 
     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, i, \<phi>_i, w_i, B, w_B, r_x) \<leftarrow> \<A> (?PK \<alpha>);
-    _ :: unit \<leftarrow> assert_spmf (card B < max_deg \<and> i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B
+    _ :: unit \<leftarrow> assert_spmf (i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B
                               \<and> VerifyEval (?PK \<alpha>) C i \<phi>_i w_i \<and> VerifyEvalBatch (?PK \<alpha>) C B r_x w_B);
     let p' = g_pow_PK_Prod (?PK \<alpha>) (prod (\<lambda>i. [:-i,1:]) B div [:-i,1:]);
     let r' = g_pow_PK_Prod (?PK \<alpha>) ((r_x - [:poly r_x i:]) div [:-i,1:]);
@@ -285,7 +286,7 @@ proof -
     TRY do {
     (C, i, \<phi>_i, w_i, B, w_B, r_x) \<leftarrow> \<A> (?PK \<alpha>);
     TRY do {
-    _ :: unit \<leftarrow> assert_spmf (card B < max_deg \<and> i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B
+    _ :: unit \<leftarrow> assert_spmf (i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B
                               \<and> VerifyEval (?PK \<alpha>) C i \<phi>_i w_i \<and> VerifyEvalBatch (?PK \<alpha>) C B r_x w_B);
     let p' = g_pow_PK_Prod (?PK \<alpha>) (prod (\<lambda>i. [:-i,1:]) B div [:-i,1:]);
     let r' = g_pow_PK_Prod (?PK \<alpha>) ((r_x - [:poly r_x i:]) div [:-i,1:]);
@@ -303,7 +304,7 @@ proof -
     TRY do {
      let p' = g_pow_PK_Prod (?PK \<alpha>) (prod (\<lambda>i. [:-i,1:]) B div [:-i,1:]);
     let r' = g_pow_PK_Prod (?PK \<alpha>) ((r_x - [:poly r_x i:]) div [:-i,1:]);
-    _ :: unit \<leftarrow> assert_spmf (card B < max_deg \<and> i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B
+    _ :: unit \<leftarrow> assert_spmf ( i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B
                               \<and> VerifyEval (?PK \<alpha>) C i \<phi>_i w_i \<and> VerifyEvalBatch (?PK \<alpha>) C B r_x w_B
                               \<and> (e \<^bold>g \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub> (1/((?mr \<alpha>)+(-i))) 
                                 = (e p' w_B \<otimes>\<^bsub>G\<^sub>T\<^esub> e (r' \<div>\<^bsub>G\<^sub>p\<^esub> w_i) \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub> (1/(\<phi>_i - poly r_x i))); 
@@ -317,7 +318,7 @@ proof -
     (C, i, \<phi>_i, w_i, B, w_B, r_x) \<leftarrow> \<A> (?PK \<alpha>);
     let p' = g_pow_PK_Prod (?PK \<alpha>) (prod (\<lambda>i. [:-i,1:]) B div [:-i,1:]);
     let r' = g_pow_PK_Prod (?PK \<alpha>) ((r_x - [:poly r_x i:]) div [:-i,1:]);
-    _ :: unit \<leftarrow> assert_spmf (card B < max_deg \<and> i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B
+    _ :: unit \<leftarrow> assert_spmf ( i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B
                               \<and> VerifyEval (?PK \<alpha>) C i \<phi>_i w_i \<and> VerifyEvalBatch (?PK \<alpha>) C B r_x w_B
                               \<and> (e \<^bold>g \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub> (1/((?mr \<alpha>)+(-i))) 
                                 = (e p' w_B \<otimes>\<^bsub>G\<^sub>T\<^esub> e (r' \<div>\<^bsub>G\<^sub>p\<^esub> w_i) \<^bold>g) ^\<^bsub>G\<^sub>T\<^esub> (1/(\<phi>_i - poly r_x i))); 
@@ -328,7 +329,7 @@ proof -
   also have "\<dots> = TRY do { 
     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, i, \<phi>_i, w_i, B, w_B, r_x) \<leftarrow> \<A> (?PK \<alpha>);
-    _ :: unit \<leftarrow> assert_spmf (card B < max_deg \<and> i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B
+    _ :: unit \<leftarrow> assert_spmf (i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B
                               \<and> VerifyEval (?PK \<alpha>) C i \<phi>_i w_i \<and> VerifyEvalBatch (?PK \<alpha>) C B r_x w_B); 
     return_spmf True  
   } ELSE return_spmf False"
@@ -338,7 +339,7 @@ proof -
     TRY do {
     (C, i, \<phi>_i, w_i, B, w_B, r_x) \<leftarrow> \<A> (?PK \<alpha>);
     TRY do {
-    _ :: unit \<leftarrow> assert_spmf (card B < max_deg \<and> i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B
+    _ :: unit \<leftarrow> assert_spmf (i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B
                               \<and> VerifyEval (?PK \<alpha>) C i \<phi>_i w_i \<and> VerifyEvalBatch (?PK \<alpha>) C B r_x w_B); 
     return_spmf True  
      } ELSE return_spmf False
@@ -351,7 +352,7 @@ proof -
     TRY do {
     (C, i, \<phi>_i, w_i, B, w_B, r_x) \<leftarrow> \<A> (?PK \<alpha>);
     TRY do {
-    _ :: unit \<leftarrow> assert_spmf (card B < max_deg \<and> i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B);
+    _ :: unit \<leftarrow> assert_spmf (i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B);
     _ :: unit \<leftarrow> assert_spmf (VerifyEval (?PK \<alpha>) C i \<phi>_i w_i \<and> VerifyEvalBatch (?PK \<alpha>) C B r_x w_B); 
     return_spmf True  
      } ELSE return_spmf False
@@ -361,7 +362,7 @@ proof -
   also have "\<dots> = TRY do { 
     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, i, \<phi>_i, w_i, B, w_B, r_x) \<leftarrow> \<A> (?PK \<alpha>);
-    _ :: unit \<leftarrow> assert_spmf (card B < max_deg \<and> i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B);
+    _ :: unit \<leftarrow> assert_spmf (i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B);
     _ :: unit \<leftarrow> assert_spmf (VerifyEval (?PK \<alpha>) C i \<phi>_i w_i \<and> VerifyEvalBatch (?PK \<alpha>) C B r_x w_B); 
     return_spmf True
   } ELSE return_spmf False" 
