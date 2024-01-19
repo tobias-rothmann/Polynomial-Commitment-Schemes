@@ -50,6 +50,6 @@ Though this property is not explicitly stated in the original paper, it is commo
 
 ### Knowledge Soundness
 
-#### In Progress..
+#### Proven.
 
 
