@@ -52,7 +52,7 @@ definition hiding_advantage :: "'e mod_ring \<Rightarrow> 'e eval_position list 
 
 subsection \<open>DL game\<close>
 
-sublocale DL_G\<^sub>p: DL G\<^sub>p "of_int_mod_ring \<circ> int" pow_mod_ring_G\<^sub>p
+sublocale DL_G\<^sub>p: DL G\<^sub>p "of_int_mod_ring \<circ> int" "pow_mod_ring G\<^sub>p"
   unfolding DL_def 
   by (rule G\<^sub>p.cyclic_group_axioms)
 
@@ -332,12 +332,16 @@ fun coords_for_witn_tupl :: "('e eval_position * 'e mod_ring) list \<Rightarrow>
 fun cut_coords :: "'e mod_ring list \<Rightarrow> 'e mod_ring \<Rightarrow> 'e mod_ring list" where
   "cut_coords coords \<alpha> = (if \<alpha> \<in> set coords then remove1 \<alpha> coords else tl coords)"
 
-declare [[show_types]]
 lemma "x < order G\<^sub>p \<Longrightarrow> spmf (sample_uniform (order G\<^sub>p)) x = (1::real)/(order G\<^sub>p)"
   using spmf_sample_uniform by simp
 
 
 subsubsection \<open>reduction proof\<close>
+
+thm ennreal_spmf_bind
+
+thm spmf_bind
+thm nn_integral_measure_spmf
 
 theorem
   assumes "\<And>\<phi> \<alpha> eval_pos. length eval_pos \<le> max_deg \<and> distinct eval_pos \<and> \<alpha> \<notin> set eval_pos \<longrightarrow> spmf (hiding_Adversary_game \<alpha> eval_pos \<phi> \<A>) \<phi> = 1"
@@ -413,9 +417,6 @@ proof -
   } ELSE return_spmf False"
     using literal_helping_1[OF assms(2)] unfolding Let_def
     by algebra
-    (*witn tuple:  don't use tl coords but fun that if not \<alpha> in coords tl coords else cut alpha and 
-      remaining coords.
-      Before proving, check whether this is hiding game and transferable to \<phi>*)
   also have "\<dots> = TRY do { 
     a \<leftarrow> sample_uniform (Coset.order G\<^sub>p);
     \<phi>' \<leftarrow> do {
