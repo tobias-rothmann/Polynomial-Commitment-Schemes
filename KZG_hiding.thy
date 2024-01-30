@@ -37,18 +37,19 @@ type_synonym ('a', 'e')  adversary =
   "'a' commit \<Rightarrow> ('e' eval_position \<times> 'e' eval_value \<times> 'a' eval_witness) list \<Rightarrow> 
  'e' polynomial spmf"
 
-definition hiding_Adversary_game :: "'e mod_ring \<Rightarrow> 'e eval_position list \<Rightarrow> 'e polynomial \<Rightarrow> ('a, 'e) adversary \<Rightarrow> 'e polynomial spmf"
+definition hiding_Adversary_game :: "'e mod_ring \<Rightarrow> 'e eval_position list \<Rightarrow> 'e polynomial \<Rightarrow> ('a, 'e) adversary \<Rightarrow> bool spmf"
   where "hiding_Adversary_game \<alpha> eval_pos \<phi> \<A> = do {
   let PK = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
   let C = Commit PK \<phi>;
   let witn_tupel = map (\<lambda>i. (i, poly \<phi> i, createWitness PK \<phi> i)) eval_pos;
   \<phi>' \<leftarrow> \<A> C witn_tupel;
-  return_spmf \<phi>'}"
+  _ :: unit \<leftarrow> assert_spmf (\<phi> = \<phi>');
+  return_spmf True}"
 
 text \<open>put C and eval_poses in parameter and assert\<close>
 
 definition hiding_advantage :: "'e mod_ring \<Rightarrow> 'e eval_position list \<Rightarrow>  'e polynomial \<Rightarrow> ('a, 'e) adversary \<Rightarrow> real"
-  where "hiding_advantage \<alpha> eval_pos \<phi> \<A> \<equiv> spmf (hiding_Adversary_game \<alpha> eval_pos \<phi> \<A>) \<phi>"
+  where "hiding_advantage \<alpha> eval_pos \<phi> \<A> \<equiv> spmf (hiding_Adversary_game \<alpha> eval_pos \<phi> \<A>) True"
 
 subsection \<open>DL game\<close>
 
@@ -325,17 +326,6 @@ proof -
   then show ?thesis unfolding Let_def .
 qed
 
-
-fun coords_for_witn_tupl :: "('e eval_position * 'e mod_ring) list \<Rightarrow> 'e eval_position \<Rightarrow> ('e eval_position * 'e mod_ring) list" where 
-  "coords_for_witn_tupl coords \<alpha> = (if \<alpha> \<in> set (map fst coords) then filter (\<lambda>x. fst x = \<alpha>) coords else tl coords)"
-
-fun cut_coords :: "'e mod_ring list \<Rightarrow> 'e mod_ring \<Rightarrow> 'e mod_ring list" where
-  "cut_coords coords \<alpha> = (if \<alpha> \<in> set coords then remove1 \<alpha> coords else tl coords)"
-
-lemma "x < order G\<^sub>p \<Longrightarrow> spmf (sample_uniform (order G\<^sub>p)) x = (1::real)/(order G\<^sub>p)"
-  using spmf_sample_uniform by simp
-
-
 subsubsection \<open>reduction proof\<close>
 
 thm ennreal_spmf_bind
@@ -343,97 +333,62 @@ thm ennreal_spmf_bind
 thm spmf_bind
 thm nn_integral_measure_spmf
 
+   declare [[show_types]] 
 theorem
-  assumes "\<And>\<phi> \<alpha> eval_pos. length eval_pos \<le> max_deg \<and> distinct eval_pos \<and> \<alpha> \<notin> set eval_pos \<longrightarrow> spmf (hiding_Adversary_game \<alpha> eval_pos \<phi> \<A>) \<phi> = 1"
-  and "max_deg + 1 < CARD ('e)"
+  assumes "max_deg + 1 < CARD ('e)"
   shows "spmf (DL_G\<^sub>p.game (reduction \<A>)) True = 1"
 proof -
-   note [simp] = Let_def split_def
-
-  text \<open>abbreviations for the mod_ring version of sample uniform nat 
-  and the public key\<close>
+  note [simp] = Let_def split_def
   let ?mr = "\<lambda>\<alpha>. (of_int_mod_ring (int \<alpha>)::'e mod_ring)"
-  let ?PK = "\<lambda>\<alpha>. (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?mr \<alpha>)^t)) [0..<max_deg+1])"
-      
-  have "DL_G\<^sub>p.game (reduction \<A>) = TRY do { 
-    a \<leftarrow> sample_uniform (Coset.order G\<^sub>p);
-    a' \<leftarrow> reduction \<A> (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (?mr a));
-    return_spmf (?mr a = a') 
-  } ELSE return_spmf False"
-    unfolding DL_G\<^sub>p.game_def by force
-  also have "\<dots> = TRY do { 
-    a \<leftarrow> sample_uniform (Coset.order G\<^sub>p);
-    a' \<leftarrow>  do {
-    let coords = zip (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1]) (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1]);
-    let exp_coords = (fst (hd coords),(\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (?mr a)))#map (\<lambda>(x,y). (x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) (tl coords);
-    (\<alpha>, PK) \<leftarrow> Setup;
-    let g_pow_\<phi>_of_\<alpha> = compute_g_pow_\<phi>_of_\<alpha> exp_coords \<alpha>;
-    let wtn_tuples = map (\<lambda>(x,y). (x,y,(g_pow_\<phi>_of_\<alpha>  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (tl coords);
-    \<phi>' \<leftarrow> \<A> g_pow_\<phi>_of_\<alpha> wtn_tuples;
-    return_spmf (poly \<phi>' 0)};
-    return_spmf (of_int_mod_ring (int a) = a') 
-  } ELSE return_spmf False"
-    unfolding reduction.simps by fast
-  also have "\<dots> = TRY do { 
-    a \<leftarrow> sample_uniform (Coset.order G\<^sub>p);
-    let coords = zip (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1]) (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1]);
-    \<phi>' \<leftarrow> do {
-    let exp_coords = (fst (hd coords),(\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (?mr a)))#map (\<lambda>(x,y). (x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) (tl coords);
-    (\<alpha>, PK) \<leftarrow> Setup;
-    let g_pow_\<phi>_of_\<alpha> = compute_g_pow_\<phi>_of_\<alpha> exp_coords \<alpha>;
-    let wtn_tuples = map (\<lambda>(x,y). (x,y,(g_pow_\<phi>_of_\<alpha>  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (tl coords);
-    \<phi>' \<leftarrow> \<A> g_pow_\<phi>_of_\<alpha> wtn_tuples;
-    return_spmf \<phi>'};
-    let a' = (poly \<phi>' 0);
-    return_spmf (of_int_mod_ring (int a) = a') 
-  } ELSE return_spmf False"
+  have "DL_G\<^sub>p.game (reduction \<A>) = TRY do {
+      a \<leftarrow> sample_uniform (order G\<^sub>p);
+      let eval_pos = map (?mr) [order G\<^sub>p - max_deg + 1..<order G\<^sub>p];
+      \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p - max_deg);
+      let coords = (?mr (order G\<^sub>p - max_deg), (?mr a))#zip eval_pos eval_pos;
+      hiding_Adversary_game (?mr \<alpha>) eval_pos (lagrange_interpolation_poly coords) \<A>
+    } ELSE return_spmf False"
+    sorry
+  then have "spmf (DL_G\<^sub>p.game (reduction \<A>)) True = spmf (TRY do {
+      a \<leftarrow> sample_uniform (order G\<^sub>p);
+      let eval_pos = map (?mr) [order G\<^sub>p - max_deg + 1..<order G\<^sub>p];
+      \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p - max_deg);
+      let coords = (?mr (order G\<^sub>p - max_deg), (?mr a))#zip eval_pos eval_pos;
+      hiding_Adversary_game (?mr \<alpha>) eval_pos (lagrange_interpolation_poly coords) \<A>
+    } ELSE return_spmf False) True"
+    by presburger
+  also have "\<dots> = spmf (do {
+      a \<leftarrow> sample_uniform (order G\<^sub>p);
+      let eval_pos = map (?mr) [order G\<^sub>p - max_deg + 1..<order G\<^sub>p];
+      \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p - max_deg);
+      let coords = (?mr (order G\<^sub>p - max_deg), (?mr a))#zip eval_pos eval_pos;
+      hiding_Adversary_game (?mr \<alpha>) eval_pos (lagrange_interpolation_poly coords) \<A>
+    }) True"
+    unfolding spmf_try_spmf
     by force
-  also have "\<dots> = TRY do { 
-    a \<leftarrow> sample_uniform (Coset.order G\<^sub>p);
-    \<phi>' \<leftarrow> do {
-    let coords = zip (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1]) (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1]);
-    let exp_coords = (fst (hd coords),(\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (?mr a)))#map (\<lambda>(x,y). (x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) (tl coords);
-    \<alpha> :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
-    let g_pow_\<phi>_of_\<alpha> = compute_g_pow_\<phi>_of_\<alpha> exp_coords (?mr \<alpha>);
-    let wtn_tuples = map (\<lambda>(x,y). (x,y,(g_pow_\<phi>_of_\<alpha>  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/((?mr \<alpha>)-x)))) (tl coords);
-    \<phi>' \<leftarrow> \<A> g_pow_\<phi>_of_\<alpha> wtn_tuples;
-    return_spmf \<phi>'};
-    let a' = (poly \<phi>' 0);
-    return_spmf (of_int_mod_ring (int a) = a') 
-  } ELSE return_spmf False"
-    unfolding Setup_def by force
-  also have "\<dots> = TRY do { 
-    a \<leftarrow> sample_uniform (Coset.order G\<^sub>p);
-    \<phi>' \<leftarrow> do {
-    let coords = zip (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1]) (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1]);
-    let exp_coords = (fst (hd coords),(\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (?mr a)))#map (\<lambda>(x,y). (x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) (tl coords);
-    \<alpha> :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
-    let C = Commit (?PK \<alpha>) (lagrange_interpolation_poly ((fst (hd coords),?mr a)#tl coords));
-    let wtn_tuples = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/((?mr \<alpha>)-x)))) (tl coords);
-    \<phi>' \<leftarrow> \<A> C wtn_tuples;
-    return_spmf \<phi>'};
-    let a' = (poly \<phi>' 0);
-    return_spmf (of_int_mod_ring (int a) = a') 
-  } ELSE return_spmf False"
-    using literal_helping_1[OF assms(2)] unfolding Let_def
-    by algebra
-  also have "\<dots> = TRY do { 
-    a \<leftarrow> sample_uniform (Coset.order G\<^sub>p);
-    \<phi>' \<leftarrow> do {
-    let coords = zip (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1]) (map (of_int_mod_ring \<circ> int) [0..<max_deg + 1]);
-    let exp_coords = (fst (hd coords),(\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (?mr a)))#map (\<lambda>(x,y). (x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) (tl coords);
-    \<alpha> :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
-    let C = Commit (?PK \<alpha>) (lagrange_interpolation_poly ((fst (hd coords),?mr a)#tl coords));
-    let wtn_tuples = map (\<lambda>i. (i, poly (lagrange_interpolation_poly ((fst (hd coords),?mr a)#tl coords)) i, 
-        createWitness (?PK \<alpha>) (lagrange_interpolation_poly ((fst (hd coords),?mr a)#tl coords)) i)) (map fst (coords_for_witn_tupl coords (?mr \<alpha>)));
-    \<phi>' \<leftarrow> \<A> C wtn_tuples;
-    return_spmf \<phi>'};
-    let a' = (poly \<phi>' 0);
-    return_spmf (of_int_mod_ring (int a) = a') 
-  } ELSE return_spmf False"
-    using assms unfolding 
-    key_gen_def Setup_def Let_def
-    sorry           
+  also have "\<dots> = (\<Sum>\<^sup>+ x. ennreal (spmf (sample_uniform (order G\<^sub>p)) x) * spmf
+        (do {let eval_pos = map ?mr [order G\<^sub>p - max_deg + 1..<order G\<^sub>p];
+             \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p - max_deg);
+            let coords =(?mr (order G\<^sub>p - max_deg), ?mr x) # zip eval_pos eval_pos;
+            hiding_Adversary_game (?mr \<alpha>) eval_pos (lagrange_interpolation_poly coords) \<A>})
+        True)"
+    unfolding ennreal_spmf_bind nn_integral_measure_spmf ..
+  moreover have "\<dots> = 1/real (order G\<^sub>p) * (\<Sum> x<order G\<^sub>p. spmf
+        (do {let eval_pos = map ?mr [order G\<^sub>p - max_deg + 1..<order G\<^sub>p];
+             \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p - max_deg);
+            let coords =(?mr (order G\<^sub>p - max_deg), ?mr x) # zip eval_pos eval_pos;
+            hiding_Adversary_game (?mr \<alpha>) eval_pos (lagrange_interpolation_poly coords) \<A>})
+        True)"
+    unfolding spmf_sample_uniform sorry
+  moreover have "\<dots> = 1/real (order G\<^sub>p) * 1/real (order G\<^sub>p - max_deg) * (\<Sum> \<alpha><order G\<^sub>p- max_deg. \<Sum> x<order G\<^sub>p. spmf
+        (do {let eval_pos = map ?mr [order G\<^sub>p - max_deg + 1..<order G\<^sub>p];
+            let coords =(?mr (order G\<^sub>p - max_deg), ?mr x) # zip eval_pos eval_pos;
+            hiding_Adversary_game (?mr \<alpha>) eval_pos (lagrange_interpolation_poly coords) \<A>})
+        True)"
+    unfolding spmf_sample_uniform sorry
+
+      
+  
+    
   
 
   show ?thesis

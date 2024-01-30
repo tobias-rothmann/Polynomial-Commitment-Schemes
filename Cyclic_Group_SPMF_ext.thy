@@ -4,6 +4,32 @@ imports CryptHOL.Cyclic_Group_SPMF
 
 begin
 
+lemma (in cyclic_group) carrier_inj_on_multc: 
+  "c \<noteq> 0 \<Longrightarrow> inj_on (\<lambda>x. x [^] c) (carrier G)"
+  sorry
+
+lemma (in cyclic_group) sample_uniform_one_time_pad_mult:
+  assumes [simp]: "c \<noteq> 0"
+  shows
+  "map_spmf (\<lambda>x. \<^bold>g [^] (x * c)) (sample_uniform (order G)) = 
+   map_spmf (\<lambda>x. \<^bold>g [^] x) (sample_uniform (order G))"
+   (is "?lhs = ?rhs")
+proof(cases "finite (carrier G)")
+  case False
+  thus ?thesis by(simp add: order_def sample_uniform_def)
+next
+  case True
+   have "?lhs = map_spmf (\<lambda>x. x [^] c) ?rhs"
+     by (simp add: nat_pow_pow pmf.map_comp o_def option.map_comp)
+  also have rhs: "?rhs = spmf_of_set (carrier G)"
+    using True by(simp add: carrier_conv_generator inj_on_generator sample_uniform_def)
+  also have "map_spmf (\<lambda>x. x [^] c) \<dots> = spmf_of_set ((\<lambda>x. x [^] c) ` carrier G)"
+    by(simp add: carrier_inj_on_multc)
+  also have "(\<lambda>x. x [^] c) ` carrier G = carrier G"
+    using True by(rule endo_inj_surj)(auto simp add: carrier_inj_on_multc)
+  finally show ?thesis using rhs by simp
+qed
+
 subsection \<open>sample uniform set\<close>
 
 definition sample_uniform_set :: "nat \<Rightarrow> nat \<Rightarrow> nat set spmf"

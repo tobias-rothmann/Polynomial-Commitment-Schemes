@@ -130,6 +130,33 @@ qed
 lemma g_pow_to_int_mod_ring_of_int_mod_ring_pow_t: "\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> of_int_mod_ring x ^ (t::nat) =  \<^bold>g [^] x ^ t"
   by (metis g_pow_to_int_mod_ring_of_int_mod_ring of_int_of_int_mod_ring of_int_power)
 
+declare [[show_types]]
+lemma carrier_inj_on_multc: "c \<noteq> 0 \<Longrightarrow> inj_on (\<lambda>x. x ^\<^bsub>G\<^sub>p\<^esub> c) (carrier G\<^sub>p)"
+proof 
+  fix x y
+  assume c: "c \<noteq> 0"
+  assume x: " x \<in> carrier G\<^sub>p"
+  assume y: " y \<in> carrier G\<^sub>p"
+  assume asm: " x ^ c = y ^ c"
+  obtain x_pow where x_pow: "\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> x_pow = x"
+    using x 
+    by (metis G\<^sub>p.generatorE g_pow_to_int_mod_ring_of_int_mod_ring int_pow_int)
+  obtain y_pow where y_pow: "\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> y_pow = y"
+    using y 
+    by (metis G\<^sub>p.generatorE g_pow_to_int_mod_ring_of_int_mod_ring int_pow_int)
+  then have "(\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> x_pow) ^\<^bsub>G\<^sub>p\<^esub> c = (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> y_pow) ^\<^bsub>G\<^sub>p\<^esub> c"
+    using asm x_pow y_pow by blast
+  then have "(\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (x_pow*c))= (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (y_pow*c))"
+    using mod_ring_pow_pow_G\<^sub>p by presburger
+  then have "x_pow * c = y_pow*c"
+    using pow_on_eq_card by force
+  then have "x_pow = y_pow"
+    using c by simp
+  then show "x=y"
+    using x_pow y_pow by blast
+qed
+
+
 subsubsection\<open>mod_ring operations on pow of GT\<close>
 
 lemma pow_mod_order_G\<^sub>T: "g \<in> carrier G\<^sub>T \<Longrightarrow> g [^]\<^bsub>G\<^sub>T\<^esub> x = g [^]\<^bsub>G\<^sub>T\<^esub> (x mod p)" 
