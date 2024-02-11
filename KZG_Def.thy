@@ -130,7 +130,6 @@ qed
 lemma g_pow_to_int_mod_ring_of_int_mod_ring_pow_t: "\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> of_int_mod_ring x ^ (t::nat) =  \<^bold>g [^] x ^ t"
   by (metis g_pow_to_int_mod_ring_of_int_mod_ring of_int_of_int_mod_ring of_int_power)
 
-declare [[show_types]]
 lemma carrier_inj_on_multc: "c \<noteq> 0 \<Longrightarrow> inj_on (\<lambda>x. x ^\<^bsub>G\<^sub>p\<^esub> c) (carrier G\<^sub>p)"
 proof 
   fix x y
@@ -466,6 +465,9 @@ where
   "createWitness PK \<phi> i =(
     let \<psi> = \<psi>_of \<phi> i \<comment>\<open>\<psi> in \<phi>(x) - \<phi>(i) = (x-i) * \<psi>(x)\<close>
     in  g_pow_PK_Prod PK \<psi> \<comment>\<open>g^\<psi>(\<alpha>)\<close>)" 
+
+lemma "CreateWitness PK \<phi> i = (i, poly \<phi> i, createWitness PK \<phi> i)"
+  unfolding CreateWitness_def Let_def createWitness.simps ..
 
 
 definition VerifyEval :: "'a pk \<Rightarrow> 'a commit \<Rightarrow> 'e eval_position \<Rightarrow> 'e eval_value \<Rightarrow> 'a eval_witness 
