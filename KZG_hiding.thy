@@ -304,6 +304,7 @@ lemma literal_exchange_lemma:
   using assms
   by (metis (mono_tags, lifting) bind_spmf_cong)
 
+
 lemma hiding_game_to_game1:
   assumes "distinct I"
   and "length I = max_deg"
@@ -357,9 +358,7 @@ proof -
      fix \<alpha>
      have 1: "distinct (map fst ((zip I evals)))"
        by (simp add: assms(1) map_fst_zip_take)
-     have "evals \<in> set_spmf (map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p))) \<Longrightarrow> length evals \<le> max_deg"
-       using sample_uniform_list_def set_spmf_sample_uniform_list by force
-     have 2[symmetric]: "evals \<in> set_spmf (map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p))) 
+     have [symmetric]: "evals \<in> set_spmf (map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p))) 
       \<Longrightarrow> compute_g_pow_\<phi>_of_\<alpha> (map2 (\<lambda>x y. (x, \<^bold>g ^ y)) I evals) \<alpha> = Commit (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly (zip I evals))"
        using compute_g_pow_\<phi>_of_\<alpha>_is_Commit[OF 1] by auto
      then show "evals \<in> set_spmf (map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p))) 
@@ -370,7 +369,219 @@ proof -
     unfolding Setup_def Let_def split_def by(simp add: bind_map_spmf o_def)
   finally show ?thesis .
 qed
+
   
+
+lemma game2_to_game2_assert: 
+  assumes "distinct I"
+  and "length I = max_deg"
+  shows 
+"TRY do {
+  evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p));
+  let \<phi> = lagrange_interpolation_poly (zip I evals);
+  let exp_evals = map (\<lambda>i. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i) evals;
+  (\<alpha>, PK) \<leftarrow> Setup;
+  let C = compute_g_pow_\<phi>_of_\<alpha> (zip I exp_evals) \<alpha>;
+  let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip (tl I) evals);
+  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  return_spmf (\<phi> = \<phi>')} ELSE return_spmf False
+= game2 I \<A>"
+  (is "?lhs = ?rhs")
+proof -
+  have "?lhs = TRY do {
+  evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p));
+  TRY do {
+    let \<phi> = lagrange_interpolation_poly (zip I evals);
+    let exp_evals = map (\<lambda>i. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i) evals;
+    (\<alpha>, PK) \<leftarrow> Setup;
+    TRY do {
+      let C = compute_g_pow_\<phi>_of_\<alpha> (zip I exp_evals) \<alpha>;
+      let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip (tl I) evals);
+      \<phi>' \<leftarrow> \<A> C witn_tupel;
+      TRY do {
+      return_spmf (\<phi> = \<phi>')}
+      ELSE return_spmf False}
+    ELSE return_spmf False}
+  ELSE return_spmf False}
+  ELSE return_spmf False"
+  unfolding split_def Let_def
+  by (fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
+  also have "\<dots> = TRY do {
+  evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p));
+  TRY do {
+    let \<phi> = lagrange_interpolation_poly (zip I evals);
+    let exp_evals = map (\<lambda>i. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i) evals;
+    (\<alpha>, PK) \<leftarrow> Setup;
+    TRY do {
+      let C = compute_g_pow_\<phi>_of_\<alpha> (zip I exp_evals) \<alpha>;
+      let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip (tl I) evals);
+      \<phi>' \<leftarrow> \<A> C witn_tupel;
+      TRY do {
+      _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>');
+      return_spmf True}
+      ELSE return_spmf False}
+    ELSE return_spmf False}
+  ELSE return_spmf False}
+  ELSE return_spmf False"
+    unfolding Let_def
+    by(auto simp add: try_bind_assert_spmf try_spmf_return_spmf1 intro!: try_spmf_cong bind_spmf_cong)
+  also have "\<dots> = TRY do {
+  evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p));
+  let \<phi> = lagrange_interpolation_poly (zip I evals);
+  let exp_evals = map (\<lambda>i. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i) evals;
+  (\<alpha>, PK) \<leftarrow> Setup;
+  let C = compute_g_pow_\<phi>_of_\<alpha> (zip I exp_evals) \<alpha>;
+  let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip (tl I) evals);
+  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>');
+  return_spmf True}
+  ELSE return_spmf False"
+   unfolding split_def Let_def
+   by (fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
+  also have "\<dots> = TRY do {
+  evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p));
+  let \<phi> = lagrange_interpolation_poly (zip I evals);
+  let exp_evals = map (\<lambda>i. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i) evals;
+  (\<alpha>, PK) \<leftarrow> Setup;
+  let C = compute_g_pow_\<phi>_of_\<alpha> (zip I exp_evals) \<alpha>;
+  let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip (tl I) evals);
+  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>' \<and> hd evals = poly \<phi>' (hd I));
+  return_spmf True}
+  ELSE return_spmf False"
+  proof -
+    have "\<And>evals \<phi>'. evals \<in> set_spmf (map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p)))  
+      \<Longrightarrow> ((lagrange_interpolation_poly (zip I evals) = \<phi>' 
+      \<longleftrightarrow> (lagrange_interpolation_poly (zip I evals)) = \<phi>' \<and> hd evals = poly \<phi>' (hd I)))"
+    proof -
+      fix evals :: "'e mod_ring list"
+      fix \<phi>'
+      assume "evals \<in> set_spmf (map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p)))"
+      then have evals_length: "length evals = max_deg"
+        by (force simp add: bind_map_spmf o_def)
+      show "(lagrange_interpolation_poly (zip I evals) = \<phi>' 
+      \<longleftrightarrow> lagrange_interpolation_poly (zip I evals) = \<phi>' \<and> hd evals = poly \<phi>' (hd I))"
+      proof
+        show "lagrange_interpolation_poly (zip I evals) = \<phi>' \<Longrightarrow> lagrange_interpolation_poly (zip I evals) = \<phi>' \<and> hd evals = poly \<phi>' (hd I)"
+        proof 
+          assume asm: "lagrange_interpolation_poly (zip I evals) = \<phi>'"
+          show "hd evals = poly \<phi>' (hd I)"
+          proof(rule lagrange_interpolation_poly[symmetric, of "zip I evals"])
+            show "distinct (map fst (zip I evals))"
+              using assms(1)
+              by (simp add: map_fst_zip_take)
+            show "\<phi>' = lagrange_interpolation_poly (zip I evals)"
+              using asm[symmetric] .
+            show "(hd I, hd evals) \<in> set (zip I evals)" 
+              using assms(2) evals_length
+              by (metis Nil_eq_zip_iff d_pos hd_in_set hd_zip length_greater_0_conv)
+          qed
+        qed 
+      qed simp
+    qed
+    then show ?thesis 
+      unfolding split_def 
+      using bind_spmf_cong
+      by (smt (verit))
+  qed
+ also have "\<dots> = TRY do {
+  evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p));
+  TRY do {
+    let \<phi> = lagrange_interpolation_poly (zip I evals);
+    let exp_evals = map (\<lambda>i. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i) evals;
+    (\<alpha>, PK) \<leftarrow> Setup;
+    TRY do {
+      let C = compute_g_pow_\<phi>_of_\<alpha> (zip I exp_evals) \<alpha>;
+      let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip (tl I) evals);
+      \<phi>' \<leftarrow> \<A> C witn_tupel;
+      TRY do {
+      _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>' \<and> hd evals = poly \<phi>' (hd I));
+      return_spmf True}
+      ELSE return_spmf False}
+    ELSE return_spmf False}
+  ELSE return_spmf False}
+  ELSE return_spmf False"
+  unfolding split_def Let_def
+  by (fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
+ also have "\<dots> = TRY do {
+  evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p));
+  TRY do {
+    let \<phi> = lagrange_interpolation_poly (zip I evals);
+    let exp_evals = map (\<lambda>i. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i) evals;
+    (\<alpha>, PK) \<leftarrow> Setup;
+    TRY do {
+      let C = compute_g_pow_\<phi>_of_\<alpha> (zip I exp_evals) \<alpha>;
+      let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip (tl I) evals);
+      \<phi>' \<leftarrow> \<A> C witn_tupel;
+      TRY do {
+      _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>');
+      _::unit \<leftarrow> assert_spmf (hd evals = poly \<phi>' (hd I));
+      return_spmf True}
+      ELSE return_spmf False}
+    ELSE return_spmf False}
+  ELSE return_spmf False}
+  ELSE return_spmf False"
+   using assert_anding by presburger
+  also have "\<dots> = TRY do {
+  evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p));
+  TRY do {
+    let \<phi> = lagrange_interpolation_poly (zip I evals);
+    let exp_evals = map (\<lambda>i. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i) evals;
+    (\<alpha>, PK) \<leftarrow> Setup;
+    TRY do {
+      let C = compute_g_pow_\<phi>_of_\<alpha> (zip I exp_evals) \<alpha>;
+      let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip (tl I) evals);
+      \<phi>' \<leftarrow> \<A> C witn_tupel;
+      TRY do {
+      _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>');
+        TRY do {
+        _::unit \<leftarrow> assert_spmf (hd evals = poly \<phi>' (hd I));
+        return_spmf True}
+        ELSE return_spmf False}
+      ELSE return_spmf False}
+    ELSE return_spmf False}
+  ELSE return_spmf False}
+  ELSE return_spmf False"
+    unfolding split_def Let_def
+    by (fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
+ also have "\<dots> = TRY do {
+  evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p));
+  TRY do {
+    let \<phi> = lagrange_interpolation_poly (zip I evals);
+    let exp_evals = map (\<lambda>i. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i) evals;
+    (\<alpha>, PK) \<leftarrow> Setup;
+    TRY do {
+      let C = compute_g_pow_\<phi>_of_\<alpha> (zip I exp_evals) \<alpha>;
+      let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip (tl I) evals);
+      \<phi>' \<leftarrow> \<A> C witn_tupel;
+      TRY do {
+      _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>');
+        TRY do {
+        return_spmf (hd evals = poly \<phi>' (hd I))}
+        ELSE return_spmf False}
+      ELSE return_spmf False}
+    ELSE return_spmf False}
+  ELSE return_spmf False}
+  ELSE return_spmf False"
+    unfolding Let_def split_def
+    by(auto simp add: try_bind_assert_spmf try_spmf_return_spmf1 intro!: try_spmf_cong bind_spmf_cong)
+  also have "\<dots> = TRY do {
+  evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p));
+  let \<phi> = lagrange_interpolation_poly (zip I evals);
+  let exp_evals = map (\<lambda>i. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i) evals;
+  (\<alpha>, PK) \<leftarrow> Setup;
+  let C = compute_g_pow_\<phi>_of_\<alpha> (zip I exp_evals) \<alpha>;
+  let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip (tl I) evals);
+  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>');
+  return_spmf (hd evals = poly \<phi>' (hd I))}
+  ELSE return_spmf False"
+    unfolding split_def Let_def
+    by (fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
+  finally show ?thesis unfolding game2_def .
+qed
+
+
   
 end
 
