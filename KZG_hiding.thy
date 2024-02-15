@@ -1,6 +1,7 @@
 theory KZG_hiding
 
 imports KZG_correct DL_assumption Cyclic_Group_SPMF_ext Polynomial_Interpolation.Lagrange_Interpolation 
+HOL.Finite_Set
 
 begin
 
@@ -20,11 +21,6 @@ to these evaluations. This could be modelled in the classical approach, however 
 not really fit as we are not trying to come up with two different plain texts but with commitments.
 \<close>
 text \<open>The evaluation commitment scheme functions.\<close>
-
-(*TODO delete*)
-thm ennreal_spmf_bind
-thm spmf_bind
-thm nn_integral_measure_spmf
 
 text \<open>Expose just the public key from the Setup\<close>
 definition key_gen:: "'a pk spmf" where
@@ -68,17 +64,28 @@ definition compute_g_pow_\<phi>_of_\<alpha> :: "('e mod_ring \<times> 'a) list \
   let lagrange_exp = map (\<lambda>(xj,yj). yj ^\<^bsub>G\<^sub>p\<^esub> (poly (lagrange_basis_poly xs xj) \<alpha>)) xs_ys;
   fold (\<lambda>x prod. prod \<otimes>\<^bsub>G\<^sub>p\<^esub> x) lagrange_exp \<one>}"
 
+(*TODO implement fun*)
+fun sample_not_in :: "'e eval_position list \<Rightarrow> 'e eval_position"
+  where "sample_not_in I = (SOME x. x \<notin> set I)"
+
+lemma sample_not_in:
+  assumes "length I < CARD('e)"
+  and "distinct I"
+shows "distinct (sample_not_in I#I)"
+  sorry
+
 fun reduction
   :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Rightarrow> ('a,'e) DL.adversary"                     
 where
   "reduction I \<A> g_pow_a = do {
-  evals \<leftarrow> sample_uniform_list (max_deg-1) (order G\<^sub>p);
-  let exp_evals = map (\<lambda>i. \<^bold>g [^] i) evals ;
+  let I_ext = sample_not_in I;
+  evals \<leftarrow> sample_uniform_list max_deg (order G\<^sub>p);
+  let exp_evals = g_pow_a # map (\<lambda>i. \<^bold>g [^] i) evals ;
   (\<alpha>, PK) \<leftarrow> Setup;
-  let C = compute_g_pow_\<phi>_of_\<alpha> (zip I exp_evals) \<alpha>;
-  let wtn_ts = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip (tl I) (map (of_int_mod_ring \<circ> int) evals));
+  let C = compute_g_pow_\<phi>_of_\<alpha> (zip (I_ext#I) exp_evals) \<alpha>;
+  let wtn_ts = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (map (of_int_mod_ring \<circ> int) evals));
   \<phi>' \<leftarrow> \<A> C wtn_ts;
-  return_spmf (poly \<phi>' (hd I))
+  return_spmf (poly \<phi>' I_ext)
   }"
 
 end 
@@ -319,7 +326,6 @@ lemma hiding_game_to_game1:
   return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
   (is "?lhs = ?rhs")
 proof -
-
   have "?lhs = TRY do {
   evals::'e mod_ring list \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p));
   let \<phi> = lagrange_interpolation_poly (zip I evals);
@@ -581,8 +587,39 @@ proof -
   finally show ?thesis unfolding game2_def .
 qed
 
-
+lemma game2_wo_assert_to_DL_reduction_game:"game2_wo_assert I \<A> =  DL_G\<^sub>p.game (reduction I \<A>)"
+  (is "?lhs = ?rhs")
+proof -
+  have "?lhs = TRY do {
+  nat_evals \<leftarrow> sample_uniform_list max_deg (order G\<^sub>p);
+  let evals = map (of_int_mod_ring \<circ> int) nat_evals;
+  let exp_evals = map (\<lambda>i. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i) evals;
+  (\<alpha>, PK) \<leftarrow> Setup;
+  let C = compute_g_pow_\<phi>_of_\<alpha> (zip I exp_evals) \<alpha>;
+  let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip (tl I) evals);
+  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  return_spmf (hd evals = poly \<phi>' (hd I))}
+  ELSE return_spmf False"
+    unfolding game2_wo_assert_def Let_def by(simp add: bind_map_spmf o_def)
+  also have "\<dots> = TRY do {
+  a \<leftarrow> sample_uniform (order G\<^sub>p);
+  nat_evals \<leftarrow> sample_uniform_list (max_deg-1) (order G\<^sub>p);
+  let evals = map (of_int_mod_ring \<circ> int) (a#nat_evals);
+  let exp_evals = map (\<lambda>i. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i) evals;
+  (\<alpha>, PK) \<leftarrow> Setup;
+  let C = compute_g_pow_\<phi>_of_\<alpha> (zip I exp_evals) \<alpha>;
+  let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip (tl I) evals);
+  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  return_spmf (hd evals = poly \<phi>' (hd I))}
+  ELSE return_spmf False"
+    sorry
   
+  show ?thesis 
+    sorry
+qed
+  
+
+text \<open>TODO update proofs for changed reduction def\<close>
 end
 
 
