@@ -1,7 +1,7 @@
 theory KZG_Def
 
 imports "CRYSTALS-Kyber.Kyber_spec" "CryptHOL.CryptHOL" "CryptHOL.Cyclic_Group" 
-  "Sigma_Commit_Crypto.Cyclic_Group_Ext" 
+  "Sigma_Commit_Crypto.Cyclic_Group_Ext"
 
 begin
 
@@ -154,7 +154,6 @@ proof
   then show "x=y"
     using x_pow y_pow by blast
 qed
-
 
 subsubsection\<open>mod_ring operations on pow of GT\<close>
 

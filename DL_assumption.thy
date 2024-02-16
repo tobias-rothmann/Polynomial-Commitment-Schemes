@@ -70,6 +70,14 @@ proof -
   finally show ?thesis .
 qed
 
+lemma game_alt_def2:
+  "game \<A> = TRY do { 
+    a \<leftarrow> map_spmf to_type (sample_uniform (Coset.order G));
+    a' \<leftarrow> \<A> (exp \<^bold>g a);
+    return_spmf (a = a')
+  } ELSE return_spmf False"
+  by (simp add: game_def bind_map_spmf o_def)
+
 end
 
 end
