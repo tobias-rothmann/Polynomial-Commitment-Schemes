@@ -758,7 +758,7 @@ proof -
   \<phi>' \<leftarrow> \<A> C witn_tupel;                             
   return_spmf (\<phi> = \<phi>', \<alpha> \<in> set (pick_not_from I#I))} ELSE return_spmf (False, \<alpha> \<in> set (pick_not_from I#I))" for I \<A> \<alpha>
 
-  have "game1 I \<A> = map_spmf fst (?sample (game1b I \<A>))"
+  have game1b: "game1 I \<A> = map_spmf fst (?sample (game1b I \<A>))"
   proof -
     have "game1 I \<A> = TRY do {
       let i = pick_not_from I;
@@ -817,7 +817,7 @@ proof -
   \<phi>' \<leftarrow> \<A> C witn_tupel;
   return_spmf (\<phi> = \<phi>', \<alpha> \<in> set (pick_not_from I#I))} ELSE return_spmf (False, \<alpha> \<in> set (pick_not_from I#I))" for I \<A> \<alpha>
 
-  have "game2 I \<A> = map_spmf fst (?sample (game2b I \<A>))"
+  have game2b: "game2 I \<A> = map_spmf fst (?sample (game2b I \<A>))"
   proof -
     have "game2 I \<A> = TRY do {
       let i = pick_not_from I;
@@ -864,6 +864,25 @@ proof -
     finally show ?thesis .
   qed
 
+  define collision_game :: "'e eval_position list \<Rightarrow> bool spmf" where 
+  "collision_game l = do {
+    \<alpha>::'e mod_ring \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
+    return_spmf (\<alpha> \<in> set l)}" for l
+
+  have "map_spmf snd (?sample (game1b I \<A>)) = collision_game (pick_not_from I#I)"
+  proof - 
+
+    define collision_game_for :: "'e eval_position list \<Rightarrow> 'e mod_ring \<Rightarrow> bool spmf" where 
+    "collision_game_for l \<alpha> = TRY do {
+      return_spmf (\<alpha> \<in> set l)} 
+      ELSE return_spmf (\<alpha> \<in> set l)" for l \<alpha>
+
+    have collision_game_equallity: "\<And>I. collision_game I = ?sample (collision_game_for I)"
+      unfolding collision_game_def collision_game_for_def by simp
+    moreover have "map_spmf snd (?sample (game1b I \<A>)) = ?sample (collision_game_for (pick_not_from I#I))"
+      by (simp add: map_try_spmf game1b_def collision_game_for_def lossless_\<A> del: pick_not_from.simps createWitness.simps)
+    ultimately show ?thesis by presburger
+  qed
 
   have "rel_spmf (\<lambda>(win, bad) (win', bad'). bad = bad' \<and> (\<not> bad' \<longrightarrow> win = win')) (game1b I \<A> \<alpha>) (game2b I \<A> \<alpha>)" for \<alpha>
     unfolding game1b_def game2b_def Let_def
