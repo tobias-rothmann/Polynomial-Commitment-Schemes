@@ -2,7 +2,6 @@ theory KZG_hiding
 
 imports KZG_correct DL_assumption Cyclic_Group_SPMF_ext Polynomial_Interpolation.Lagrange_Interpolation 
 HOL.Finite_Set
-
 begin
 
 locale hiding_game_def = KZG_correct
@@ -138,11 +137,11 @@ next
    finally show ?case .
  qed
 
-lemma compute_g_pow_\<phi>_of_\<alpha>_is_Commit:
-  assumes dist: "distinct (map fst xs_ys)"
+lemma compute_g_pow_\<phi>_of_\<alpha>_is_\<phi>_of_\<alpha>:
+assumes dist: "distinct (map fst xs_ys)"
   and length_xs_ys: "length xs_ys \<le> max_deg+1"
-shows "compute_g_pow_\<phi>_of_\<alpha> (map (\<lambda>(x,y).(x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) xs_ys) \<alpha> = Commit 
-    (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly xs_ys)"
+shows "compute_g_pow_\<phi>_of_\<alpha> (map (\<lambda>(x,y).(x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) xs_ys) \<alpha> 
+  = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (poly  (lagrange_interpolation_poly xs_ys) \<alpha>)"
 proof -
   have "compute_g_pow_\<phi>_of_\<alpha> (map (\<lambda>(x,y).(x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) xs_ys) \<alpha> = 
     (let xs = map fst (map (\<lambda>(x, y). (x, \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> y)) xs_ys);
@@ -169,6 +168,18 @@ proof -
   also have "\<dots> =  \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (poly (lagrange_interpolation_poly xs_ys) \<alpha>)"
     using eval_on_lagrange_basis
     by (smt (verit, ccfv_SIG) fst_conv length_map nth_equalityI nth_map split_def)
+  finally show ?thesis by fast
+qed
+
+lemma compute_g_pow_\<phi>_of_\<alpha>_is_Commit:
+  assumes dist: "distinct (map fst xs_ys)"
+  and length_xs_ys: "length xs_ys \<le> max_deg+1"
+shows "compute_g_pow_\<phi>_of_\<alpha> (map (\<lambda>(x,y).(x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) xs_ys) \<alpha> = Commit 
+    (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly xs_ys)"
+proof -
+  have "compute_g_pow_\<phi>_of_\<alpha> (map (\<lambda>(x,y).(x,\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y)) xs_ys) \<alpha>  
+  =  \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (poly (lagrange_interpolation_poly xs_ys) \<alpha>)"
+    by(rule compute_g_pow_\<phi>_of_\<alpha>_is_\<phi>_of_\<alpha>[OF assms])
   also have "\<dots> = Commit 
     (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly xs_ys)"
   proof -
@@ -186,35 +197,36 @@ lemma split_pow_div_G\<^sub>p:
   shows " \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (y/x) = (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/x)"
   by (metis mod_ring_pow_pow_G\<^sub>p mult_cancel_left2 times_divide_eq_right)
 
-(*TODO alter map ... xs_ys to some xs that is subset of xs_ss \<rightarrow> should be fine *)
 lemma witness_calc_correct: 
   assumes dist: "distinct (map fst xs_ys)"
   and length_xs_ys: "length xs_ys \<le> max_deg + 1"
-  and \<alpha>_nin_xs: "\<alpha> \<notin> set (map fst xs_ys)"
-  shows "map (\<lambda>i. (i, poly (lagrange_interpolation_poly xs_ys) i, createWitness (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly xs_ys) i)) (map fst xs_ys)
-    =  map (\<lambda>(x,y). (x,y,( \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (lagrange_interpolation_poly xs_ys) \<alpha>)  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) xs_ys"
+  and \<alpha>_nin_xs: "\<alpha> \<notin> set (map fst (tl xs_ys))"
+  shows "map (\<lambda>i. (i, poly (lagrange_interpolation_poly xs_ys) i, createWitness (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly xs_ys) i)) (map fst (tl xs_ys))
+    =  map (\<lambda>(x,y). (x,y,( \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (lagrange_interpolation_poly xs_ys) \<alpha>)  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (tl xs_ys)"
 proof -
-  have "?thesis = (map (\<lambda>i. (fst i, poly (lagrange_interpolation_poly xs_ys) (fst i), createWitness (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly xs_ys) (fst i))) xs_ys
-  =  map (\<lambda>(x,y). (x,y,( \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (lagrange_interpolation_poly xs_ys) \<alpha>)  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) xs_ys)"
+  have "?thesis = (map (\<lambda>i. (fst i, poly (lagrange_interpolation_poly xs_ys) (fst i), createWitness (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly xs_ys) (fst i))) (tl xs_ys)
+  =  map (\<lambda>(x,y). (x,y,( \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (lagrange_interpolation_poly xs_ys) \<alpha>)  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (tl xs_ys))"
     by simp
   also have "\<dots>"
   proof(rule map_ext)
     fix x
-    show "x \<in> set xs_ys \<longrightarrow>
+    show "x \<in> set (tl xs_ys) \<longrightarrow>
          (fst x, poly (lagrange_interpolation_poly xs_ys) (fst x),
           createWitness (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly xs_ys) (fst x)) =
          (\<lambda>(x, y). (x, y, (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (poly (lagrange_interpolation_poly xs_ys) \<alpha>) \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<alpha> - x)))) x"
     proof 
-      assume asm: "x \<in> set xs_ys"
+      assume asm: "x \<in> set (tl xs_ys)"
       then obtain xj yj where xj_yj: "(xj,yj) = x"
         using prod.collapse by blast
       moreover have "(xj, poly (lagrange_interpolation_poly xs_ys) xj, createWitness (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly xs_ys) xj) 
                    = (xj, yj, (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (poly (lagrange_interpolation_poly xs_ys) \<alpha>) \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> yj) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<alpha> - xj)))"
       proof -
         have \<alpha>_neg_xj: "\<alpha> \<noteq> xj"
-              by (metis asm assms(1) assms(3) entries_keysD entries_of_alist fst_eqD keys_of_alist xj_yj)
-
-        have "createWitness (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly xs_ys) xj = (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (poly (lagrange_interpolation_poly xs_ys) \<alpha>) \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> yj) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<alpha> - xj))"
+          by (metis asm assms(3) calculation image_eqI list.set_map prod.sel(1))
+        have yj: "poly (lagrange_interpolation_poly xs_ys) xj = yj"
+          by (rule lagrange_interpolation_poly[OF assms(1)])(simp add: asm calculation in_set_tlD)+
+        have "createWitness (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly xs_ys) xj 
+            = (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (poly (lagrange_interpolation_poly xs_ys) \<alpha>) \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> yj) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<alpha> - xj))"
           (is "?lhs = ?rhs")
         proof -
           have "?lhs = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (poly (\<psi>_of (lagrange_interpolation_poly xs_ys) xj) \<alpha>)"
@@ -223,8 +235,10 @@ proof -
             by (meson assms(2) degree_lagrange_interpolation_poly degree_q_le_\<phi> le_diff_conv le_trans)
           also have "\<dots> = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> ((poly (lagrange_interpolation_poly xs_ys) \<alpha> - poly (lagrange_interpolation_poly xs_ys) xj)/(\<alpha>-xj))"
               using \<alpha>_neg_xj \<phi>x_m_\<phi>u_eq_xmu_\<psi>x by simp
-          also have "\<dots> =  \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> ((poly (lagrange_interpolation_poly xs_ys) \<alpha> - yj)/(\<alpha>-xj))"
-            using asm dist lagrange_interpolation_poly xj_yj by blast
+            also have "\<dots> =  \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> ((poly (lagrange_interpolation_poly xs_ys) \<alpha> - yj)/(\<alpha>-xj))"
+            proof -
+              show ?thesis using yj by blast
+            qed
           also have "\<dots> =  (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (poly (lagrange_interpolation_poly xs_ys) \<alpha> - yj)) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<alpha> - xj))"
             using \<alpha>_neg_xj split_pow_div_G\<^sub>p by force
           also have "\<dots> = ?rhs"
@@ -232,7 +246,7 @@ proof -
           finally show ?thesis .
         qed
         then show ?thesis
-          using asm assms calculation lagrange_interpolation_poly by blast
+          using yj by blast
       qed
       ultimately show "(fst x, poly (lagrange_interpolation_poly xs_ys) (fst x),
           createWitness (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly xs_ys) (fst x)) =
@@ -683,6 +697,251 @@ proof -
     unfolding DL_G\<^sub>p.game_alt_def2 reduction.simps ..
   finally show ?thesis .
 qed
+
+lemma literal_swap_lemma: 
+  "TRY do {x \<leftarrow> X::'x spmf;
+           y \<leftarrow> Y :: 'y spmf;
+           w \<leftarrow> (W::'x \<Rightarrow> 'y\<Rightarrow> 'w spmf) x y ;
+           return_spmf ((Z::'x \<Rightarrow> 'y \<Rightarrow> 'w \<Rightarrow> 'z) x y w)} ELSE return_spmf (Z'::'z) = 
+   TRY do {y \<leftarrow> Y :: 'y spmf;
+           x \<leftarrow> X::'x spmf;
+           w \<leftarrow> (W::'x \<Rightarrow> 'y\<Rightarrow> 'w spmf) x y ;
+           return_spmf ((Z::'x \<Rightarrow> 'y \<Rightarrow> 'w \<Rightarrow> 'z) x y w)} ELSE return_spmf (Z'::'z)"
+proof -
+  have "\<forall>X Y Z. ((X::'x spmf) \<bind> (\<lambda>x. (Y::'y spmf) \<bind> Z (x::'x)::'z spmf)::'z spmf) = Y \<bind> (\<lambda>y. X \<bind> (\<lambda>x. Z x (y::'y)::'z spmf)::'z spmf)"
+    using bind_commute_spmf by blast
+  then show ?thesis
+    by presburger
+qed
+
+lemma literal_map_fst_lemma: 
+  "TRY do {x \<leftarrow> X::'x spmf;
+           y \<leftarrow> Y :: 'y spmf;
+           w \<leftarrow> (W::'x \<Rightarrow> 'y\<Rightarrow> 'w spmf) x y ;
+           return_spmf ((Z::'x \<Rightarrow> 'y \<Rightarrow> 'w \<Rightarrow> 'z) x y w)} ELSE return_spmf (Z'::'z) = 
+   TRY do {y \<leftarrow> Y :: 'y spmf;
+           x \<leftarrow> X::'x spmf;
+           w \<leftarrow> (W::'x \<Rightarrow> 'y\<Rightarrow> 'w spmf) x y ;
+           return_spmf ((Z::'x \<Rightarrow> 'y \<Rightarrow> 'w \<Rightarrow> 'z) x y w)} ELSE return_spmf (Z'::'z)"
+proof -
+  have "\<forall>X Y Z. ((X::'x spmf) \<bind> (\<lambda>x. (Y::'y spmf) \<bind> Z (x::'x)::'z spmf)::'z spmf) = Y \<bind> (\<lambda>y. X \<bind> (\<lambda>x. Z x (y::'y)::'z spmf)::'z spmf)"
+    using bind_commute_spmf by blast
+  then show ?thesis
+    by presburger
+qed
+
+lemma fundamental_lemma_game1_game2: 
+  assumes lossless_\<A>: "\<And>C W . lossless_spmf (\<A> C W)"
+  and dist_I: "distinct I"
+  and len_I: "length I = max_deg"
+  shows "spmf (game2 I \<A>) True + (max_deg+1)/p \<ge> spmf (game1 I \<A>) True"
+proof -
+  note [simp] = map_lift_spmf gpv.map_id lossless_weight_spmfD map_spmf_bind_spmf bind_spmf_const Let_def o_def
+   note %invisible [cong del] = if_weak_cong 
+   and [split del] = if_split
+   and [simp] = map_lift_spmf gpv.map_id lossless_weight_spmfD map_spmf_bind_spmf bind_spmf_const
+   and [if_distribs] = if_distrib[where f="\<lambda>x. try_spmf x _"] if_distrib[where f="weight_spmf"] if_distrib[where f="\<lambda>r. scale_spmf r _"]
+  
+  let ?sample = "\<lambda>f :: 'e mod_ring  \<Rightarrow> _ spmf. do {
+   x::'e mod_ring \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
+   f x }"
+
+  define game1b :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Rightarrow> 'e mod_ring \<Rightarrow> (bool\<times>bool) spmf"
+    where "game1b I \<A> \<alpha> = TRY do {
+  let i = pick_not_from I;
+  evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
+  let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
+  let exp_evals = map (\<lambda>i. \<^bold>g ^ i) evals;
+  let PK =  map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
+  let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
+  let witn_tupel = map (\<lambda>j. (j, poly \<phi> j, createWitness PK \<phi> j)) I;
+  \<phi>' \<leftarrow> \<A> C witn_tupel;                             
+  return_spmf (\<phi> = \<phi>', \<alpha> \<in> set (pick_not_from I#I))} ELSE return_spmf (False, \<alpha> \<in> set (pick_not_from I#I))" for I \<A> \<alpha>
+
+  have "game1 I \<A> = map_spmf fst (?sample (game1b I \<A>))"
+  proof -
+    have "game1 I \<A> = TRY do {
+      let i = pick_not_from I;
+      evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
+      let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
+      let exp_evals = map (\<lambda>i. \<^bold>g ^ i) evals;
+      \<alpha> :: 'e mod_ring \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
+      let PK =  map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
+      let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
+      let witn_tupel = map (\<lambda>j. (j, poly \<phi> j, createWitness PK \<phi> j)) I;
+      \<phi>' \<leftarrow> \<A> C witn_tupel;
+    return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
+      unfolding game1_def Setup_alt_def Let_def by auto
+    also have "\<dots> = TRY do {
+      \<alpha> :: 'e mod_ring \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
+      let i = pick_not_from I;
+      evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
+      let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
+      let exp_evals = map (\<lambda>i. \<^bold>g ^ i) evals;
+      let PK =  map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
+      let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
+      let witn_tupel = map (\<lambda>j. (j, poly \<phi> j, createWitness PK \<phi> j)) I;
+      \<phi>' \<leftarrow> \<A> C witn_tupel;
+    return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
+      unfolding Let_def split_def 
+      by (rule literal_swap_lemma)
+    also have "\<dots> = do {
+      \<alpha> :: 'e mod_ring \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
+      TRY do {
+      let i = pick_not_from I;
+      evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
+      let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
+      let exp_evals = map (\<lambda>i. \<^bold>g ^ i) evals;
+      let PK =  map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
+      let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
+      let witn_tupel = map (\<lambda>j. (j, poly \<phi> j, createWitness PK \<phi> j)) I;
+      \<phi>' \<leftarrow> \<A> C witn_tupel;
+    return_spmf (\<phi> = \<phi>')} ELSE return_spmf False}"
+      unfolding game1b_def 
+      by (rule try_spmf_bind_spmf_lossless)(simp add: local.G\<^sub>p.order_gt_0)
+    also have "\<dots> = map_spmf fst (?sample (game1b I \<A>))"
+      unfolding game1b_def
+      by (simp add: map_try_spmf del: pick_not_from.simps createWitness.simps)
+    finally show ?thesis .
+  qed
+
+  define game2b :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Rightarrow> 'e mod_ring \<Rightarrow> (bool\<times>bool) spmf"
+    where "game2b I \<A> \<alpha> = TRY do {
+  let i = pick_not_from I;
+  evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
+  let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
+  let exp_evals = map (\<lambda>i. \<^bold>g ^ i) evals;
+  let PK =  map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
+  let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
+  let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
+  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  return_spmf (\<phi> = \<phi>', \<alpha> \<in> set (pick_not_from I#I))} ELSE return_spmf (False, \<alpha> \<in> set (pick_not_from I#I))" for I \<A> \<alpha>
+
+  have "game2 I \<A> = map_spmf fst (?sample (game2b I \<A>))"
+  proof -
+    have "game2 I \<A> = TRY do {
+      let i = pick_not_from I;
+      evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
+      let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
+      let exp_evals = map (\<lambda>i. \<^bold>g ^ i) evals;
+      \<alpha> :: 'e mod_ring \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
+      let PK =  map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
+      let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
+      let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
+      \<phi>' \<leftarrow> \<A> C witn_tupel;
+    return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
+      unfolding game2_def Setup_alt_def Let_def by auto
+    also have "\<dots> = TRY do {
+      \<alpha> :: 'e mod_ring \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
+      let i = pick_not_from I;
+      evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
+      let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
+      let exp_evals = map (\<lambda>i. \<^bold>g ^ i) evals;
+      let PK =  map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
+      let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
+      let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
+      \<phi>' \<leftarrow> \<A> C witn_tupel;
+    return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
+      unfolding Let_def split_def 
+      by (rule literal_swap_lemma)
+    also have "\<dots> = do {
+      \<alpha> :: 'e mod_ring \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
+      TRY do {
+      let i = pick_not_from I;
+      evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
+      let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
+      let exp_evals = map (\<lambda>i. \<^bold>g ^ i) evals;
+      let PK =  map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
+      let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
+      let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
+      \<phi>' \<leftarrow> \<A> C witn_tupel;
+    return_spmf (\<phi> = \<phi>')} ELSE return_spmf False}"
+      unfolding game1b_def 
+      by (rule try_spmf_bind_spmf_lossless)(simp add: local.G\<^sub>p.order_gt_0)
+    also have "\<dots> = map_spmf fst (?sample (game2b I \<A>))"
+      unfolding game2b_def
+      by (simp add: map_try_spmf del: pick_not_from.simps createWitness.simps)
+    finally show ?thesis .
+  qed
+
+
+  have "rel_spmf (\<lambda>(win, bad) (win', bad'). bad = bad' \<and> (\<not> bad' \<longrightarrow> win = win')) (game1b I \<A> \<alpha>) (game2b I \<A> \<alpha>)" for \<alpha>
+    unfolding game1b_def game2b_def Let_def
+    apply (rule rel_spmf_try_spmf)
+    subgoal TRY
+      apply (rule rel_spmf_bind_reflI)
+      apply (cases "\<alpha> \<in> set (pick_not_from I #I)")
+      subgoal True for evals
+        by (auto intro!: rel_spmf_bindI1 rel_spmf_bindI2 lossless_\<A>)
+      subgoal False for evals
+      proof -
+        assume asm1: "\<alpha> \<notin> set (pick_not_from I # I)"
+        assume asm2: "evals \<in> set_spmf (map_spmf (map (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg + 1) (Coset.order G\<^sub>p)))"
+        then have evals_length: "length evals = max_deg + 1" by auto
+
+        have witness_equal:"(map (\<lambda>j. (j, poly (lagrange_interpolation_poly (zip (pick_not_from I # I) evals)) j,
+                   createWitness (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly (zip (pick_not_from I # I) evals)) j))
+         I) = map (\<lambda>(x,y). (x,y,(compute_g_pow_\<phi>_of_\<alpha> (zip (pick_not_from I#I) (map (\<lambda>i. \<^bold>g ^ i) evals)) \<alpha>  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals))"
+        proof -
+           have dist_pick_I_I: "distinct (map fst (zip (pick_not_from I # I) evals))"
+          proof -
+            have "map fst (zip (pick_not_from I # I) evals) = pick_not_from I#I"
+              by (simp add: assms(3) evals_length)
+            also have "distinct \<dots>"
+              using CARD_q d_l_p dist_I len_I of_nat_less_imp_less pick_not_from by blast
+            finally show ?thesis by blast
+          qed
+          have len_zip: "length (zip (pick_not_from I # I) evals) \<le> max_deg + 1"
+            by (simp add: evals_length)
+          have tl_zip_switch:"tl (zip (pick_not_from I # I) evals) = zip I (tl evals)"
+            by (metis list.exhaust_sel list.sel(2) list.sel(3) zip.simps(1) zip_Cons_Cons)
+          have map_fst_zip_is_I: "map fst (zip I (tl evals)) = I"
+            by (simp add: assms(3) evals_length)
+          have \<alpha>_not_in_I: "\<alpha> \<notin> set I"
+            using asm1 by force
+          have compute_pow_is_g_pow_\<alpha>: 
+           "compute_g_pow_\<phi>_of_\<alpha> (zip (pick_not_from I # I) (map (\<lambda>i. \<^bold>g ^ i) evals)) \<alpha>  
+          = \<^bold>g ^ poly (lagrange_interpolation_poly (zip (pick_not_from I # I) evals)) \<alpha>"
+            using compute_g_pow_\<phi>_of_\<alpha>_is_\<phi>_of_\<alpha>[OF dist_pick_I_I len_zip]
+            by (simp add: zip_map2)
+          show ?thesis 
+            using witness_calc_correct[of "zip (pick_not_from I # I) evals" \<alpha>]
+            unfolding tl_zip_switch compute_pow_is_g_pow_\<alpha> map_fst_zip_is_I
+            using dist_pick_I_I len_zip \<alpha>_not_in_I by blast
+        qed
+        show ?thesis
+          unfolding witness_equal 
+          by (rule rel_spmf_bind_reflI)simp
+      qed 
+    done
+    subgoal ELSE 
+      apply force
+      done
+    done
+  hence "rel_spmf (\<lambda>(win, bad) (win', bad'). (bad \<longleftrightarrow> bad') \<and> (\<not> bad' \<longrightarrow> win \<longleftrightarrow> win')) (?sample (game1b I \<A>)) (?sample (game2b  I \<A>))"
+    by(intro rel_spmf_bind_reflI)
+  hence "\<bar>measure (measure_spmf (?sample (game1b I \<A>))) {(win, _). win} - measure (measure_spmf (?sample (game2b I \<A>))) {(win, _). win}\<bar>
+      \<le> measure (measure_spmf (?sample (game1b I \<A>))) {(_, bad). bad}"
+  unfolding split_def by(rule fundamental_lemma)
+  moreover have "measure (measure_spmf (?sample (game1b I \<A>))) {(win, _). win} = spmf (map_spmf fst (?sample (game1b I \<A>))) True"
+    and "measure (measure_spmf (?sample (game2b I \<A>))) {(win, _). win} = spmf (map_spmf fst (?sample (game2b I \<A>))) True"
+    and "measure (measure_spmf (?sample (game1b I \<A>))) {(_, bad). bad} = spmf (map_spmf snd (?sample (game1b I \<A>))) True"
+      unfolding spmf_conv_measure_spmf measure_map_spmf by(auto simp add: vimage_def split_def)
+  ultimately have hop12:
+    "\<bar>spmf (map_spmf fst (?sample (game1b I \<A>))) True - spmf (map_spmf fst (?sample (game2b I \<A>))) True\<bar>
+    \<le> spmf (map_spmf snd (?sample (game1b I \<A>))) True"
+    by simp
+  then have "spmf (map_spmf fst (?sample (game2b I \<A>))) True + spmf (map_spmf snd (?sample (game1b I \<A>))) True \<ge> spmf (map_spmf fst (?sample (game1b I \<A>))) True"
+    by linarith
+
+  (*map fst is shown for game1 and 2, show map snd (i.e. \<alpha> \in I)
+    and then that that is equal to p/t*)
+
+
+  show ?thesis sorry
+qed
+  
+
   
 
 text \<open>TODO update proofs for changed reduction def\<close>

@@ -25,7 +25,8 @@ e_bilinearity[simp]: "\<forall>a b::int . \<forall>P Q. P \<in> carrier G\<^sub>
 e_non_degeneracy[simp]: "\<not>(\<forall>P Q. P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p \<longrightarrow> e P Q = \<one>\<^bsub>G\<^sub>T\<^esub>)" and 
 (*$(\mathbb{Z}_p[x])^{<d}$ Assumptions*)
 d_pos: "max_deg > 0" and
-CARD_q: "int (CARD('q)) = p"
+CARD_q: "int (CARD('q)) = p" and
+d_l_p: "max_deg < p"
 begin
 
 abbreviation pow_mod_ring (infixr "^\<index>" 75)
@@ -345,6 +346,13 @@ where
     let \<alpha>::'e mod_ring = of_int_mod_ring (int x) in
     return_spmf (\<alpha>, map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) 
   }"
+
+lemma Setup_alt_def: "Setup = do {
+    \<alpha> :: 'e mod_ring \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
+    return_spmf (\<alpha>, map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) 
+  }"
+  unfolding Setup_def Let_def split_def 
+  by (simp add: bind_map_spmf o_def)
 
 
 subsection\<open>Commit\<close>
