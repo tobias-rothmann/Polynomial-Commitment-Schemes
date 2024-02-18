@@ -869,19 +869,75 @@ proof -
     \<alpha>::'e mod_ring \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
     return_spmf (\<alpha> \<in> set l)}" for l
 
-  have "map_spmf snd (?sample (game1b I \<A>)) = collision_game (pick_not_from I#I)"
+  have map_snd_game1_is_collision_game: "map_spmf snd (?sample (game1b I \<A>)) = collision_game (pick_not_from I#I)"
   proof - 
-
     define collision_game_for :: "'e eval_position list \<Rightarrow> 'e mod_ring \<Rightarrow> bool spmf" where 
     "collision_game_for l \<alpha> = TRY do {
       return_spmf (\<alpha> \<in> set l)} 
       ELSE return_spmf (\<alpha> \<in> set l)" for l \<alpha>
 
-    have collision_game_equallity: "\<And>I. collision_game I = ?sample (collision_game_for I)"
+    have "\<And>I. collision_game I = ?sample (collision_game_for I)"
       unfolding collision_game_def collision_game_for_def by simp
     moreover have "map_spmf snd (?sample (game1b I \<A>)) = ?sample (collision_game_for (pick_not_from I#I))"
       by (simp add: map_try_spmf game1b_def collision_game_for_def lossless_\<A> del: pick_not_from.simps createWitness.simps)
     ultimately show ?thesis by presburger
+  qed
+
+  have spmf_collision_game: "spmf (collision_game (pick_not_from I#I)) True = (max_deg+1) / p"
+  proof -
+    obtain A where A: "A = set (pick_not_from I#I)" by blast
+    then have "spmf (collision_game (pick_not_from I#I)) True = spmf (do {
+    \<alpha>::'e mod_ring \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
+    return_spmf (\<alpha> \<in> A)}) True"
+      unfolding collision_game_def by blast
+    also have "\<dots> = spmf (
+     map_spmf (\<lambda>x. x \<in> A) (map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p)))) True"
+      by (simp add: map_spmf_conv_bind_spmf)
+    also have "\<dots> = spmf (map_spmf (\<lambda>x. x \<in> A) (map_spmf (of_int_mod_ring \<circ> int) (spmf_of_set ({..<CARD('e)})))) True"
+      unfolding sample_uniform_def
+      using CARD_G\<^sub>p CARD_q by fastforce
+    also have "\<dots> = spmf (map_spmf (\<lambda>x. x \<in> A) (spmf_of_set (UNIV::'e mod_ring set))) True"
+    proof -
+      have inj_on_UNIV: "inj_on (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) {..<CARD('e)}"
+        using lessThan_atLeast0 of_int_mod_inj_on_ff by presburger
+      moreover have "(of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) ` {..<CARD('e)} = (UNIV::'e mod_ring set)"
+      proof
+        show "(of_int_mod_ring \<circ> int) ` {..<CARD('e)} \<subseteq> UNIV"
+          by blast
+        show "UNIV \<subseteq> (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) ` {..<CARD('e)}" proof 
+          fix x :: "'e mod_ring" 
+          assume "x \<in> UNIV"
+          obtain y where y: "y = (nat \<circ> to_int_mod_ring) x" by blast
+          then have "nat y \<in> {..<CARD('e)}"
+            using y range_to_int_mod_ring 
+            by (metis Rep_mod_ring atLeastLessThan_iff comp_apply int_eq_iff lessThan_iff to_int_mod_ring.rep_eq zless_nat_eq_int_zless)
+          moreover have "(of_int_mod_ring \<circ> int::nat \<Rightarrow> 'e mod_ring) y = x" 
+            by (simp add: to_int_mod_ring_ge_0 y)
+          ultimately show "x \<in> (of_int_mod_ring \<circ> int::nat \<Rightarrow> 'e mod_ring) ` {..<CARD('e)}"
+            by fastforce
+        qed
+      qed 
+      ultimately show ?thesis by fastforce
+    qed
+    also have "\<dots> = measure (measure_spmf (spmf_of_set (UNIV::'e mod_ring set))) A"
+    proof -
+      have  "(\<lambda>x::'e mod_ring. x \<in> (A::'e mod_ring set)) -` {True} = A"
+      proof qed blast+
+      then show ?thesis
+        unfolding spmf_map by presburger
+    qed
+    also have "\<dots> = card A / card (UNIV::'e mod_ring set)"
+      unfolding measure_spmf_of_set by auto
+    also have "\<dots> = (max_deg+1)/p"
+    proof - 
+      have "card A = max_deg +1"
+        unfolding A
+        by (metis CARD_q Suc_eq_plus1 add_0_left assms(2) assms(3) d_l_p distinct_card list.size(4) of_nat_less_imp_less pick_not_from)
+      moreover have "card (UNIV::'e mod_ring set) = p"
+        by (simp add: CARD_q)
+      ultimately show ?thesis by force
+    qed
+   finally show ?thesis .
   qed
 
   have "rel_spmf (\<lambda>(win, bad) (win', bad'). bad = bad' \<and> (\<not> bad' \<longrightarrow> win = win')) (game1b I \<A> \<alpha>) (game2b I \<A> \<alpha>)" for \<alpha>
@@ -950,14 +1006,10 @@ proof -
     "\<bar>spmf (map_spmf fst (?sample (game1b I \<A>))) True - spmf (map_spmf fst (?sample (game2b I \<A>))) True\<bar>
     \<le> spmf (map_spmf snd (?sample (game1b I \<A>))) True"
     by simp
-  then have "spmf (map_spmf fst (?sample (game2b I \<A>))) True + spmf (map_spmf snd (?sample (game1b I \<A>))) True \<ge> spmf (map_spmf fst (?sample (game1b I \<A>))) True"
+  then have "spmf (map_spmf fst (?sample (game1b I \<A>))) True \<le> spmf (map_spmf fst (?sample (game2b I \<A>))) True + spmf (map_spmf snd (?sample (game1b I \<A>))) True"
     by linarith
-
-  (*map fst is shown for game1 and 2, show map snd (i.e. \<alpha> \in I)
-    and then that that is equal to p/t*)
-
-
-  show ?thesis sorry
+  then show ?thesis
+    unfolding game1b game2b map_snd_game1_is_collision_game spmf_collision_game .
 qed
   
 
