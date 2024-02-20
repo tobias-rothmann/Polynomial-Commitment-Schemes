@@ -1,7 +1,7 @@
 theory KZG_hiding
 
 imports KZG_correct DL_assumption Cyclic_Group_SPMF_ext Polynomial_Interpolation.Lagrange_Interpolation 
-HOL.Finite_Set
+HOL.Finite_Set SPMF_ext
 begin
 
 locale hiding_game_def = KZG_correct
@@ -329,6 +329,11 @@ definition game2_wo_assert :: "'e eval_position list \<Rightarrow> ('a, 'e) adve
   let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
   \<phi>' \<leftarrow> \<A> C witn_tupel;
   return_spmf (hd evals = poly \<phi>' i)} ELSE return_spmf False"
+
+
+lemma del_assert_game2: "spmf (game2_w_assert I \<A>) True \<le> spmf (game2_wo_assert I \<A>) True"
+  unfolding game2_w_assert_def game2_wo_assert_def Let_def split_def 
+  by (rule spmf_del_assert_3samples)
 
 lemma literal_exchange_lemma: 
   assumes "\<And>x y. x \<in> set_spmf X \<Longrightarrow> U x y = V x y"
@@ -1011,13 +1016,28 @@ proof -
   then show ?thesis
     unfolding game1b game2b map_snd_game1_is_collision_game spmf_collision_game .
 qed
-  
 
-  
 
-text \<open>TODO update proofs for changed reduction def\<close>
+theorem hiding: 
+  assumes lossless_\<A>: "\<And>C W . lossless_spmf (\<A> C W)"
+  and "distinct I"
+  and "length I = max_deg"
+  and "length I < CARD('e)"
+shows "spmf (hiding_game I \<A>) True \<le> spmf (DL_G\<^sub>p.game (reduction I \<A>)) True + (max_deg+1)/p"
+proof -
+  have "spmf (hiding_game I \<A>) True = spmf (game1 I \<A>) True"
+    using hiding_game_to_game1[OF assms(2,3,4)] by presburger
+  also have "\<dots> \<le> spmf (game2 I \<A>) True + (max_deg+1)/p"
+    using fundamental_lemma_game1_game2[OF assms(1,2,3)] by presburger
+  also have "\<dots> = spmf (game2_w_assert I \<A>) True + (max_deg+1)/p"
+    using game2_to_game2_assert[OF assms(2,3,4)] by presburger
+  also have "\<dots> \<le> spmf (game2_wo_assert I \<A>) True + (max_deg+1)/p"
+    using del_assert_game2 by auto
+  also have "\<dots> = spmf (DL_G\<^sub>p.game (reduction I \<A>)) True + (max_deg+1)/p"
+    using game2_wo_assert_to_DL_reduction_game by presburger
+  finally show ?thesis .
+qed
+    
 end
-
-
 
 end
