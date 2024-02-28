@@ -1,34 +1,21 @@
 theory Cyclic_Group_SPMF_ext
 
-imports CryptHOL.Cyclic_Group_SPMF
+imports CryptHOL.Cyclic_Group_SPMF "HOL-Computational_Algebra.Polynomial" 
+  Berlekamp_Zassenhaus.Finite_Field
 
 begin
 
-lemma (in cyclic_group) carrier_inj_on_multc: 
-  "c \<noteq> 0 \<Longrightarrow> inj_on (\<lambda>x. x [^] c) (carrier G)"
-  sorry
+hide_const order
 
-lemma (in cyclic_group) sample_uniform_one_time_pad_mult:
-  assumes [simp]: "c \<noteq> 0"
-  shows
-  "map_spmf (\<lambda>x. \<^bold>g [^] (x * c)) (sample_uniform (order G)) = 
-   map_spmf (\<lambda>x. \<^bold>g [^] x) (sample_uniform (order G))"
-   (is "?lhs = ?rhs")
-proof(cases "finite (carrier G)")
-  case False
-  thus ?thesis by(simp add: order_def sample_uniform_def)
-next
-  case True
-   have "?lhs = map_spmf (\<lambda>x. x [^] c) ?rhs"
-     by (simp add: nat_pow_pow pmf.map_comp o_def option.map_comp)
-  also have rhs: "?rhs = spmf_of_set (carrier G)"
-    using True by(simp add: carrier_conv_generator inj_on_generator sample_uniform_def)
-  also have "map_spmf (\<lambda>x. x [^] c) \<dots> = spmf_of_set ((\<lambda>x. x [^] c) ` carrier G)"
-    by(simp add: carrier_inj_on_multc)
-  also have "(\<lambda>x. x [^] c) ` carrier G = carrier G"
-    using True by(rule endo_inj_surj)(auto simp add: carrier_inj_on_multc)
-  finally show ?thesis using rhs by simp
-qed
+subsection \<open>sample_uniform mod ring\<close>
+
+definition sample_uniform_modr :: "'a mod_ring spmf" where
+  "sample_uniform_modr = spmf_of_set UNIV"
+
+subsection \<open>sample uniform polynomial\<close>
+
+definition sample_uniform_poly :: "nat \<Rightarrow> 'a::zero poly spmf" 
+  where "sample_uniform_poly t = spmf_of_set {p. degree p = t}"
 
 subsection \<open>sample uniform set\<close>
 
@@ -99,6 +86,37 @@ lemma lossless_sample_uniform_list [simp]: "lossless_spmf (sample_uniform_list k
 
 lemma set_spmf_sample_uniform_list [simp]: "set_spmf (sample_uniform_list k n) = {x. set x \<subseteq> {..<n} \<and> length x = k}"
   by (simp add: finite_lists_length_eq sample_uniform_list_def)
+
+lemma 
+  assumes "p>0"
+  shows "do {x \<leftarrow> sample_uniform p;
+           xs \<leftarrow> sample_uniform_list k p;
+           return_spmf (x#xs)} = sample_uniform_list (k+1) p"
+  (is "?lhs = ?rhs")
+proof -
+  have "?lhs = do {x \<leftarrow> sample_uniform p;
+          map_spmf (\<lambda>xs. x#xs) (sample_uniform_list k p)}"
+    by (simp add: map_spmf_conv_bind_spmf)
+  also have "\<dots> = do {x \<leftarrow> sample_uniform p;
+          spmf_of_set ((\<lambda>xs. x#xs)` {xs. set (xs) \<subseteq> {..<p} \<and> length xs = k})}"
+    unfolding sample_uniform_list_def by simp
+  also have "\<dots> = ?rhs"
+  proof -
+    have "rel_spmf (=) \<dots> ?rhs"
+      apply (rule rel_spmf_bindI1)
+      subgoal for x
+        apply (simp add: sample_uniform_def sample_uniform_list_def)
+        
+        sorry
+      subgoal 
+       apply (simp add: assms)
+        done
+      done
+    then show ?thesis
+      by (simp add: spmf_rel_eq)
+qed
+  finally show ?thesis .
+qed
 
 subsection \<open>sample distinct uniform list\<close>  
 

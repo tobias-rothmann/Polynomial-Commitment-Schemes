@@ -71,7 +71,10 @@ lemma pick_not_from:
   assumes "length I < CARD('e)"
   and "distinct I"
 shows "distinct (pick_not_from I#I)"
-  sorry
+  using assms 
+  apply simp
+  apply (metis CARD_mod_ring UNIV_eq_I distinct_card order_less_irrefl someI_ex)
+  done
 
 fun reduction
   :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Rightarrow> ('a,'e) DL.adversary"                     
@@ -269,17 +272,6 @@ proof
     using x y app_x_eq_y 
     by (metis atLeastLessThan_iff nat_int o_apply of_nat_0_le_iff of_nat_less_iff to_int_mod_ring_of_int_mod_ring)
 qed
-
-lemma assert_anding[symmetric]: "TRY do {
-          _ :: unit \<leftarrow> assert_spmf (a);
-            _ :: unit \<leftarrow> assert_spmf (b);
-            return_spmf True
-        } ELSE return_spmf False 
-    = TRY do {
-          _ :: unit \<leftarrow> assert_spmf (a \<and> b);
-          return_spmf True
-      } ELSE return_spmf False"
-  by (simp add: try_bind_assert_spmf) 
 
 subsubsection \<open>reduction proof\<close>
 

@@ -5,6 +5,17 @@ imports CryptHOL.Cyclic_Group_SPMF "HOL-Computational_Algebra.Polynomial"
 
 begin
 
+lemma assert_anding[symmetric]: "TRY do {
+          _ :: unit \<leftarrow> assert_spmf (a);
+            _ :: unit \<leftarrow> assert_spmf (b);
+            return_spmf True
+        } ELSE return_spmf False 
+    = TRY do {
+          _ :: unit \<leftarrow> assert_spmf (a \<and> b);
+          return_spmf True
+      } ELSE return_spmf False"
+  by (simp add: try_bind_assert_spmf) 
+
 lemma 
   spmf_reduction_2samples: 
   "spmf (TRY do {x \<leftarrow> X::'x spmf;
@@ -70,5 +81,7 @@ proof -
   then show ?thesis
     by (simp add: spmf_try_spmf)
 qed
+
+lemma "spmf_of_set A \<bind> f  = spmf_of_set {}"
 
 end
