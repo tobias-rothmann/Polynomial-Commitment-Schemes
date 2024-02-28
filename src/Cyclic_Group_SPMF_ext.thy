@@ -87,6 +87,46 @@ lemma lossless_sample_uniform_list [simp]: "lossless_spmf (sample_uniform_list k
 lemma set_spmf_sample_uniform_list [simp]: "set_spmf (sample_uniform_list k n) = {x. set x \<subseteq> {..<n} \<and> length x = k}"
   by (simp add: finite_lists_length_eq sample_uniform_list_def)
 
+declare [[show_types]]
+lemma 
+  assumes "p>1"
+  shows "do {x \<leftarrow> sample_uniform p;
+           xs \<leftarrow> sample_uniform_list k p;
+           return_spmf (x#xs)} = sample_uniform_list (k+1) p"
+  (is "?lhs = ?rhs")
+proof -
+  have "?lhs = do {x \<leftarrow> sample_uniform p;
+          map_spmf (\<lambda>xs. x#xs) (sample_uniform_list k p)}"
+    by (simp add: map_spmf_conv_bind_spmf)
+  also have "\<dots> = do {x \<leftarrow> sample_uniform p;
+          spmf_of_set ((\<lambda>xs. x#xs)` {xs. set (xs) \<subseteq> {..<p} \<and> length xs = k})}"
+    unfolding sample_uniform_list_def by simp
+  also have "\<dots> = do {x \<leftarrow> sample_uniform p;
+          let S = (#) x` {xs. set (xs) \<subseteq> {..<p} \<and> length xs = k};
+          spmf_of_set S}"
+    unfolding Let_def ..
+  also have"\<dots> = do {
+          S \<leftarrow> map_spmf (\<lambda>x. (#) x` {xs. set (xs) \<subseteq> {..<p} \<and> length xs = k}) (sample_uniform p);
+          spmf_of_set S}"
+    by (smt (verit) bind_spmf_assoc bind_spmf_cong map_spmf_conv_bind_spmf return_bind_spmf)
+  also have"\<dots> = do {
+          S \<leftarrow> spmf_of_set ((\<lambda>x. (#) x` {xs. set (xs) \<subseteq> {..<p} \<and> length xs = k}) ` {..<p});
+          spmf_of_set S}"
+  proof- 
+    have 1: "inj_on (\<lambda>x. (#) x ` {xs. set xs \<subseteq> {..<p} \<and> length xs = k}) {..<p}"
+      sorry
+    show ?thesis
+    unfolding sample_uniform_def
+    using map_spmf_of_set_inj_on[OF 1]
+    by argo
+  qed
+  also have "\<dots> = ?rhs"
+    unfolding sample_uniform_list_def
+    (*we have a list set set vs list set, how to peel of one set?*)
+    sorry
+  finally show ?thesis .
+qed
+
 lemma 
   assumes "p>0"
   shows "do {x \<leftarrow> sample_uniform p;
@@ -106,7 +146,7 @@ proof -
       apply (rule rel_spmf_bindI1)
       subgoal for x
         apply (simp add: sample_uniform_def sample_uniform_list_def)
-        
+        (*simply having the property x<p is not enough, we need the set of every x<p to show this*)
         sorry
       subgoal 
        apply (simp add: assms)
