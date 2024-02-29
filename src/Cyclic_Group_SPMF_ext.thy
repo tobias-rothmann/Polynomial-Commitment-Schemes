@@ -87,75 +87,150 @@ lemma lossless_sample_uniform_list [simp]: "lossless_spmf (sample_uniform_list k
 lemma set_spmf_sample_uniform_list [simp]: "set_spmf (sample_uniform_list k n) = {x. set x \<subseteq> {..<n} \<and> length x = k}"
   by (simp add: finite_lists_length_eq sample_uniform_list_def)
 
-declare [[show_types]]
-lemma 
-  assumes "p>1"
-  shows "do {x \<leftarrow> sample_uniform p;
-           xs \<leftarrow> sample_uniform_list k p;
-           return_spmf (x#xs)} = sample_uniform_list (k+1) p"
-  (is "?lhs = ?rhs")
+lemma "bind_spmf (spmf_of_set {X}) spmf_of_set = spmf_of_set X"
+  by (simp add: spmf_of_set_singleton)
+
+
+lemma "\<forall>x. spmf A x = spmf B x \<Longrightarrow> A = B"
+  using spmf_eqI by blast
+
+lemma set_spmf_lhs: "set_spmf (map_spmf ((#) x) (sample_uniform_list k p)) 
+             = {xs. set (tl xs) \<subseteq> {..<p} \<and> length xs = k+1 \<and> hd xs = x}"
 proof -
-  have "?lhs = do {x \<leftarrow> sample_uniform p;
-          map_spmf (\<lambda>xs. x#xs) (sample_uniform_list k p)}"
-    by (simp add: map_spmf_conv_bind_spmf)
-  also have "\<dots> = do {x \<leftarrow> sample_uniform p;
-          spmf_of_set ((\<lambda>xs. x#xs)` {xs. set (xs) \<subseteq> {..<p} \<and> length xs = k})}"
-    unfolding sample_uniform_list_def by simp
-  also have "\<dots> = do {x \<leftarrow> sample_uniform p;
-          let S = (#) x` {xs. set (xs) \<subseteq> {..<p} \<and> length xs = k};
-          spmf_of_set S}"
-    unfolding Let_def ..
-  also have"\<dots> = do {
-          S \<leftarrow> map_spmf (\<lambda>x. (#) x` {xs. set (xs) \<subseteq> {..<p} \<and> length xs = k}) (sample_uniform p);
-          spmf_of_set S}"
-    by (smt (verit) bind_spmf_assoc bind_spmf_cong map_spmf_conv_bind_spmf return_bind_spmf)
-  also have"\<dots> = do {
-          S \<leftarrow> spmf_of_set ((\<lambda>x. (#) x` {xs. set (xs) \<subseteq> {..<p} \<and> length xs = k}) ` {..<p});
-          spmf_of_set S}"
-  proof- 
-    have 1: "inj_on (\<lambda>x. (#) x ` {xs. set xs \<subseteq> {..<p} \<and> length xs = k}) {..<p}"
-      sorry
-    show ?thesis
-    unfolding sample_uniform_def
-    using map_spmf_of_set_inj_on[OF 1]
-    by argo
-  qed
-  also have "\<dots> = ?rhs"
+  fix x
+  have "set_spmf (map_spmf ((#) x) (sample_uniform_list k p)) 
+    = ((#) x) ` {xs. set xs \<subseteq> {..<p} \<and> length xs = k}" 
     unfolding sample_uniform_list_def
-    (*we have a list set set vs list set, how to peel of one set?*)
-    sorry
-  finally show ?thesis .
+    by (simp add: finite_lists_length_eq)
+  also have "\<dots> = {xs. set (tl xs) \<subseteq> {..<p} \<and> length xs = k+1 \<and> hd xs = x}"
+    (* TODO cleanup in case*)
+    apply auto
+    by (smt (verit) Suc_length_conv image_Collect list.sel(1) list.sel(3) mem_Collect_eq)
+  finally show "set_spmf (map_spmf ((#) x) (sample_uniform_list k p)) 
+      = {xs. set (tl xs) \<subseteq> {..<p} \<and> length xs = k + 1 \<and> hd xs = x}"
+    .
 qed
 
-lemma 
-  assumes "p>0"
+lemma set_spmf_lhs_imp_length_gr_0: "xs \<in> set_spmf (map_spmf ((#) x) (sample_uniform_list k p)) 
+  \<Longrightarrow> length xs > 0"
+  unfolding set_spmf_lhs by force
+
+lemma Cons_random_list_split: 
+  assumes "p>1"
   shows "do {x \<leftarrow> sample_uniform p;
-           xs \<leftarrow> sample_uniform_list k p;
-           return_spmf (x#xs)} = sample_uniform_list (k+1) p"
+            map_spmf ((#) x) (sample_uniform_list k p)} = sample_uniform_list (k+1) p"
   (is "?lhs = ?rhs")
 proof -
-  have "?lhs = do {x \<leftarrow> sample_uniform p;
-          map_spmf (\<lambda>xs. x#xs) (sample_uniform_list k p)}"
-    by (simp add: map_spmf_conv_bind_spmf)
-  also have "\<dots> = do {x \<leftarrow> sample_uniform p;
-          spmf_of_set ((\<lambda>xs. x#xs)` {xs. set (xs) \<subseteq> {..<p} \<and> length xs = k})}"
-    unfolding sample_uniform_list_def by simp
-  also have "\<dots> = ?rhs"
-  proof -
-    have "rel_spmf (=) \<dots> ?rhs"
-      apply (rule rel_spmf_bindI1)
-      subgoal for x
-        apply (simp add: sample_uniform_def sample_uniform_list_def)
-        (*simply having the property x<p is not enough, we need the set of every x<p to show this*)
-        sorry
-      subgoal 
-       apply (simp add: assms)
-        done
-      done
-    then show ?thesis
-      by (simp add: spmf_rel_eq)
-qed
-  finally show ?thesis .
+  have "\<forall>s. spmf ?lhs s = spmf ?rhs s"
+  proof 
+    fix s
+    have spmf_rhs: "spmf ?rhs s = indicator {x. set x \<subseteq> {..<p} \<and> length x = k+1} s / real p^(k+1)"
+      unfolding spmf_sample_uniform_list ..
+    have spmf_lhs: "spmf ?lhs s 
+        = (\<Sum>x<p. ennreal (spmf (map_spmf ((#) x) (sample_uniform_list k p)) s)) 
+        / of_nat (card {..<p})"
+        unfolding ennreal_spmf_bind
+        unfolding sample_uniform_def
+        unfolding nn_integral_spmf_of_set
+        ..
+    show "spmf ?lhs s = spmf ?rhs s"
+    proof (cases s)
+      case Nil
+      have "spmf ?lhs s = 0"
+      proof -
+        have "\<And>x. spmf (map_spmf ((#) x) (sample_uniform_list k p)) s = 0"
+          using set_spmf_lhs set_spmf_lhs_imp_length_gr_0 spmf_eq_0_set_spmf
+          unfolding Nil 
+          by fast
+        then show ?thesis 
+         using spmf_lhs by force
+      qed
+      moreover have "spmf ?rhs s = 0"
+        using spmf_rhs 
+        unfolding Nil
+        by force
+      ultimately show ?thesis by presburger
+    next
+      case (Cons s_hd s_tl)
+      then show ?thesis
+      proof (cases "s_hd<p")
+        case True
+        have "spmf ?lhs s
+          = (indicator {x. set x \<subseteq> {..<p} \<and> length x = k} s_tl / (real p^(k+1)))"
+        proof - 
+          have spmf_is_sum: "spmf ?lhs s = 
+              sum (\<lambda>x. ennreal (spmf (map_spmf ((#) x) (sample_uniform_list k p)) s)) {..<p} 
+              / real (card {..<p})"
+                unfolding spmf_lhs
+                using ennreal_of_nat_eq_real_of_nat by presburger
+          also have "sum (\<lambda>x. ennreal (spmf (map_spmf ((#) x) (sample_uniform_list k p)) s)) {..<p}
+          = sum (\<lambda>x. ennreal (spmf (map_spmf ((#) x) (sample_uniform_list k p)) s)) (({..<p}-{s_hd}) \<union> {s_hd})"
+            by (simp add: True insert_absorb)
+          also have "\<dots> = sum (\<lambda>x. ennreal (spmf (map_spmf ((#) x) (sample_uniform_list k p)) s)) ({..<p}-{s_hd})
+            + ennreal (spmf (map_spmf ((#) s_hd) (sample_uniform_list k p)) s)"
+            by (metis (no_types, lifting) Un_insert_right add.commute dual_order.refl finite_nat_iff_bounded insert_Diff_single sum.insert_remove sup_bot.right_neutral)
+          also have "\<dots> = ennreal (spmf (map_spmf ((#) s_hd) (sample_uniform_list k p)) s)"
+          proof -
+            have "\<And>x. x \<in> {..<p}-{s_hd} \<longrightarrow> ennreal (spmf (map_spmf ((#) x) (sample_uniform_list k p)) s) = 0"
+            proof 
+              fix x 
+              assume "x \<in> {..<p} - {s_hd}"
+              then have "x \<noteq> s_hd" by blast
+              then show "ennreal (spmf (map_spmf ((#) x) (sample_uniform_list k p)) s) = 0"
+                using set_spmf_lhs 
+                unfolding Cons 
+                by (simp add: spmf_eq_0_set_spmf)
+            qed
+            then show ?thesis by force
+          qed
+          also have "\<dots> = ennreal (spmf (sample_uniform_list k p) s_tl)"
+            unfolding Cons
+            using spmf_map_inj
+            by (simp add: spmf_map_inj')
+          also have "\<dots> = indicator {x. set x \<subseteq> {..<p} \<and> length x = k} s_tl / (real p^k)"
+            unfolding spmf_sample_uniform_list ..
+          finally have "ennreal (spmf ?lhs s) = ennreal ((indicator {x. set x \<subseteq> {..<p} \<and> length x = k} s_tl / (real p^k))) /  ennreal (real (card {..<p}))"
+            by argo
+          then have "spmf ?lhs s = (indicator {x. set x \<subseteq> {..<p} \<and> length x = k} s_tl / (real p^k)) / (real (card {..<p}))"
+            using assms(1) divide_ennreal by auto
+          also have "\<dots> = (indicator {x. set x \<subseteq> {..<p} \<and> length x = k} s_tl / (real p^(k+1)))"
+            by auto
+          finally show ?thesis .
+        qed
+
+        moreover have "spmf ?rhs s
+          = (indicator {x. set x \<subseteq> {..<p} \<and> length x = k} s_tl / (real p^(k+1)))"
+        proof -
+          have "(s_hd # s_tl) \<in> {x. set x \<subseteq> {..<p} \<and> length x = k + 1} 
+          \<longleftrightarrow> s_tl \<in> {x. set x \<subseteq> {..<p} \<and> length x = k}"
+            by (simp add: True)
+          then show ?thesis
+            unfolding spmf_sample_uniform_list Cons
+            by (metis (no_types, lifting) indicator_simps(1) indicator_simps(2))
+        qed
+        ultimately show ?thesis by presburger
+      next
+        case False
+        have "spmf ?lhs s = 0"
+      proof -
+        have "\<And>x. x<p \<longrightarrow> spmf (map_spmf ((#) x) (sample_uniform_list k p)) s = 0"
+          unfolding Cons 
+          using set_spmf_lhs spmf_eq_0_set_spmf False
+          by fastforce
+        then show ?thesis
+         using spmf_lhs by force
+      qed
+      moreover have "spmf ?rhs s = 0"
+        using spmf_rhs 
+        unfolding Cons
+        using False
+        by fastforce
+      ultimately show ?thesis by presburger
+      qed
+    qed
+  qed
+  then show ?thesis
+    using spmf_eqI by blast
 qed
 
 subsection \<open>sample distinct uniform list\<close>  
