@@ -90,9 +90,7 @@ lemma set_spmf_sample_uniform_list [simp]: "set_spmf (sample_uniform_list k n) =
 lemma "bind_spmf (spmf_of_set {X}) spmf_of_set = spmf_of_set X"
   by (simp add: spmf_of_set_singleton)
 
-
-lemma "\<forall>x. spmf A x = spmf B x \<Longrightarrow> A = B"
-  using spmf_eqI by blast
+text \<open>the two following lemmas are helping lemmas for Cons_random_list_split\<close>
 
 lemma set_spmf_lhs: "set_spmf (map_spmf ((#) x) (sample_uniform_list k p)) 
              = {xs. set (tl xs) \<subseteq> {..<p} \<and> length xs = k+1 \<and> hd xs = x}"
@@ -231,6 +229,22 @@ proof -
   qed
   then show ?thesis
     using spmf_eqI by blast
+qed
+
+corollary pretty_Cons_random_list_split: 
+  assumes "p>1"
+  shows "sample_uniform_list (k+1) p =
+    do {x \<leftarrow> sample_uniform p;
+        xs \<leftarrow> (sample_uniform_list k p);
+        return_spmf (x#xs)}"
+  (is "?lhs = ?rhs")
+proof -
+  have "?rhs = do {x \<leftarrow> sample_uniform p;
+          map_spmf ((#) x) (sample_uniform_list k p)}"
+    by (simp add: map_spmf_conv_bind_spmf)
+  then show ?thesis 
+    using Cons_random_list_split[symmetric, OF assms]
+    by presburger
 qed
 
 subsection \<open>sample distinct uniform list\<close>  

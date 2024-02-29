@@ -634,6 +634,31 @@ proof -
     unfolding game2_wo_assert_def Let_def by(simp add: bind_map_spmf o_def)
   also have "\<dots> = TRY do {
   let i = pick_not_from I;
+  nat_evals \<leftarrow> do {x \<leftarrow> sample_uniform (order G\<^sub>p);
+                   xs \<leftarrow> (sample_uniform_list max_deg (order G\<^sub>p));
+                   return_spmf (x#xs)};
+  let evals = map (of_int_mod_ring \<circ> int) nat_evals;
+  (\<alpha>, PK) \<leftarrow> Setup;
+  let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) (map (\<lambda>i. \<^bold>g ^ i) evals)) \<alpha>;
+  let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
+  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  return_spmf (hd evals = poly \<phi>' i)} ELSE return_spmf False" 
+    (* split random list up in a random point concatenated with a one element shorter random list*)
+    using pretty_Cons_random_list_split p_gr_two CARD_G\<^sub>p by force
+  also have "\<dots> = TRY do {
+  let i = pick_not_from I;
+  x \<leftarrow> sample_uniform (order G\<^sub>p);
+  xs \<leftarrow> (sample_uniform_list max_deg (order G\<^sub>p));
+  let nat_evals = (x#xs);
+  let evals = map (of_int_mod_ring \<circ> int) nat_evals;
+  (\<alpha>, PK) \<leftarrow> Setup;
+  let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) (map (\<lambda>i. \<^bold>g ^ i) evals)) \<alpha>;
+  let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
+  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  return_spmf (hd evals = poly \<phi>' i)} ELSE return_spmf False"
+    by force
+  also have "\<dots> = TRY do {
+  let i = pick_not_from I;
   a \<leftarrow> sample_uniform (order G\<^sub>p);
   nat_evals \<leftarrow> sample_uniform_list max_deg (order G\<^sub>p);
   let evals = map (of_int_mod_ring \<circ> int) (a#nat_evals);
@@ -642,8 +667,7 @@ proof -
   let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
   \<phi>' \<leftarrow> \<A> C witn_tupel;
   return_spmf (hd evals = poly \<phi>' i)} ELSE return_spmf False"
-    (*unfold sample unfiorm for list once*)
-    sorry
+    unfolding Let_def ..
   also have "\<dots> = TRY do {
   let i = pick_not_from I;
   a \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
