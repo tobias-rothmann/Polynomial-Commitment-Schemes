@@ -5,9 +5,89 @@
 \theoremstyle{definition}
 \newtheorem{definition}{Definition}[section]
 
+In this section, we introduce the notation used throughout the paper, and capture the most important preliminaries in definitions. We start with the mathematical notation and concepts used in this paper.
+
 \section{Mathematical Prelimiaries}
-In this section we introduce the notation used through out the paper, and capture the most important prerequisits in definitions. 
 
 We let $p$ and $q$ denote prime numbers if not explicitly stated otherwise. 
 Groups are written in a multiplicate manner with the  $\cdot$ operator and the abbreviation $ab$ for $a \cdot b$.
-Furthermore we use the notation $\mathbb{Z}_p$ for a finite field of prime order p (note that the integers modulo p are isomorph to a finite field of prime order p \parencite{algebra}).
+Furthermore, we use the notation $\mathbb{Z}_p$ for a finite field of prime order p (note that the integers modulo p are isomorph to any finite field of prime order p \parencite{algebra}).
+
+\begin{definition}[cyclic group]
+Let $\mathcal{G}$ be a group of prime order p. We call a group cyclic iff: $\exists g \in \mathcal{G}. \ \forall e \in \mathcal{G}. \ \exists n \in \mathbb{N}. \ e = g^n$, which is equivalent to $\mathcal{G} = \{1,g,g^2,...,g^{p-1}\}$ \parencite{algebra}.
+
+From now on we write \textbf{g} for an arbitrary but fixed generator of a respective cyclic group. 
+\end{definition}
+
+\begin{definition}[pairings]
+    Let $\mathcal{G}$ and $\mathcal{H}$ be two groups of prime order p. A pairing is a function: $\mathcal{G} \times \mathcal{G} \rightarrow \mathcal{H}$, with the following two properties:
+    \begin{itemize}
+        \item \textbf{Bilineraity:} $\forall g,h \in \mathcal{G}. \ \forall a,b \in \mathbb{Z}_p. \ e(g^a,h^b) = e(g,h)^{ab}$
+        \item \textbf{Non-degeneracy:} $\neg (\forall g,h \in \mathcal{G}. \ e(g,h)=1)$
+    \end{itemize}
+    \parencite{KZG}
+\end{definition}
+
+Now that we have introduced the mathematical preliminaries we will tend to the cryptographic preliminaries. 
+
+\section{Cryptographic Prelimiaries}
+In this section, we will introduce the security notions that we use in this paper and the concepts behind them.
+
+We start with the definition of a negligable and a poly-bounded function from which we will define our adversarial model, against which we will prove security in this paper.
+
+\begin{definition}
+    Let $f$ be a function: $\mathbb{Z}_{\ge 0} \rightarrow \mathbb{R}$. We call $f$ negligable iff:
+    $\forall c \in \mathbb{R}_{> 0}. \ \exists n_0. \ \forall n \ge n_0. \ \vert f(n)\vert < 1/n^c$
+    
+    \parencite{boneh_shoup}
+\end{definition}
+Boneh and Shoup state "Intuitively, a negligible function $f:\mathbb{Z}_{\ge 0} \rightarrow \mathbb{R}$ is one that not only tends to zero as $n \rightarrow \infty$, but
+does so faster than the inverse of any polynomial." \parencite{boneh_shoup}
+
+\begin{definition}
+    Let $f$ be a function: $\mathbb{Z}_{\ge 0} \rightarrow \mathbb{R}$. We call $f$ poly-bounded iff:
+    $\exists c,d \in \mathbb{R}_{>0}. \ \forall n \in \mathbb{N}_0. \ \vert f(n)\vert \le n^c+d$
+
+    \parencite{boneh_shoup}
+\end{definition}
+
+
+Note, we will define (probabilistic) algorithms for some security parameter $\kappa$ and bound their performance using the notion of negligibility and poly-boundedness with respect to $\kappa$.
+
+We capture the security of our cryptograhpic-system in games against a (efficient) Adversary. Typically, the Adversary has to break a security property in those games (e.g. decrypt a cyphertext). However, before we formally define games, we define what an Adversary is.
+
+\begin{definition}[efficient Adversary]
+    \label{Adversary}
+An Adversary is a probabilistic algorithm, that takes a security parameter $\kappa$ as its first argument. 
+We call an Adversary efficient if its running time is poly-bounded in $\kappa$ except for negligible probability (with respect to $\kappa$)
+\parencite{boneh_shoup}.
+\end{definition}
+
+Besides this definition, we will use a stronger definition of Adversaries, namely that of the Adversary in the Algebraic Group Model (AGM) \parencite{AGM}.
+
+\begin{definition}[AGM Adversary]
+    Let $\mathbb{Z}_p$ be a finite field of prime order p and $\mathbb{G}$ a cyclic group of prime order p. An Adversary in the AGM is an Adversary as in definition \ref{Adversary}, that furthermore outputs a vector $\vec{z} \in \mathbb{Z}_p^t$ for every element $e$ from $\mathbb{G}$ in its output, such that $e = \prod_{1}^{t} g_i^{z_i}$, where $g\in \mathbb{G}^t$ is the vector of all elements of $\mathbb{G}$ that the Adversary has seen so far
+    \parencite{AGM}. 
+
+    The efficiency definition is analogue to definition \ref*{Adversary}
+\end{definition}
+
+Now that we have defined Adversary models, we define games. 
+
+\begin{definition}[games]
+Games are probabilistic algorithms with access to an Adversary and output a boolean value \parencite{boneh_shoup}. Formally we write games as a sequence of functions and Adversary calls \parencite{boneh_shoup}.
+\end{definition}
+
+Notatioinwise we write $`\leftarrow`$ followed by a set for uniform sampling from that set, $`\leftarrow`$ followed by a probability mass function (e.g. an Adversary result) to sample from that function space, and $`=`$ for an assignment of a deterministic value. Moreover, we write $`:`$ followed by a condition to assure that the condition has to hold at this point. To give an example, think of the following game as "sampling a uniformly random $a$ from $\mathbb{Z}_p$, get the probabilistic result from $\mathcal{A}$ as $b$, computing $c$ as $F$ applied to $a$ and $b$, and assert that $P$ holds for $c$":
+\par\noindent\rule{\textwidth}{1pt}
+\textbf{Example Game}
+\par\noindent\rule{\textwidth}{0.5pt}
+\begin{equation*}
+    \begin{split}
+        a & \leftarrow \mathbb{Z}_p, \\
+        b & \leftarrow \mathcal{A}, \\
+        c & = F\ a\ b, \\
+        : &\ P\ c
+    \end{split}
+\end{equation*}
+\par\noindent\rule{\textwidth}{1pt}

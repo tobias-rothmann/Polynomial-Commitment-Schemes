@@ -304,3 +304,10 @@ TSWLatexianTemp*
 #*Notes.bib
 
 *.DS_Store
+*.github/
+*.gitlab-ci.yml
+*.latexmkrc
+THEMES.md
+build/
+crop-logos.cmd
+crop-logos.sh
