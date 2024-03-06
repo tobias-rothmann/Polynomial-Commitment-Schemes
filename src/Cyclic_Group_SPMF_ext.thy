@@ -1,7 +1,7 @@
 theory Cyclic_Group_SPMF_ext
 
 imports CryptHOL.Cyclic_Group_SPMF "HOL-Computational_Algebra.Polynomial" 
-  Berlekamp_Zassenhaus.Finite_Field
+  Berlekamp_Zassenhaus.Finite_Field Polynomial_Interpolation.Lagrange_Interpolation
 
 begin
 
@@ -11,11 +11,6 @@ subsection \<open>sample_uniform mod ring\<close>
 
 definition sample_uniform_modr :: "'a mod_ring spmf" where
   "sample_uniform_modr = spmf_of_set UNIV"
-
-subsection \<open>sample uniform polynomial\<close>
-
-definition sample_uniform_poly :: "nat \<Rightarrow> 'a::zero poly spmf" 
-  where "sample_uniform_poly t = spmf_of_set {p. degree p = t}"
 
 subsection \<open>sample uniform set\<close>
 
@@ -246,6 +241,57 @@ proof -
     using Cons_random_list_split[symmetric, OF assms]
     by presburger
 qed
+
+subsection \<open>sample uniform polynomial\<close>
+
+definition sample_uniform_poly :: "nat \<Rightarrow> 'a::zero poly spmf" 
+  where "sample_uniform_poly t = spmf_of_set {p. degree p = t}"
+
+lemma sample_uniform_evals_is_sample_poly:
+  assumes "distinct I"
+  shows "(sample_uniform_poly t::'e mod_ring poly spmf) = do {
+      evals::('e::prime_card) mod_ring list \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int)) (sample_uniform_list (t+1) (CARD ('e)));
+      return_spmf (lagrange_interpolation_poly (zip I evals))}"
+  (is "?lhs = ?rhs")
+proof -
+  have "?rhs = do {
+      evals \<leftarrow> spmf_of_set {x::'e mod_ring list. length x = t + 1};
+      return_spmf (lagrange_interpolation_poly (zip I evals))}"
+  proof - 
+    have "map_spmf (map (of_int_mod_ring \<circ> int)) (sample_uniform_list (t + 1) CARD('e))
+    = spmf_of_set {x::'e mod_ring list. length x = t + 1}"
+    (is "?map = ?set")
+    proof (rule spmf_eqI)
+      fix i :: "'e mod_ring list"
+      obtain nat_i where "i = map (of_int_mod_ring \<circ> int) nat_i" sorry
+      show "spmf ?map i = spmf ?set i"
+        unfolding sample_uniform_list_def
+        
+        sorry
+    qed
+    then show ?thesis by metis
+  qed
+  also have "\<dots> =  do {
+      evals \<leftarrow> spmf_of_set {x::'e mod_ring list. length x = t + 1};
+      let \<phi> = lagrange_interpolation_poly (zip I evals);
+      return_spmf \<phi>}" unfolding Let_def ..
+  also have "\<dots> = map_spmf (\<lambda>evals. lagrange_interpolation_poly (zip I evals)) 
+                         (spmf_of_set {x::'e mod_ring list. length x = t + 1})"
+    by (simp add: map_spmf_conv_bind_spmf)
+  also have "\<dots> = spmf_of_set {}"
+    (is "?map = ?set")
+  proof (rule spmf_eqI)
+    fix i 
+    show "spmf ?map i = spmf ?set i"
+    
+      sorry
+  qed
+    
+  show ?thesis
+    sorry
+qed
+
+
 
 subsection \<open>sample distinct uniform list\<close>  
 

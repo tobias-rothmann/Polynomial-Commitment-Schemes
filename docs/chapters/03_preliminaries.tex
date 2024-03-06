@@ -10,11 +10,11 @@ In this section, we introduce the notation used throughout the paper, and captur
 \section{Mathematical Prelimiaries}
 
 We let $p$ and $q$ denote prime numbers if not explicitly stated otherwise. 
-Groups are written in a multiplicate manner with the  $\cdot$ operator and the abbreviation $ab$ for $a \cdot b$.
-Furthermore, we use the notation $\mathbb{Z}_p$ for a finite field of prime order p (note that the integers modulo p are isomorph to any finite field of prime order p \parencite{algebra}).
+Groups are written in a multiplicate manner with the  $\cdot$ operator and the abbreviation $ab$ for $a \cdot b$. We let $g$ and $h$ denote group elements if not explicitly stated otherwise.
+Furthermore, we use the notation $\mathbb{F}_p$ for a finite field of prime order p (note that the integers modulo p are isomorph to any finite field of prime order p \parencite{algebra}) with the conventional operators `+` and `$\cdot$` for addition and multiplication. We let $a$,$b$, and $c$ denote finite field elements if not explicitly stated otherwise.
 
 \begin{definition}[cyclic group]
-Let $\mathcal{G}$ be a group of prime order p. We call a group cyclic iff: $\exists g \in \mathcal{G}. \ \forall e \in \mathcal{G}. \ \exists n \in \mathbb{N}. \ e = g^n$, which is equivalent to $\mathcal{G} = \{1,g,g^2,...,g^{p-1}\}$ \parencite{algebra}.
+Let $\mathcal{G}$ be a group of prime order p. We call a group cyclic iff: $\exists g \in \mathcal{G}. \ \forall e \in \mathcal{G}. \ \exists n \in \mathbb{N}. \ e = g^n$, which is equivalent to $\mathcal{G} = \{1,g,g^2,...,g^{p-1}\}$ \parencite{algebra}. If such a $g$ exists, we call it a generator.
 
 From now on we write \textbf{g} for an arbitrary but fixed generator of a respective cyclic group. 
 \end{definition}
@@ -22,11 +22,13 @@ From now on we write \textbf{g} for an arbitrary but fixed generator of a respec
 \begin{definition}[pairings]
     Let $\mathcal{G}$ and $\mathcal{H}$ be two groups of prime order p. A pairing is a function: $\mathcal{G} \times \mathcal{G} \rightarrow \mathcal{H}$, with the following two properties:
     \begin{itemize}
-        \item \textbf{Bilineraity:} $\forall g,h \in \mathcal{G}. \ \forall a,b \in \mathbb{Z}_p. \ e(g^a,h^b) = e(g,h)^{ab}$
+        \item \textbf{Bilineraity:} $\forall g,h \in \mathcal{G}. \ \forall a,b \in \mathbb{F}_p. \ e(g^a,h^b) = e(g,h)^{ab}$
         \item \textbf{Non-degeneracy:} $\neg (\forall g,h \in \mathcal{G}. \ e(g,h)=1)$
     \end{itemize}
     \parencite{KZG}
 \end{definition}
+
+From now on let $e$ denote a pairing function if not explicitly stated otherwise.
 
 Now that we have introduced the mathematical preliminaries we will tend to the cryptographic preliminaries. 
 
@@ -36,25 +38,29 @@ In this section, we will introduce the security notions that we use in this pape
 We start with the definition of a negligable and a poly-bounded function from which we will define our adversarial model, against which we will prove security in this paper.
 
 \begin{definition}
-    Let $f$ be a function: $\mathbb{Z}_{\ge 0} \rightarrow \mathbb{R}$. We call $f$ negligable iff:
-    $\forall c \in \mathbb{R}_{> 0}. \ \exists n_0. \ \forall n \ge n_0. \ \vert f(n)\vert < 1/n^c$
-    
+    Let $f: \mathbb{Z}_{\ge 0} \rightarrow \mathbb{R}$ be a function. We call $f$ negligable iff:
+    \begin{equation*}
+        \forall c \in \mathbb{R}_{> 0}. \ \exists n_0. \ \forall n \ge n_0. \ \vert f(n)\vert < 1/n^c
+    \end{equation*}
     \parencite{boneh_shoup}
 \end{definition}
-Boneh and Shoup state "Intuitively, a negligible function $f:\mathbb{Z}_{\ge 0} \rightarrow \mathbb{R}$ is one that not only tends to zero as $n \rightarrow \infty$, but
+Boneh and Shoup state "Intuitively, a negligible function $f:\mathbb{F}_{\ge 0} \rightarrow \mathbb{R}$ is one that not only tends to zero as $n \rightarrow \infty$, but
 does so faster than the inverse of any polynomial." \parencite{boneh_shoup}
 
-\begin{definition}
-    Let $f$ be a function: $\mathbb{Z}_{\ge 0} \rightarrow \mathbb{R}$. We call $f$ poly-bounded iff:
-    $\exists c,d \in \mathbb{R}_{>0}. \ \forall n \in \mathbb{N}_0. \ \vert f(n)\vert \le n^c+d$
+From now on let $\epsilon$ denote a negligible function if not explicitly stated otherwise. 
 
+\begin{definition}
+    Let $f: \mathbb{Z}_{\ge 0} \rightarrow \mathbb{R}$ be a function. We call $f$ poly-bounded iff:
+    \begin{equation*}
+        \exists c,d \in \mathbb{R}_{>0}. \ \forall n \in \mathbb{N}_0. \ \vert f(n)\vert \le n^c+d
+    \end{equation*}
     \parencite{boneh_shoup}
 \end{definition}
 
 
 Note, we will define (probabilistic) algorithms for some security parameter $\kappa$ and bound their performance using the notion of negligibility and poly-boundedness with respect to $\kappa$.
 
-We capture the security of our cryptograhpic-system in games against a (efficient) Adversary. Typically, the Adversary has to break a security property in those games (e.g. decrypt a cyphertext). However, before we formally define games, we define what an Adversary is.
+We capture the security of our cryptographic system in games against an (efficient) adversary. Typically, the adversary has to break a security property in those games (e.g. decrypt a cyphertext). However, before we formally define games, we define what an Adversary is.
 
 \begin{definition}[efficient Adversary]
     \label{Adversary}
@@ -66,28 +72,118 @@ We call an Adversary efficient if its running time is poly-bounded in $\kappa$ e
 Besides this definition, we will use a stronger definition of Adversaries, namely that of the Adversary in the Algebraic Group Model (AGM) \parencite{AGM}.
 
 \begin{definition}[AGM Adversary]
-    Let $\mathbb{Z}_p$ be a finite field of prime order p and $\mathbb{G}$ a cyclic group of prime order p. An Adversary in the AGM is an Adversary as in definition \ref{Adversary}, that furthermore outputs a vector $\vec{z} \in \mathbb{Z}_p^t$ for every element $e$ from $\mathbb{G}$ in its output, such that $e = \prod_{1}^{t} g_i^{z_i}$, where $g\in \mathbb{G}^t$ is the vector of all elements of $\mathbb{G}$ that the Adversary has seen so far
+    Let $\mathbb{F}_p$ be a finite field of prime order p and $\mathbb{G}$ a cyclic group of prime order p. An adversary in the AGM is an adversary as in definition \ref{Adversary}, that furthermore outputs a vector $\vec{z} \in \mathbb{F}_p^t$ for every element $e$ from $\mathbb{G}$ in its output, such that $e = \prod_{1}^{t} g_i^{z_i}$, where $g\in \mathbb{G}^t$ is the vector of all elements of $\mathbb{G}$ that the Adversary has seen so far
     \parencite{AGM}. 
 
     The efficiency definition is analogue to definition \ref*{Adversary}
 \end{definition}
 
-Now that we have defined Adversary models, we define games. 
+Now that we have defined adversary models, we define games. 
 
 \begin{definition}[games]
 Games are probabilistic algorithms with access to an Adversary and output a boolean value \parencite{boneh_shoup}. Formally we write games as a sequence of functions and Adversary calls \parencite{boneh_shoup}.
 \end{definition}
 
-Notatioinwise we write $`\leftarrow`$ followed by a set for uniform sampling from that set, $`\leftarrow`$ followed by a probability mass function (e.g. an Adversary result) to sample from that function space, and $`=`$ for an assignment of a deterministic value. Moreover, we write $`:`$ followed by a condition to assure that the condition has to hold at this point. To give an example, think of the following game as "sampling a uniformly random $a$ from $\mathbb{Z}_p$, get the probabilistic result from $\mathcal{A}$ as $b$, computing $c$ as $F$ applied to $a$ and $b$, and assert that $P$ holds for $c$":
-\par\noindent\rule{\textwidth}{1pt}
-\textbf{Example Game}
-\par\noindent\rule{\textwidth}{0.5pt}
+Notatioinwise we write $`\leftarrow`$ followed by a set for uniform sampling from that set, $`\leftarrow`$ followed by a probability mass function (e.g. an Adversary result) to sample from that function space, and $`=`$ for an assignment of a deterministic value. Moreover, we write $`:`$ followed by a condition to assure that the condition has to hold at this point. To give an example, think of the following game as "sampling a uniformly random $a$ from $\mathbb{F}_p$, get the probabilistic result from $\mathcal{A}$ as $b$, computing $c$ as $F$ applied to $a$ and $b$, and assert that $P$ holds for $c$":
 \begin{equation*}
-    \begin{split}
-        a & \leftarrow \mathbb{Z}_p, \\
+    \left(
+    \begin{aligned}
+        a & \leftarrow \mathbb{F}_p, \\
         b & \leftarrow \mathcal{A}, \\
-        c & = F\ a\ b, \\
-        : &\ P\ c
-    \end{split}
+        c & = F(a,b) \\
+        & : \ P(c)
+    \end{aligned}
+    \right)
 \end{equation*}
-\par\noindent\rule{\textwidth}{1pt}
+
+Next, we define game-based proofs, the method which we will use to formally prove security.
+
+\begin{definition}[game-based proofs]
+    Game-based proofs are a sequence of game-hops that bound the probability of one game to another \parencite{gamesB&R,shoup_games}.
+
+    The two types of game hops we will use in our proofs are:
+    \begin{itemize}
+        \item \textbf{game hop as a bridging step:} 
+        
+        A bridging step alters the function definitions, such that the game probability does not change \parencite{shoup_games}.
+        \item \textbf{game hop based on a failure event:}
+        
+        In a game hop based on a failure event, two games are equal except if a specific failure event occurs \parencite{shoup_games}. The failure event should have a negligible probability for the game-based proof to hold.
+    \end{itemize}
+\end{definition}
+
+Typically we will define a game for a certain security definition applied to our cryptographic protocol and reduce that game using game hops to a hardness assumption game, thus showing that breaking the security definition for our cryptographic protocol is at least as hard as breaking the hardness assumption \parencite{boneh_shoup}. Hence we need to define hardness and accordingly hardness assumptions:
+
+\begin{definition}[hardness]
+    Given a computational problem P, we say P is hard if and only if no efficient adversary exists, that solves P with non-negligible probability \parencite{ac_handbook}. 
+\end{definition}
+
+\begin{definition}[hardness assumptions]
+Hardness assumptions are computational problems that are generally believed to be hard \parencite{boneh_shoup,ac_handbook}.
+\end{definition}
+
+Within cryptography, there exist several hardness assumptions, we will cover the ones used in this paper (conveniently the KZG paper \parencite{KZG} already defines them) and formally define according games. 
+
+From now on let `$\in_{\mathcal{R}}$` denote uniform sampling from the respective set. 
+
+\begin{definition}[discrete logarithm (DL)]
+    Let $\mathcal{G}$ be a cyclic group with generator \textbf{g}.
+    For $a \in_{\mathcal{R}} \mathbb{F}_p$, holds for every Adversary $\mathcal{A}: \text{Pr}[a = \mathcal{A}(\textbf{g}^a)] = \epsilon$ \parencite{KZG}.
+
+    Formally we define the DL game as: 
+    \begin{equation*}
+        \left(
+            \begin{aligned}
+                a & \leftarrow \mathbb{F}_p \\
+                a' & \leftarrow \mathcal{A}(\textbf{g}^a) \\
+                & : a = a'
+            \end{aligned}
+        \right)
+    \end{equation*}
+\end{definition}
+
+\begin{definition}[t-Strong Diffie Hellmann (t-SDH)]
+    Let $\mathcal{G}$ be a cyclic group with generator \textbf{g}.
+    Let $t \in \mathbb{N}$ be fixed.  For $a \in_{\mathcal{R}} \mathbb{F}_p$, holds for every Adversary $\mathcal{A}:$
+    \begin{equation*}
+        \text{Pr}\big[
+            (c,\textbf{g}^{\frac{1}{a+c}}) = \mathcal{A}([\textbf{g},\textbf{g}^a,\textbf{g}^{a^2},\dots, \textbf{g}^{a^{t-1}}])
+        \big] = \epsilon
+    \end{equation*}
+    for all $c \in \mathbb{F}_p\backslash \{a\}$ \parencite{KZG}.
+    
+    Formally we define the t-SDH game as: 
+    \begin{equation*}
+        \left(
+            \begin{aligned}
+                a & \leftarrow \mathbb{F}_p \\
+                (c,g') & \leftarrow \mathcal{A}([\textbf{g},\textbf{g}^a,\textbf{g}^{a^2},\dots, \textbf{g}^{a^{t-1}}]) \\
+                & : \textbf{g}^{\frac{1}{a+c}} = g'
+            \end{aligned}
+        \right)
+    \end{equation*}
+\end{definition}
+
+The following definition is analogous to the previous one, except that the result is passed through a pairing function. Nevertheless, we define the property formally for completeness.
+
+\begin{definition}[t-Bilinear Strong Diffie Hellmann (t-BSDH)]
+    Let $\mathcal{G}$ and $\mathcal{H}$ be cyclic groups with generators \textbf{g} and \textbf{h}.
+    Let $t \in \mathbb{N}$ be fixed and $e: \mathcal{G} \times \mathcal{G} \rightarrow \mathcal{H}$ be a pairing function.  For $a \in_{\mathcal{R}} \mathbb{F}_p$, holds for every Adversary $\mathcal{A}:$
+    \begin{equation*}
+        \text{Pr}\big[
+            (c,e(\textbf{g}, \textbf{g} )^{\frac{1}{a+c}}) = \mathcal{A}([\textbf{g},\textbf{g}^a,\textbf{g}^{a^2},\dots, \textbf{g}^{a^{t-1}}])
+        \big] = \epsilon
+    \end{equation*}
+    for all $c \in \mathbb{F}_p\backslash \{a\}$ \parencite{KZG}.
+    
+    Formally we define the t-SDH game as: 
+    \begin{equation*}
+        \left(
+            \begin{aligned}
+                a & \leftarrow \mathbb{F}_p \\
+                (c,g') & \leftarrow \mathcal{A}([\textbf{g},\textbf{g}^a,\textbf{g}^{a^2},\dots, \textbf{g}^{a^{t-1}}]) \\
+                & : e(\textbf{g}, \textbf{g})^{\frac{1}{a+c}} = g'
+            \end{aligned}
+        \right)
+    \end{equation*}
+\end{definition}
