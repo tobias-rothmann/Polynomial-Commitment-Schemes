@@ -187,3 +187,93 @@ The following definition is analogous to the previous one, except that the resul
         \right)
     \end{equation*}
 \end{definition}
+
+Now that we have introduced the necessary preliminaries, notions, and definitions for proving security for cryptographic protocols, we tend to the type of protocols we formalize in this work.
+
+\begin{definition}[Commitment Schemes (CS)]
+    \label{CS}
+    A Commitment Scheme is a cryptographic protocol between two parties, we call the committer and the verifier, and consists of three functions:
+    \begin{itemize}
+        \item \textbf{KeyGen} generates a key $ck$ for the commiter and a key $vk$ for the verifier.
+        \item \textbf{Commit}
+        takes the commiter key $ck$, a message $m$ and computes a commitment $C$ for $m$ and a opening value $ov$. 
+        \item \textbf{Verify} 
+        takes the verifier key $vk$, a commitment $C$, an opening value $ov$, a message $m$ and decides whether $C$ is a valid commitment to $m$ using $vk$ and $ov$.
+    \end{itemize}
+    \parencite{thalerbook}
+
+    The protocol assumes that KeyGen was used to distribute the keys $ck$ and $vk$ accordingly to the committer and verifier, such that no party can learn the keys of the other party if they are to remain secret. 
+
+    Once the keys are correctly distributed, the protocol follows three steps: 
+    \begin{enumerate}
+        \item the commiter uses their keys $ck$ to commit to a arbitrary message $m$, invoking Commit$(ck,m)$ from which they obtain a commitment $C$ to $m$ and an opening value $ov$ for the commitment. The commiter stores $ov$ and sends $C$ to the verifier.
+        \item at a later point in time, the committer might decide to open the commitment $C$ they sent to the verifier. To open the commitment the committer sends the opening value $ov$ and the message $m$ to the verifier. 
+        \item the verifier invokes Verify on the values it received from the committer ($C,m$ and $ov$) to decide whether $m$ is the message the commitment $C$ was computed for. 
+    \end{enumerate}
+    Once the keys are set up, the protocol may run arbitrary times and in parallel (i.e. the committer can commit to arbitrary many messages and reveal them independently).
+    % TODO Grafik für CS hier
+\end{definition}
+
+In our formalization, we work with a specific type of commitment scheme, namely Polynomial Commitment Schemes (PCS): 
+
+\begin{definition}[Polynomial Commitment Scheme (PCS)]
+    A Polynomial Commitment Scheme is a Commitment Scheme as defined in \ref*{CS}, with its message space restricted to polynomials (i.e. messages are polynomials). 
+    
+    Furthermore, a PCS supports two more functions to allow point-wise (i.e. partly) opening a commitment to a polynomial: 
+    \begin{itemize}
+        \item \textbf{CreateWitness}
+        takes the commiter key $ck$, a polynomial $\phi$, a value $i$ and computes a witness $w$ for the point $(i, \phi(i))$. 
+        \item \textbf{VerifyEval:} 
+        takes the verifier keys $vk$, a commitment $C$, a point $(i, \phi(i))$, a witness $w$ and checks that the point is consistent with the commitment (i.e. the point is part of the polynomial that $C$ is a commitment to) using $w$ and $vk$.
+    \end{itemize}
+\end{definition}
+
+Note that we omit the verifier keys in the following four definitions for readability, but generally assume the Adversaries to have aceess to the verifier keys. 
+
+We formally define four security properties for a PCS:
+
+\begin{definition}[Polynomial Binding]
+    We say a PCS is polynomial binding if and only if the probability of any efficient adversary finding a commitment value $C$, opening values $ov$ and $ov'$ and polynomials $\phi$ and $\phi'$, such that:
+    \begin{equation*}
+        \text{Pr}\big[
+            \text{Verify}(C,ov,\phi) \land \text{Verify}(C,ov',\phi')
+        \big]
+        = \epsilon
+    \end{equation*}
+    \parencite{KZG}
+\end{definition}
+
+\begin{definition}[Evaluation Binding]
+    We say a PCS is evaluation binding if and only if the probability of any efficient adversary finding a commitment value $C$, two witnesses $w$ and $w'$ and two evaluations $\phi(i)$ and $\phi(i)'$ for any $i$, such that:
+    \begin{equation*}
+        \text{Pr}\big[
+            \text{VerifyEval}(C,(i,\phi(i)), w) \land \text{VerifyEval}(C,(i,\phi(i)'), w')
+        \big]
+        = \epsilon
+    \end{equation*}
+    \parencite{KZG}
+\end{definition}
+
+\begin{definition}[Knowledge Soundness (AGM)]
+    We say a PCS is knowledge sound in the AGM if and only if there exists an efficient extractor algorithm $E$ such that for every efficient Adversary $\mathcal{A}=(\mathcal{A}_1, \mathcal{A}_2)$ in the AGM the probability of winning the following game is negligible: 
+    \begin{equation*}
+        \left(
+            \begin{aligned}
+                (ck,vk) & \leftarrow \text{KeyGen} \\
+                (C,\vec{v}, \sigma) & \leftarrow \mathcal{A}_1(ck)\\
+                p & \leftarrow E(C,\vec{v}) \\
+                (i, \phi(i), w) &\leftarrow \mathcal{A}_2(\sigma)\\
+                & : \phi(i) \ne p(i) \land \\
+                & \hspace{3.5mm} \text{VerifyEval}(vk, C,(i,\phi(i)),w)
+            \end{aligned}
+        \right)
+    \end{equation*}
+    \parencite{plonk}
+\end{definition}
+
+\begin{definition}[hiding]
+    We say a PCS is hiding if and only if the probability of any efficient adversary finding a to them unknown point of the polynomial $\phi$ from the commitment $C:=\text{Commit}(ck,\phi)$ and deg$(\phi)-1$ points with witness  $(i,\phi(i),\text{CreateWitness}(ck, \phi, i))$ is negligible.
+    \parencite{KZG}
+\end{definition}
+
+\section{Isabelle/HOL}
