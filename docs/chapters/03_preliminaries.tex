@@ -228,7 +228,7 @@ In our formalization, we work with a specific type of commitment scheme, namely 
     \end{itemize}
 \end{definition}
 
-Note that we omit the verifier keys in the following four definitions for readability, but generally assume the Adversaries to have aceess to the verifier keys. 
+Note that we omit the verifier keys in the following four definitions for readability, but generally assume the Adversaries to have access to the verifier keys. 
 
 We formally define four security properties for a PCS:
 
@@ -272,8 +272,43 @@ We formally define four security properties for a PCS:
 \end{definition}
 
 \begin{definition}[hiding]
-    We say a PCS is hiding if and only if the probability of any efficient adversary finding a to them unknown point of the polynomial $\phi$ from the commitment $C:=\text{Commit}(ck,\phi)$ and deg$(\phi)-1$ points with witness  $(i,\phi(i),\text{CreateWitness}(ck, \phi, i))$ is negligible.
+    We say a PCS is hiding if and only if the probability of any efficient adversary finding an, to them, unknown point of the polynomial $\phi$ from the commitment $C:=\text{Commit}(ck,\phi)$ and deg$(\phi)-1$ points with witness  $(i,\phi(i),\text{CreateWitness}(ck, \phi, i))$ is negligible.
     \parencite{KZG}
 \end{definition}
 
 \section{Isabelle/HOL}
+Now that we have covered the theoretical preliminaries, we introduce Isabelle/HOL\footnote{https://isabelle.in.tum.de/}, the interactive theorem prover we use to formalize our proofs. 
+Note that we will use the abbreviation \textit{Isabelle} to refer to \textit{Isabelle/HOL} from now on. 
+
+Isabelle is an interactive theorem prover for higher-order logic (HOL) that supports a minimal functional programming language \parencite{isabelle_manual}, as well as a large set of formalizations of mathematical areas such as Algebra and Analysis. The most essential formalizations are shipped with Isabelle in the \textit{HOL-library}, besides that there exists a large database of formalizations, the \textit{Archive of Formal Proofs (AFP)}\footnote{https://www.isa-afp.org}. We will use the finite field definition as well as the factorization algorithm for polynomials over finite fields from the Berlekamp-Zassenhaus\parencite{Berlekamp_Zassenhaus-AFP} AFP entry. Furthermore, we use the Lagrange Polynomial Interpolation algorithm from the AFP entry \textit{Polynomial Interpolation}\parencite{Polynomial_Interpolation-AFP}.
+Apart from that, we use another AFP entry that is central to our proofs, the CryptHOL framework\parencite{CryptHOL-AFP}:
+
+\subsection{CryptHOL}
+CryptHOL is a framework for game-based proofs in Isabelle \parencite{CryptHOL_game_based}. It supports games in a monadic notation over discrete sub-probability distributions. We use sub-probability mass functions (spmfs) in games to define the result of the game, the discrete sub-probability distribution (dspd), that is the sum of the spmfs applied to all possible elementary events. The notation is drawn from Haskell's do-notation, to give an example game
+in the correct syntax:
+\begin{lstlisting}[language=isabelle]
+    do {
+        x $\leftarrow$ sample_uniform S;
+        f x
+    }
+\end{lstlisting}
+
+The \textit{do \{\dots\}} block captures the monad. Using $\leftarrow$, which stands for the monadic binding operation, a (uniformly random) elementary event (i.e. an element of S) is bound to x. The result is a dspd, the spmf f applied to every element from S.
+
+Additionally, since we are dealing with \textit{sub}-probability mass functions, 
+there exists an unassigned probability mass (e.g. if the spmf is undefined for some event). 
+In CryptHOL, the unassigned probability mass stands for an error in the game and can be handled in a \textit{TRY ELSE} block (i.e. TRY A ELSE B, captures semantically 'try to return A if A is an error, return B'). 
+Introducing errors allows us to assert statements, specifically e.g. that 
+the messages returned by the adversary are wellformed.
+To give an example in Isabelle's notation: 
+\begin{lstlisting}[language=isabelle]
+    TRY do {
+        x $\leftarrow$ sample_uniform S;
+        y $\leftarrow \mathcal{A}$ x;
+        _::unit $\leftarrow$ assert_spmf(valid_msg y);
+        return_spmf y
+    } ELSE (return_spmf 0)
+\end{lstlisting}
+As in the first game, an elementary event of S is bound to x. The Adversary $\mathcal{A}$, which itself is a spmf, applied to x, is bound to y (which is a dspd). However, this time, y is not an immediate result, instead, we use an assert to check that y, the result from the adversary, is valid. The assert\_spmf results in an unassigned probability mass if and only if the statement passed to it is false, otherwise it will result in unit probability mass. If the result is an unassigned probability mass, this will, monad-typically, propagate through to the monad's result, which will trigger the ELSE branch, which in this example, results in the probability distribution with only 0 (i.e. Pr$[i=0]=1$). 
+If the result of the assert\_spmf is a unit probability mass, the result will be neglected in the remaining part of the monad, in our example, this would mean that 'return\_spmf y' would be the result of the game, which is the result of the Adversary applied to x (note for arbitrary $\mathcal{A}$ and x 
+\lstinline[columns=fixed]{x $\leftarrow \mathcal{A}$; return_spmf x} is equivalent to simply \lstinline[columns=fixed]{A} in a monad).
