@@ -28,7 +28,7 @@ They are shown via game-based proofs, see the [CryptHOL tutorial](https://eprint
 #### Proven.
 
 ### Hiding
-#### In Progress..
+#### Proven.
 
 ### Knowledge Soundness in the Algebraic Group Model (AGM)
 Though this property is not explicitly stated in the original paper, it is commonly referred to and needed for zk-SNARK protocols, such as PLONK and Sonic.
