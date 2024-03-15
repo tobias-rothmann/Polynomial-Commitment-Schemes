@@ -1,3 +1,5 @@
 \chapter{\abstractname}
 
 %TODO: Abstract
+We formalize the polynomial commitment scheme by Kate, Zaverucha, and Goldberg (KZG) in the interactive theorem prover Isabelle/HOL, paving the way for formalizations of modern cryptography protocols, based on polynomial commitment schemes, such as SNARKs. This is the first formalization of any polynomial commitment scheme, to our knowledge. We formalize the commitment scheme typical security properties binding, for the KZG specifically \textit{polynomial binding} and \textit{evaluation binding}, and \textit{hiding} oriented on the KZG paper, as well as the additional property of \textit{knowledge soundness}, that is commonly required for SNARK constructions. Furthermore, we extend our formalization to a batched version of the KZG with all security properties, namely \textit{polynomial binding, evaluation binding, hiding} and \textit{knowledge soundness}.
+We provide our proofs in a game-based manner instead of a reduction-style argument to further enhance trust in their security.

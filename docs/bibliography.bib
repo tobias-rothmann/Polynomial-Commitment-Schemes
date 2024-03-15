@@ -124,6 +124,33 @@
       url = {https://eprint.iacr.org/2019/953}
 }
 
+@misc{sonic,
+      author = {Mary Maller and Sean Bowe and Markulf Kohlweiss and Sarah Meiklejohn},
+      title = {Sonic: Zero-Knowledge SNARKs from Linear-Size Universal and Updateable Structured Reference Strings},
+      howpublished = {Cryptology ePrint Archive, Paper 2019/099},
+      year = {2019},
+      note = {\url{https://eprint.iacr.org/2019/099}},
+      url = {https://eprint.iacr.org/2019/099}
+}
+
+@misc{marlin,
+      author = {Alessandro Chiesa and Yuncong Hu and Mary Maller and Pratyush Mishra and Psi Vesely and Nicholas Ward},
+      title = {Marlin: Preprocessing zkSNARKs with Universal and Updatable SRS},
+      howpublished = {Cryptology ePrint Archive, Paper 2019/1047},
+      year = {2019},
+      note = {\url{https://eprint.iacr.org/2019/1047}},
+      url = {https://eprint.iacr.org/2019/1047}
+}
+
+@misc{nova,
+      author = {Abhiram Kothapalli and Srinath Setty and Ioanna Tzialla},
+      title = {Nova: Recursive Zero-Knowledge Arguments from Folding Schemes},
+      howpublished = {Cryptology ePrint Archive, Paper 2021/370},
+      year = {2021},
+      note = {\url{https://eprint.iacr.org/2021/370}},
+      url = {https://eprint.iacr.org/2021/370}
+}
+
 @misc{CryptHOL_game_based,
       author = {David A.  Basin and Andreas Lochbihler and S.  Reza Sefidgar},
       title = {CryptHOL: Game-based Proofs in Higher-order Logic},
@@ -133,4 +160,110 @@
       url = {https://eprint.iacr.org/2017/753}
 }
 
+@misc{game_based_coq,
+      author = {David Nowak},
+      title = {A Framework for Game-Based Security Proofs},
+      howpublished = {Cryptology ePrint Archive, Paper 2007/199},
+      year = {2007},
+      note = {\url{https://eprint.iacr.org/2007/199}},
+      url = {https://eprint.iacr.org/2007/199}
+}
 
+@article{crypto_coq,
+author = {Barthe, Gilles and Gr\'{e}goire, Benjamin and Zanella B\'{e}guelin, Santiago},
+title = {Formal certification of code-based cryptographic proofs},
+year = {2009},
+issue_date = {January 2009},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {44},
+number = {1},
+issn = {0362-1340},
+url = {https://doi.org/10.1145/1594834.1480894},
+doi = {10.1145/1594834.1480894},
+abstract = {As cryptographic proofs have become essentially unverifiable, cryptographers have argued in favor of developing techniques that help tame the complexity of their proofs. Game-based techniques provide a popular approach in which proofs are structured as sequences of games and in which proof steps establish the validity of transitions between successive games. Code-based techniques form an instance of this approach that takes a code-centric view of games, and that relies on programming language theory to justify proof steps. While code-based techniques contribute to formalize the security statements precisely and to carry out proofs systematically, typical proofs are so long and involved that formal verification is necessary to achieve a high degree of confidence. We present Certicrypt, a framework that enables the machine-checked construction and verification of code-based proofs. Certicrypt is built upon the general-purpose proof assistant Coq, and draws on many areas, including probability, complexity, algebra, and semantics of programming languages. Certicrypt provides certified tools to reason about the equivalence of probabilistic programs, including a relational Hoare logic, a theory of observational equivalence, verified program transformations, and game-based techniques such as reasoning about failure events. The usefulness of Certicrypt is demonstrated through various examples, including a proof of semantic security of OAEP (with a bound that improves upon existing published results), and a proof of existential unforgeability of FDH signatures. Our work provides a first yet significant step towards Halevi's ambitious programme of providing tool support for cryptographic proofs.},
+journal = {SIGPLAN Not.},
+month = {jan},
+pages = {90–101},
+numpages = {12},
+keywords = {relational hoare logic, program transformations, observational equivalence, cryptographic proofs, coq proof assistant}
+}
+
+@InProceedings{Lean,
+author="de Moura, Leonardo
+and Kong, Soonho
+and Avigad, Jeremy
+and van Doorn, Floris
+and von Raumer, Jakob",
+editor="Felty, Amy P.
+and Middeldorp, Aart",
+title="The Lean Theorem Prover (System Description)",
+booktitle="Automated Deduction - CADE-25",
+year="2015",
+publisher="Springer International Publishing",
+address="Cham",
+pages="378--388",
+abstract="Lean is a new open source theorem prover being developed at Microsoft Research and Carnegie Mellon University, with a small trusted kernel based on dependent type theory. It aims to bridge the gap between interactive and automated theorem proving, by situating automated tools and methods in a framework that supports user interaction and the construction of fully specified axiomatic proofs. Lean is an ongoing and long-term effort, but it already provides many useful components, integrated development environments, and a rich API which can be used to embed it into other systems. It is currently being used to formalize category theory, homotopy type theory, and abstract algebra. We describe the project goals, system architecture, and main features, and we discuss applications and continuing work.",
+isbn="978-3-319-21401-6"
+}
+
+@misc{Lean_groth16,
+      author = {Bolton Bailey and Andrew Miller},
+      title = {Formalizing Soundness Proofs of SNARKs},
+      howpublished = {Cryptology ePrint Archive, Paper 2023/656},
+      year = {2023},
+      note = {\url{https://eprint.iacr.org/2023/656}},
+      url = {https://eprint.iacr.org/2023/656}
+}
+
+@misc{sigma_commit_crypto,
+      author = {David Butler and Andreas Lochbihler and David Aspinall and Adria Gascon},
+      title = {Formalising $\Sigma$-Protocols and Commitment Schemes using CryptHOL},
+      howpublished = {Cryptology ePrint Archive, Paper 2019/1185},
+      year = {2019},
+      note = {\url{https://eprint.iacr.org/2019/1185}},
+      url = {https://eprint.iacr.org/2019/1185}
+}
+
+@misc{sumcheck_Isabelle,
+      title={Formal Verification of the Sumcheck Protocol}, 
+      author={Azucena Garvía Bosshard and Jonathan Bootle and Christoph Sprenger},
+      year={2024},
+      eprint={2402.06093},
+      archivePrefix={arXiv},
+      primaryClass={cs.CR}
+}
+
+@misc{zk_easycrypt,
+      author = {Denis Firsov and Dominique Unruh},
+      title = {Zero-Knowledge in EasyCrypt},
+      howpublished = {Cryptology ePrint Archive, Paper 2022/926},
+      year = {2022},
+      note = {\url{https://eprint.iacr.org/2022/926}},
+      url = {https://eprint.iacr.org/2022/926}
+}
+
+@misc{Lasso,
+      author = {Srinath Setty and Justin Thaler and Riad Wahby},
+      title = {Unlocking the lookup singularity with Lasso},
+      howpublished = {Cryptology ePrint Archive, Paper 2023/1216},
+      year = {2023},
+      note = {\url{https://eprint.iacr.org/2023/1216}},
+      url = {https://eprint.iacr.org/2023/1216}
+}
+
+@misc{jolt,
+      author = {Arasu Arun and Srinath Setty and Justin Thaler},
+      title = {Jolt: SNARKs for Virtual Machines via Lookups},
+      howpublished = {Cryptology ePrint Archive, Paper 2023/1217},
+      year = {2023},
+      note = {\url{https://eprint.iacr.org/2023/1217}},
+      url = {https://eprint.iacr.org/2023/1217}
+}
+
+@misc{EIP4844,
+  author       = {Vitalik Buterin and Dankrad Feist and Diederik Loerakker and George Kadianakis and Matt Garnett and Mofi Taiwo and Ansgar Dietrichs},
+  howpublished = {\url= {https://eips.ethereum.org/EIPS/eip-4844},},
+  title        = {EIP-4844: Shard Blob Transactions [DRAFT], Ethereum Improvement Proposals, no. 4844},
+  year         = {2022}
+}

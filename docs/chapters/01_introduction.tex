@@ -2,94 +2,39 @@
 % Add the above to each chapter to make compiling the PDF easier in some editors.
 
 \chapter{Introduction}\label{chapter:introduction}
+In the past 15 to 20 years the field of cryptography has shifted from classical cryptography, which centered around messages (e.g. hiding messages, encrypting messages etc.), to modern cryptography, which is centered around computation. New cryptographic primitives such as (secure) multi-part computation (MPC), fully homomorphic encryption (FHE), which is computation over encrypted data, and succinct non-interactive arguments of knowledge (SNARKs), which is succinctly proving computation, have emerged. Polynomial commitment schemes (PCS) are a commonly used primitive in modern cryptography, specifically in SNARKs \parencite{thalerbook,boneh_shoup}, however, we are not aware of a formalization of any polynomial commitment scheme. With this work, we set out to change this and give the first formalization of a polynomial commitment scheme, specifically focusing on the security proofs, thus paving the way for formalized security in modern cryptography, specifically SNARKs.
 
-\section{Section}
-Citation test~\parencite{latex} \parencite{algebra}.
+We want to motivate this work not purely with academic reasons, but want to highlight why it is absolutely necessary by examples of applications. One such example is the Ethereum blockchain, which recently (on the 13th of March, 2024) upgraded its protocol to support EIP-4844, which uses the KZG to store commitments to data blobs \parencite{EIP4844}. As the blockchain with the largest market capitalization, after Bitcoin, of >440 billion USD\footnote{https://coinmarketcap.com Accessed: 15th of March, 2024}, as of writing this, a security flaw in the KZG would probably result in losses of billions. Besides Ethereum, the KZG is heavily used in other blockchains (e.g. Aztec\footnote{https://aztec.network} and Mina\footnote{https://minaprotocol.com}), blockchain applications and infrastructure, such as SNARK-based rollups (e.g. Scroll\footnote{https://scroll.io}, zkSync\footnote{https://zksync.io}, and Taiko\footnote{https://taiko.xyz}), data-availability networks (e.g. Celestia\footnote{https://celestia.org}) and co-processors (e.g. Axiom\footnote{https://www.axiom.xyz}). Therefore, any flaw in the security of the KZG would have a detrimental practical impact. 
 
-Acronyms must be added in \texttt{main.tex} and are referenced using macros. The first occurrence is automatically replaced with the long version of the acronym, while all subsequent usages use the abbreviation.
+With this work, we aim to not only lay the foundation for formalized security of modern cryptographic protocols (like SNARKs), but also to strengthen the trust in the KZG's security, and thus in systems and applications, that are built on it. 
 
-E.g. \texttt{\textbackslash ac\{TUM\}, \textbackslash ac\{TUM\}} $\Rightarrow$ \ac{TUM}, \ac{TUM}
+\section{Contributions}
 
-For more details, see the documentation of the \texttt{acronym} package\footnote{\url{https://ctan.org/pkg/acronym}}.
-\subsection{Subsection}
+We formalize the commitment-scheme-typical security properties \textit{hiding} and \textit{binding}, where binding is split up into the two properties \textit{polynomial-binding} and \textit{evaluation-binding}. Additionally, we also formalize \textit{knowledge-soundness}, which is required for SNARK construction. Hence, we formalize these four security properties (see the respective sections in the main part for exact definitions):
+\begin{itemize}
+    \item \textbf{polynomial binding:}
+    No efficient Adversary can compute a commitment that can be resolved to two separate polynomials, except for negligible probability.
 
-See~\autoref{tab:sample}, \autoref{fig:sample-drawing}, \autoref{fig:sample-plot}, \autoref{fig:sample-listing}.
+    (Note, that this property was proven as part of a practical course and does not belong to the achievements of this thesis.)
+    \item \textbf{evaluation binding:}
+    No efficient Adversary can compute a commitment, witnesses and two values, $\phi(x)$ and $\phi(x)'$, that are accepted by the verifier for an arbitrary but equal point $i$, except for negligible probability.
+    \item \textbf{hiding:}
+    No efficient Adversary can compute a polynomial of degree t+1, from a commitment to that polynomial and t additional evaluations of the polynomial, except for negligible probability.
+    \item \textbf{knowledge soundness:}
+    Intuitively this property states, that an efficient adversary must know the polynomial it's committing to to reveal points, except for negligible probability. 
+\end{itemize} 
+Additionally, we formalize the batched version of the KZG with all security properties outlined above.  
 
-\begin{table}[htpb]
-  \caption[Example table]{An example for a simple table.}\label{tab:sample}
-  \centering
-  \begin{tabular}{l l l l}
-    \toprule
-      A & B & C & D \\
-    \midrule
-      1 & 2 & 1 & 2 \\
-      2 & 3 & 2 & 3 \\
-    \bottomrule
-  \end{tabular}
-\end{table}
+The original paper proofs are outlined in a reduction proof style, which is known to be error-prone \parencite{gamesB&R}. To enhance the security expression of the proofs we transform them into game-based proofs, which are particularly rigorous \parencite{shoup_games, gamesB&R}, before we formalize them. We use CryptHOL, a framework specifically for game-based proofs in Isabelle, for our formalization. 
 
-\begin{figure}[htpb]
-  \centering
-  % This should probably go into a file in figures/
-  \begin{tikzpicture}[node distance=3cm]
-    \node (R0) {$R_1$};
-    \node (R1) [right of=R0] {$R_2$};
-    \node (R2) [below of=R1] {$R_4$};
-    \node (R3) [below of=R0] {$R_3$};
-    \node (R4) [right of=R1] {$R_5$};
 
-    \path[every node]
-      (R0) edge (R1)
-      (R0) edge (R3)
-      (R3) edge (R2)
-      (R2) edge (R1)
-      (R1) edge (R4);
-  \end{tikzpicture}
-  \caption[Example drawing]{An example for a simple drawing.}\label{fig:sample-drawing}
-\end{figure}
+\section{related work}
+Besides CryptHOL there are many frameworks and tools specifically for formal verification of cryptography, to mention a few: `A Framework for Game-Based Security Proofs` \parencite{game_based_coq} or CertiCrypt \parencite{crypto_coq} in Coq\footnote{https://coq.inria.fr}, EasyCrypt, \footnote{https://github.com/EasyCrypt/easycrypt}, CryptoVerify\footnote{https://bblanche.gitlabpages.inria.fr/CryptoVerif/} and cryptoline \footnote{https://github.com/fmlab-iis/cryptoline}. Furthermore, the interactive theorem prover Lean \parencite{Lean} has recently been used for formal verification of cryptographic protocols due to its extensive math library \textit{mathlib} \parencite{Lean_groth16}.
+These tools and Isabelle, specifically CryptHOL, have been used to formally verify many cryptographic primitives and protocols, of which we will only highlight the ones that are closely related to our formalization.
 
-\begin{figure}[htpb]
-  \centering
+Butler et al. use CryptHOL to formalize a general framework for commitment schemes from $\Sigma$-protocols in \parencite{sigma_commit_crypto}, however, their framework, though it provides good orientation for the proofs, does not sufficiently capture the complexity of a polynomial commitment scheme.
 
-  \pgfplotstableset{col sep=&, row sep=\\}
-  % This should probably go into a file in data/
-  \pgfplotstableread{
-    a & b    \\
-    1 & 1000 \\
-    2 & 1500 \\
-    3 & 1600 \\
-  }\exampleA
-  \pgfplotstableread{
-    a & b    \\
-    1 & 1200 \\
-    2 & 800 \\
-    3 & 1400 \\
-  }\exampleB
-  % This should probably go into a file in figures/
-  \begin{tikzpicture}
-    \begin{axis}[
-        ymin=0,
-        legend style={legend pos=south east},
-        grid,
-        thick,
-        ylabel=Y,
-        xlabel=X
-      ]
-      \addplot table[x=a, y=b]{\exampleA};
-      \addlegendentry{Example A};
-      \addplot table[x=a, y=b]{\exampleB};
-      \addlegendentry{Example B};
-    \end{axis}
-  \end{tikzpicture}
-  \caption[Example plot]{An example for a simple plot.}\label{fig:sample-plot}
-\end{figure}
+Firsov and Unruh formalize security properties for zero-knowledge protocols from sigma-protocols in EasyCrypt \parencite{zk_easycrypt}.
+Bailey and Miller formalize specific zk-SNARK constructions that do not rely on commitment schemes or other similarly complex cryptographic primitives in Lean \parencite{Lean_groth16}. With our work, we want to lay the foundation to formalize modern, more complex, zk-SNARKs (that rely on polynomial commitment schemes), prominent examples that explicitly mention the KZG include Plonk \parencite{plonk}, Sonic \parencite{sonic}, Marlin \parencite{marlin}, and Nova \parencite{nova}.
 
-\begin{figure}[htpb]
-  \centering
-  \begin{tabular}{c}
-  \begin{lstlisting}[language=SQL]
-    SELECT * FROM tbl WHERE tbl.str = "str"
-  \end{lstlisting}
-  \end{tabular}
-  \caption[Example listing]{An example for a source code listing.}\label{fig:sample-listing}
-\end{figure}
+Bosshard, Bootle and Sprenger formally verify the sum-check protocol \parencite{sumcheck_Isabelle}, which is another cryptographic primitive that is used in zk-SNARKs with fast provers, such as Lasso and Jolt \parencite{Lasso, jolt}. Though sum-checks are not directly related to SNARKs that use polynomial commitment schemes, their formalization, similarly to our formalization, forms a step towards formally verified complex SNARK proving systems and thus is worth acknowledging.
