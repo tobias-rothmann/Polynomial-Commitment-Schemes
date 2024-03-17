@@ -5,6 +5,9 @@
 \theoremstyle{definition}
 \newtheorem{definition}{Definition}[section]
 
+\theoremstyle{remark}
+\newtheorem{example}{Example}[section]
+
 In this section, we introduce the notation used throughout the paper, and capture the most important preliminaries in definitions. We start with the mathematical notation and concepts used in this paper.
 
 \section{Mathematical Prelimiaries}
@@ -16,10 +19,11 @@ Furthermore, we use the notation $\mathbb{F}_p$ for a finite field of prime orde
 \begin{definition}[cyclic group]
 Let $\mathcal{G}$ be a group of prime order p. We call a group cyclic iff: $\exists g \in \mathcal{G}. \ \forall e \in \mathcal{G}. \ \exists n \in \mathbb{N}. \ e = g^n$, which is equivalent to $\mathcal{G} = \{1,g,g^2,...,g^{p-1}\}$ \parencite{algebra}. If such a $g$ exists, we call it a generator.
 
-From now on we write \textbf{g} for an arbitrary but fixed generator of a respective cyclic group. 
+From now on we write \textbf{g} for a randomly chosen but fixed generator of a respective cyclic group. 
 \end{definition}
 
 \begin{definition}[pairings]
+    \label{pairings_def}
     Let $\mathcal{G}$ and $\mathcal{H}$ be two groups of prime order p. A pairing is a function: $\mathcal{G} \times \mathcal{G} \rightarrow \mathcal{H}$, with the following two properties:
     \begin{itemize}
         \item \textbf{Bilineraity:} $\forall g,h \in \mathcal{G}. \ \forall a,b \in \mathbb{F}_p. \ e(g^a,h^b) = e(g,h)^{ab}$
@@ -64,7 +68,7 @@ We capture the security of our cryptographic system in games against an (efficie
 
 \begin{definition}[efficient Adversary]
     \label{Adversary}
-An Adversary is a probabilistic algorithm, that takes a security parameter $\kappa$ as its first argument. 
+An Adversary is a probabilistic algorithm, that takes a security parameter $\kappa$ as its first argument and returns some probabilistic result. 
 We call an Adversary efficient if its running time is poly-bounded in $\kappa$ except for negligible probability (with respect to $\kappa$)
 \parencite{boneh_shoup}.
 \end{definition}
@@ -217,6 +221,7 @@ Now that we have introduced the necessary preliminaries, notions, and definition
 In our formalization, we work with a specific type of commitment scheme, namely Polynomial Commitment Schemes (PCS): 
 
 \begin{definition}[Polynomial Commitment Scheme (PCS)]
+    \label{PCS_def}
     A Polynomial Commitment Scheme is a Commitment Scheme as defined in \ref*{CS}, with its message space restricted to polynomials (i.e. messages are polynomials). 
     
     Furthermore, a PCS supports two more functions to allow point-wise (i.e. partly) opening a commitment to a polynomial: 
@@ -284,16 +289,24 @@ Isabelle is an interactive theorem prover for higher-order logic (HOL) that supp
 Apart from that, we use another AFP entry that is central to our proofs, the CryptHOL framework\parencite{CryptHOL-AFP}:
 
 \subsection{CryptHOL}
-CryptHOL is a framework for game-based proofs in Isabelle \parencite{CryptHOL_game_based}. It supports games in a monadic notation over discrete sub-probability distributions. We use sub-probability mass functions (spmfs) in games to define the result of the game, the discrete sub-probability distribution (dspd), that is the sum of the spmfs applied to all possible elementary events. The notation is drawn from Haskell's do-notation, to give an example game
+CryptHOL is a framework for game-based proofs in Isabelle \parencite{CryptHOL_game_based}. It supports games in a monadic notation over sub-probability mass functions (spmfs), we use spmfs in games to compose the result of the game, which itself is a spmf. The notation is drawn from Haskell's do-notation, to give an example game
 in the correct syntax:
-\begin{lstlisting}[language=isabelle]
-    do {
-        x $\leftarrow$ sample_uniform S;
-        f x
-    }
-\end{lstlisting}
 
-The \textit{do \{\dots\}} block captures the monad. Using $\leftarrow$, which stands for the monadic binding operation, a (uniformly random) elementary event (i.e. an element of S) is bound to x. The result is a dspd, the spmf f applied to every element from S.
+\begin{example}
+    \hspace{0mm}
+    \begin{lstlisting}[language=isabelle]
+        do {
+            x $\leftarrow$ sample_uniform S;
+            return_spmf x
+        }
+    \end{lstlisting}
+
+    The \textit{do \{\dots\}} block captures the monad environment.
+    \textit{sample\_uniform} of S is a uniformly distributed spmf over the set S. 
+    We use $\leftarrow$ to bind the spmf to x in the monad, intuitively this means x is not a concrete element of S, but represents any element of S with respect to the probability distribution of the spmf (which in the example is uniform).
+    We use \textit{return\_spmf} to, intuitively, return the spmf, that x represents, which is \textit{sample\_uniform} of S. Hence, the monad in this example is, in fact, equivalent to the spmf '\textit{sample\_uniform} of S'.
+    More complex games can be created by composing more functions.
+\end{example}
 
 Additionally, since we are dealing with \textit{sub}-probability mass functions, 
 there exists an unassigned probability mass (e.g. if the spmf is undefined for some event). 
@@ -301,14 +314,18 @@ In CryptHOL, the unassigned probability mass stands for an error in the game and
 Introducing errors allows us to assert statements, specifically e.g. that 
 the messages returned by the adversary are wellformed.
 To give an example in Isabelle's notation: 
-\begin{lstlisting}[language=isabelle]
-    TRY do {
-        x $\leftarrow$ sample_uniform S;
-        y $\leftarrow \mathcal{A}$ x;
-        _::unit $\leftarrow$ assert_spmf(valid_msg y);
-        return_spmf y
-    } ELSE (return_spmf 0)
-\end{lstlisting}
+\begin{example}
+    \hspace{0mm}
+    \begin{lstlisting}[language=isabelle]
+        TRY do {
+            x $\leftarrow$ sample_uniform S;
+            y $\leftarrow \mathcal{A}$ x;
+            _::unit $\leftarrow$ assert_spmf(valid_msg y);
+            return_spmf y
+        } ELSE (return_spmf 0)
+    \end{lstlisting}
+\end{example}
+
 As in the first game, an elementary event of S is bound to x. The Adversary $\mathcal{A}$, which itself is a spmf, applied to x, is bound to y (which is a dspd). However, this time, y is not an immediate result, instead, we use an assert to check that y, the result from the adversary, is valid. The assert\_spmf results in an unassigned probability mass if and only if the statement passed to it is false, otherwise it will result in unit probability mass. If the result is an unassigned probability mass, this will, monad-typically, propagate through to the monad's result, which will trigger the ELSE branch, which in this example, results in the probability distribution with only 0 (i.e. Pr$[i=0]=1$). 
 If the result of the assert\_spmf is a unit probability mass, the result will be neglected in the remaining part of the monad, in our example, this would mean that 'return\_spmf y' would be the result of the game, which is the result of the Adversary applied to x (note for arbitrary $\mathcal{A}$ and x 
 \lstinline[columns=fixed]{x $\leftarrow \mathcal{A}$; return_spmf x} is equivalent to simply \lstinline[columns=fixed]{A} in a monad).

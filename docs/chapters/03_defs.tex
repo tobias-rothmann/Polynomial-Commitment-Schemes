@@ -1,0 +1,54 @@
+% !TeX root = ../main.tex
+% Add the above to each chapter to make compiling the PDF easier in some editors.
+\chapter{KZG Definition}\label{chapter:defs}
+In this chapter, we give the concrete construction, as well as an intuition of the KZG.
+Furthermore, we outline how the KZG has been formalized, note, however, that the definitions were formalized in a practical course and are not part of this thesis. 
+
+\section{Intuition}
+In this section, we want to give an intuitive idea of how the KZG constructs a PCS, specifically, how a commitment is constructed and how the createWitness function works. 
+We neglect the exact setup process for the intuition but note that we obtain the ability to evaluate a polynomial on a fixed unknown random point $\alpha$.
+
+The commitment $C$ is the evaluation at the unknown random point, intuitively this is sound because of the Schwarzt-Zippel lemma, which states that the probability of two different polynomials evaluating to the same value at a random point is negligible \parencite{thalerbook}.
+
+To create a witness for a point to reveal, consider the following:
+for any point $i$, any (non-trivial) polynomial $\phi(x)$ can be expanded to $\phi(x)=\psi(x)*(x-i) + \phi(i)$, for $\psi(x) = \frac{\phi(x)-\phi(i)}{(x-i)}$. Note that this equation is equivalent to $\phi(\alpha)=\psi(\alpha)*(\alpha-i) + \phi(i)$ (i.e. the equation evaluated at the unknown random point), except for negligible probability, due to the Schwartz-Zippel lemma. We use $\psi(\alpha)$ as the witness $\omega$, furthermore note that $\phi(\alpha)$ is the commitment $C$. 
+This choice of the witness is sound, as the equation to be checked by the verifier,
+$C=\omega*(\alpha-i) + \phi(i) \iff \phi(\alpha)=\psi(\alpha)*(\alpha-i) + \phi(i)$, holds if and only if the claimed $\phi(i)$ is exactly the evaluation of $\phi(x)$ at point i, as $\phi(x)=\psi(x)*(x-i) + \phi(i) \iff 
+\phi(x)-\phi(i)=\psi(x)*(x-i)$ and the left-hand-side must be zero for $x=i$.
+
+In the real protocol, the values for the unknown random point, the commitment and the witness are provided in a group (e.g. $\alpha$ is given as $\mathbf{g}^\alpha$) to hide them and a pairing is used to check the equation for the witness.
+
+\section{Definition}
+The KZG is a polynomial commitment scheme as defined in definition \ref{PCS_def}. In this section, we outline the PCS-constructing functions based on the original paper \parencite{KZG}:
+\begin{itemize}
+    \item \textbf{KeyGen($\kappa,t$) $\rightarrow \mathbb{G}_p, \mathbb{G}_T, e, PK$} 
+    
+    takes a security parameter $\kappa$ and generates instances for the algebraic primitives the KZG needs, which are: 
+    \begin{itemize}
+        \item two cyclic groups, $\mathbb{G}_p$ and $\mathbb{G}_T$, of prime order $p$, where $p\ge2^{2^\kappa}$.
+        \item a pairing function $e: \mathbb{G}_p \times \mathbb{G}_p \rightarrow \mathbb{G}_T$, as in \ref{pairings_def}, such that the t-SDH assumption holds.
+    \end{itemize}
+    \parencite{KZG}
+    Additionally, KeyGen generates a toxic-waste secret key $\alpha$, from which it generates the public key $PK=(\mathbf{g}, \mathbf{g}^\alpha, \mathbf{g}^{\alpha^2},\dots,\mathbf{g}^{\alpha^t})\in \mathbb{G}_p^{t+1}$, for $t<2^\kappa$. KeyGen outputs the algebraic primitives and $PK$ to both the prover and verifier (as $pk$ and $ck$) \parencite{KZG}. 
+    For good practice, the toxic waste secret key $\alpha$ should be deleted right after PK was generated, as $\alpha$ contains trap-door information. 
+    \item \textbf{Commit(PK,$\phi(x)$) $\rightarrow C$}
+
+    takes the public key $PK$ and a polynomial $\phi(x) \in \mathbb{Z}_p[X]$
+    of maximum degree $t$, such that $\phi(x)=\sum_{0}^{deg(\phi)}\phi_jx^j$
+    \parencite{KZG}. Commit returns the commitment $C=\mathbf{g}^{\phi(\alpha)}$ for $\phi$ as $C=\prod_{0}^{deg(\phi)}(\mathbf{g}^j)^{\phi_j}$\parencite{KZG}.
+    \item \textbf{Verify($PK,C,\phi(x)$) $\rightarrow bool$}
+
+    takes the public key $PK$, a commitment C and a polynomial $\phi(x) \in \mathbb{Z}_p[X]$ of maximum degree $t$, such that $\phi(x)=\sum_{0}^{deg(\phi)}\phi_jx^j$ \parencite{KZG}. Verify returns 1 if $C=\mathbf{g}^{\phi(\alpha)}$, otherwise 0.
+    \item \textbf{CreateWitness($PK, \phi(x), i$) $\rightarrow i,\phi(i),\omega_i$ }
+
+    takes the public key $PK$, a polynomial $\phi(x) \in \mathbb{Z}_p[X]$ of maximum degree $t$, such that $\phi(x)=\sum_{0}^{deg(\phi)}\phi_jx^j$, and a value $i\in\mathbb{Z}_p$ \parencite{KZG}. CreateWitness computes $\psi_i(x)=\sum_{0}^{deg(\psi)}\psi_jx^j$ as $\psi_i(x)=\frac{\phi(x)-\phi(i)}{(x-i)}$ and returns the tuple $(i,\phi(i),\mathbf{g}^{\psi(\alpha)})$, where $\mathbf{g}^{\psi(\alpha)}$ is computed, similar to the commit, as $\mathbf{g}^{\psi(\alpha)} = \prod_{0}^{deg(\psi)}(\mathbf{g}^j)^{\psi_j}$ \parencite{KZG}.
+    \item \textbf{VerifyEval($PK,C,i.\phi(i),\omega_i$) $\rightarrow bool$}
+
+    takes the public key $PK$, a commitment $C$, a claimed point $(i,\phi(i))$ and a witness $\omega_i$ for that point \parencite{KZG}. VerifyEval checks the equation $\phi(\alpha)=\psi(\alpha)(\alpha-i)+\phi(i)$ using the pairing $e$ as: $e(C,g) = e(\omega_i,\mathbf{g}^\alpha/\mathbf{g}^i)e(\mathbf{g},\mathbf{g})^{\phi(i)}$ and returns the result.
+\end{itemize}
+
+
+
+
+
+\section{Formalization}

@@ -23,7 +23,7 @@ We formalize the commitment-scheme-typical security properties \textit{hiding} a
     \item \textbf{knowledge soundness:}
     Intuitively this property states, that an efficient adversary must know the polynomial it's committing to to reveal points, except for negligible probability. 
 \end{itemize} 
-Additionally, we formalize the batched version of the KZG with all security properties outlined above.  
+Additionally, we formalize the \textbf{batched version} of the KZG with all security properties outlined above.  
 
 The original paper proofs are outlined in a reduction proof style, which is known to be error-prone \parencite{gamesB&R}. To enhance the security expression of the proofs we transform them into game-based proofs, which are particularly rigorous \parencite{shoup_games, gamesB&R}, before we formalize them. We use CryptHOL, a framework specifically for game-based proofs in Isabelle, for our formalization. 
 
