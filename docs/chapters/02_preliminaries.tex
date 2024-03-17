@@ -289,9 +289,9 @@ Isabelle is an interactive theorem prover for higher-order logic (HOL) that supp
 Apart from that, we use another AFP entry that is central to our proofs, the CryptHOL framework\parencite{CryptHOL-AFP}:
 
 \subsection{CryptHOL}
-CryptHOL is a framework for game-based proofs in Isabelle \parencite{CryptHOL_game_based}. It supports games in a monadic notation over sub-probability mass functions (spmfs), we use spmfs in games to compose the result of the game, which itself is a spmf. The notation is drawn from Haskell's do-notation, to give an example game
-in the correct syntax:
-
+CryptHOL is a framework for game-based proofs in Isabelle \parencite{CryptHOL_game_based}. It captures games in a sub-probability mass function (spmf) monad. That is essentially a \textit{Option} type wrapped in a probability mass function (pmf). The unassigned probability mass, represented as the pmf of \textit{None} is propagated through the monad.
+Elementary events from spmf's can be bound to variables through the monadic notation. 
+The notation for games in CryptHOL is drawn from Haskell's do-notation.  
 \begin{example}
     \hspace{0mm}
     \begin{lstlisting}[language=isabelle]
@@ -301,31 +301,32 @@ in the correct syntax:
         }
     \end{lstlisting}
 
-    The \textit{do \{\dots\}} block captures the monad environment.
-    \textit{sample\_uniform} of S is a uniformly distributed spmf over the set S. 
-    We use $\leftarrow$ to bind the spmf to x in the monad, intuitively this means x is not a concrete element of S, but represents any element of S with respect to the probability distribution of the spmf (which in the example is uniform).
-    We use \textit{return\_spmf} to, intuitively, return the spmf, that x represents, which is \textit{sample\_uniform} of S. Hence, the monad in this example is, in fact, equivalent to the spmf '\textit{sample\_uniform} of S'.
-    More complex games can be created by composing more functions.
+    The \textit{do \{\dots\}} block is syntactic sugar, intuitively, it captures the monadic block (i.e. a game).
+    \textit{sample\_uniform} is the spmf, that wraps the uniformly over S distributed pmf.
+    We use $\leftarrow$ to bind an elementary event of the pmf to x, intuitively this means x is not a concrete element of S, but represents any element of S with respect to the probability distribution of the pmf (which in the example is uniform). Note, that if S is empty, the binding operation fails and the result is the unassigned probability mass. 
+    We use \textit{return\_spmf} to return the pmf, that x represents, wrapped in a spmf, which is \textit{sample\_uniform} of S in this example. Hence, the result in this example is, in fact, equivalent to the spmf '\textit{sample\_uniform} S'.
 \end{example}
 
-Additionally, since we are dealing with \textit{sub}-probability mass functions, 
-there exists an unassigned probability mass (e.g. if the spmf is undefined for some event). 
-In CryptHOL, the unassigned probability mass stands for an error in the game and can be handled in a \textit{TRY ELSE} block (i.e. TRY A ELSE B, captures semantically 'try to return A if A is an error, return B'). 
-Introducing errors allows us to assert statements, specifically e.g. that 
-the messages returned by the adversary are wellformed.
-To give an example in Isabelle's notation: 
+More complex games can be created by composing more functions, including functions that fail, i.e. return the unassigned probability mass, on purpose to perform checks. One specific example of such a function is the \textit{assert\_spmf} function, which is commonly used to check that messages from the Adversary are well-formed. We illustrate the correct usage in example \ref{assert_spmf_exmpl}. 
+
+CryptHOL furthermore provides syntactic sugar to handle failure (i.e. an unassigned probability mass), namely the \textit{TRY ELSE} block. \textit{TRY A ELSE B}, captures semantically 'try to return $A$ if $A$ is a failure, return $B$'. We will commonly use this pattern to abstract whether an adversary has won a game. Specifically, we define $A$, such that the result is a wrapped spmf of \textit{True} if and only if the adversary has won and otherwise let the game fail, i.e. result in the unassigned probability mass. We define then $B$ to be the wrapped spmf of \textit{False}, so the game \textit{TRY A ELSE B} captures cleanly whether the Adversary has won the game.
+
 \begin{example}
+    \label{assert_spmf_exmpl}
     \hspace{0mm}
     \begin{lstlisting}[language=isabelle]
         TRY do {
-            x $\leftarrow$ sample_uniform S;
-            y $\leftarrow \mathcal{A}$ x;
-            _::unit $\leftarrow$ assert_spmf(valid_msg y);
-            return_spmf y
-        } ELSE (return_spmf 0)
+            x::nat $\leftarrow$ sample_uniform S;
+            x'::nat $\leftarrow \mathcal{A}$ $\mathbf{g}^x$;
+            _::unit $\leftarrow$ assert_spmf(x=x');
+            return_spmf True
+        } ELSE (return_spmf False)
     \end{lstlisting}
-\end{example}
 
-As in the first game, an elementary event of S is bound to x. The Adversary $\mathcal{A}$, which itself is a spmf, applied to x, is bound to y (which is a dspd). However, this time, y is not an immediate result, instead, we use an assert to check that y, the result from the adversary, is valid. The assert\_spmf results in an unassigned probability mass if and only if the statement passed to it is false, otherwise it will result in unit probability mass. If the result is an unassigned probability mass, this will, monad-typically, propagate through to the monad's result, which will trigger the ELSE branch, which in this example, results in the probability distribution with only 0 (i.e. Pr$[i=0]=1$). 
-If the result of the assert\_spmf is a unit probability mass, the result will be neglected in the remaining part of the monad, in our example, this would mean that 'return\_spmf y' would be the result of the game, which is the result of the Adversary applied to x (note for arbitrary $\mathcal{A}$ and x 
-\lstinline[columns=fixed]{x $\leftarrow \mathcal{A}$; return_spmf x} is equivalent to simply \lstinline[columns=fixed]{A} in a monad).
+    This example game captures the discrete log problem.
+
+    As in the first game, an elementary event of S, which is a natural number, is bound to x. The Adversary is applied to the group element $\mathbf{g}^x$ and returns an spmf over the natural numbers, which we bind to x'.
+    Next, we use \textit{assert\_spmf} to check whether x and x' are equal i.e. the adversary guessed the right number. We bind the result only symbolically to \textit{unit}, such that if the check does not hold, the failure can be propagated as the unassigned probability mass. If the assert check holds, the result is the wrapped spmf of \textit{True}, otherwise a failure has been propagated and the \textit{ELSE} branch is triggered. 
+    If the \textit{ELSE} branch is triggered the result is the wrapped spmf of \textit{False}.
+
+\end{example}
