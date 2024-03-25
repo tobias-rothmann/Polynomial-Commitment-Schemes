@@ -19,6 +19,7 @@ $C=\omega*(\alpha-i) + \phi(i) \iff \phi(\alpha)=\psi(\alpha)*(\alpha-i) + \phi(
 In the real protocol, the values for the unknown random point, the commitment and the witness are provided in a group (e.g. $\alpha$ is given as $\mathbf{g}^\alpha$) to hide them and a pairing is used to check the equation for the witness.
 
 \section{Definition}
+\label{Def}
 The KZG is a polynomial commitment scheme as defined in definition \ref{PCS_def}. In this section, we outline the PCS-constructing functions based on the original paper \parencite{KZG}:
 \begin{itemize}
     \item \textbf{KeyGen($\kappa,t$) $\rightarrow \mathbb{G}_p, \mathbb{G}_T, e, PK$} 
@@ -36,6 +37,8 @@ The KZG is a polynomial commitment scheme as defined in definition \ref{PCS_def}
     takes the public key $PK$ and a polynomial $\phi(x) \in \mathbb{Z}_p[X]$
     of maximum degree $t$, such that $\phi(x)=\sum_{0}^{deg(\phi)}\phi_jx^j$
     \parencite{KZG}. Commit returns the commitment $C=\mathbf{g}^{\phi(\alpha)}$ for $\phi$ as $C=\prod_{0}^{deg(\phi)}(\mathbf{g}^j)^{\phi_j}$\parencite{KZG}.
+    The opening value for the KZG is simply the polynomial $\phi(x)$, which is why we omit to return it as well.
+
     \item \textbf{Verify($PK,C,\phi(x)$) $\rightarrow bool$}
 
     takes the public key $PK$, a commitment C and a polynomial $\phi(x) \in \mathbb{Z}_p[X]$ of maximum degree $t$, such that $\phi(x)=\sum_{0}^{deg(\phi)}\phi_jx^j$ \parencite{KZG}. Verify returns 1 if $C=\mathbf{g}^{\phi(\alpha)}$, otherwise 0.
@@ -52,3 +55,9 @@ The KZG is a polynomial commitment scheme as defined in definition \ref{PCS_def}
 
 
 \section{Formalization}
+
+In the formalization, we extract the algebraic primitives (i.e. the groups and the pairing) into a locale that can be instantiated. The major advantage of this is its compatibility with formalized instances of these algebraic primitives. Hence, the KZG's security could be instantiated for concrete constructions of pairings, such as the Barreto-Nährig\parencite{BN-EC} or Baretto-Lynn-Scott\parencite{BLS-EC} pairing friendly Elliptic Curves (ECs), should they be formalized.
+
+We define \textit{KeyGen} as a wrapper around a function called \textit{Setup}, which mirrors the Setup function from \parencite{KZG} without generating the algebraic primitives, essentially \textit{Setup} is exposing the secret key $\alpha$ as well as the public key $PK$ and \textit{KeyGen} exposes only $PK$. This change is mentioned here, because we will often decompose \textit{KeyGen} into \textit{Setup}, to gain access to the secret key $\alpha$ in the proofs.
+
+The remaining functions are defined trivially according to \ref{Def}, we omit the details as they are not part of this thesis and are irrelevant to the proofs.

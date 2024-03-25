@@ -267,3 +267,35 @@ isbn="978-3-319-21401-6"
   title        = {EIP-4844: Shard Blob Transactions [DRAFT], Ethereum Improvement Proposals, no. 4844},
   year         = {2022}
 }
+
+@InProceedings{BN-EC,
+author="Barreto, Paulo S. L. M.
+and Naehrig, Michael",
+editor="Preneel, Bart
+and Tavares, Stafford",
+title="Pairing-Friendly Elliptic Curves of Prime Order",
+booktitle="Selected Areas in Cryptography",
+year="2006",
+publisher="Springer Berlin Heidelberg",
+address="Berlin, Heidelberg",
+pages="319--331",
+abstract="Previously known techniques to construct pairing-friendly curves of prime or near-prime order are restricted to embedding degree {\$}k {\backslash}leqslant 6 {\$}. More general methods produce curves over {\$}{\{}{\backslash}mathbb F{\}}{\_}{\{}p{\}}{\$}where the bit length of p is often twice as large as that of the order r of the subgroup with embedding degree k; the best published results achieve $\rho$ ≡ log(p)/log(r) {\textasciitilde} 5/4. In this paper we make the first step towards surpassing these limitations by describing a method to construct elliptic curves of prime order and embedding degree k = 12. The new curves lead to very efficient implementation: non-pairing operations need no more than {\$}{\{}{\backslash}mathbb F{\}}{\_}{\{}p^4{\}}{\$}arithmetic, and pairing values can be compressed to one third of their length in a way compatible with point reduction techniques. We also discuss the role of large CM discriminants D to minimize $\rho$; in particular, for embedding degree k = 2q where q is prime we show that the ability to handle log(D)/log(r) {\textasciitilde} (q--3)/(q--1) enables building curves with $\rho$ {\textasciitilde} q/(q--1).",
+isbn="978-3-540-33109-4"
+}
+
+@InProceedings{BLS-EC,
+author="Barreto, Paulo S. L. M.
+and Lynn, Ben
+and Scott, Michael",
+editor="Cimato, Stelvio
+and Persiano, Giuseppe
+and Galdi, Clemente",
+title="Constructing Elliptic Curves with Prescribed Embedding Degrees",
+booktitle="Security in Communication Networks",
+year="2003",
+publisher="Springer Berlin Heidelberg",
+address="Berlin, Heidelberg",
+pages="257--267",
+abstract="Pairing-based cryptosystems depend on the existence of groups where the Decision Diffie-Hellman problem is easy to solve, but the Computational Diffie-Hellman problem is hard. Such is the case of elliptic curve groups whose embedding degree is large enough to maintain a good security level, but small enough for arithmetic operations to be feasible. However, the embedding degree for most elliptic curves is enormous, and the few previously known suitable elliptic curves have embedding degree k ≤ 6. In this paper, we examine criteria for curves with larger k that generalize prior work by Miyaji et al. based on the properties of cyclotomic polynomials, and propose efficient representations for the underlying algebraic structures.",
+isbn="978-3-540-36413-9"
+}

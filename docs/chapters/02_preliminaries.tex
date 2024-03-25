@@ -8,7 +8,7 @@
 \theoremstyle{remark}
 \newtheorem{example}{Example}[section]
 
-In this section, we introduce the notation used throughout the paper, and capture the most important preliminaries in definitions. We start with the mathematical notation and concepts used in this paper.
+In this section, we introduce the notation used throughout the paper and capture the most important preliminaries in definitions. We start with the mathematical notation and concepts used in this paper.
 
 \section{Mathematical Prelimiaries}
 
@@ -99,6 +99,7 @@ Notatioinwise we write $`\leftarrow`$ followed by a set for uniform sampling fro
     \end{aligned}
     \right)
 \end{equation*}
+Note, that the notation is applicable for any probabilistic algorithms, not just games. However, if not explicitly stated otherwise we will let this notation denote games.
 
 Next, we define game-based proofs, the method which we will use to formally prove security.
 
@@ -123,6 +124,7 @@ Typically we will define a game for a certain security definition applied to our
 \end{definition}
 
 \begin{definition}[hardness assumptions]
+    \label{hardness_asmp_defs}
 Hardness assumptions are computational problems that are generally believed to be hard \parencite{boneh_shoup,ac_handbook}.
 \end{definition}
 
@@ -131,6 +133,7 @@ Within cryptography, there exist several hardness assumptions, we will cover the
 From now on let `$\in_{\mathcal{R}}$` denote uniform sampling from the respective set. 
 
 \begin{definition}[discrete logarithm (DL)]
+    \label{DL_def}
     Let $\mathcal{G}$ be a cyclic group with generator \textbf{g}.
     For $a \in_{\mathcal{R}} \mathbb{F}_p$, holds for every Adversary $\mathcal{A}: \text{Pr}[a = \mathcal{A}(\textbf{g}^a)] = \epsilon$ \parencite{KZG}.
 
@@ -147,6 +150,7 @@ From now on let `$\in_{\mathcal{R}}$` denote uniform sampling from the respectiv
 \end{definition}
 
 \begin{definition}[t-Strong Diffie Hellmann (t-SDH)]
+    \label{tSDH_def}
     Let $\mathcal{G}$ be a cyclic group with generator \textbf{g}.
     Let $t \in \mathbb{N}$ be fixed.  For $a \in_{\mathcal{R}} \mathbb{F}_p$, holds for every Adversary $\mathcal{A}:$
     \begin{equation*}
@@ -168,9 +172,10 @@ From now on let `$\in_{\mathcal{R}}$` denote uniform sampling from the respectiv
     \end{equation*}
 \end{definition}
 
-The following definition is analogous to the previous one, except that the result is passed through a pairing function. Nevertheless, we define the property formally for completeness.
+The following definition is analogous to the previous one, except that the result is passed through a pairing function. Intuitively, this makes this assumption stronger as two groups, and thus group values, and the pairing function can now be used by an adversary.
 
 \begin{definition}[t-Bilinear Strong Diffie Hellmann (t-BSDH)]
+    \label{tBSDH_def}
     Let $\mathcal{G}$ and $\mathcal{H}$ be cyclic groups with generators \textbf{g} and \textbf{h}.
     Let $t \in \mathbb{N}$ be fixed and $e: \mathcal{G} \times \mathcal{G} \rightarrow \mathcal{H}$ be a pairing function.  For $a \in_{\mathcal{R}} \mathbb{F}_p$, holds for every Adversary $\mathcal{A}:$
     \begin{equation*}
@@ -277,6 +282,7 @@ We formally define four security properties for a PCS:
 \end{definition}
 
 \begin{definition}[hiding]
+    \label{hiding_def}
     We say a PCS is hiding if and only if the probability of any efficient adversary finding an, to them, unknown point of the polynomial $\phi$ from the commitment $C:=\text{Commit}(ck,\phi)$ and deg$(\phi)-1$ points with witness  $(i,\phi(i),\text{CreateWitness}(ck, \phi, i))$ is negligible.
     \parencite{KZG}
 \end{definition}

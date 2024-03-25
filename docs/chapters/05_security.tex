@@ -1,0 +1,163 @@
+% !TeX root = ../main.tex
+% Add the above to each chapter to make compiling the PDF easier in some editors.
+\chapter{Formalized KZG Security}\label{chapter:security}
+In this chapter, we outline the security properties as well as the idea behind the formalization of each security property. Specifically, we summarise the reductionist proof from the paper, show how we transformed it into a game-based proof and outline the latter. We will not give concrete profs in Isabelle syntax as this would go beyond the scope due to a lot of boilerplate Isabelle-specific abbreviations and functions.
+
+Each section covers one security property. Firstly, we describe the paper proof, followed by the \textit{formalization} subsection, which outlines the target of our formalization, namely the security game, the reduction algorithm and if needed additional intermediary games. Lastly, we outline the game-based proof in the \textit{games-based transformation} subsection.
+
+Note, we skip the property of \textit{polynomial-binding} as it was shown as part of a practical course and thus is not part of this thesis.
+
+\section{evaluation binding}
+The paper proof argues that given an Adversary $\mathcal{A}$, that can break the evaluation binding property, an algorithm $\mathcal{B}$ can be constructed, that can break the t-SDH assumption \parencite{KZG}. The concrete construction for $\mathcal{B}$ is: given the t-SDH instance $tsdh\_inst =(\mathbf{g}, \mathbf{g}^{\alpha}, \mathbf{g}^{\alpha^2},\dots, \mathbf{g}^{\alpha^t})$, call $\mathcal{A}$ with $tsdh\_inst$ as $PK$ for $(C,i,\phi(i),\omega_i,\phi(i)',\omega_i')$ and return: 
+$$(\frac{\omega_i}{\omega_i'})^{\frac{1}{\phi(i)'-\phi(i)}}$$
+
+The reason to why $\mathcal{B}$ is a correct construction is the following: 
+
+Breaking evaluation binding means here, that $\mathcal{A}$, given a valid public key $PK=(\mathbf{g}, \mathbf{g}^{\alpha}, \mathbf{g}^{\alpha^2},\dots, \mathbf{g}^{\alpha^t})$, can give a Commitment $C$ and two witness-tuples, $\langle i, \phi(i),\omega_i\rangle$ and $\langle i, \phi(i)', \omega_i'\rangle$, such that $VerifyEval(PK, C,\langle i,\phi(i), \omega_i\rangle )$ and $VerifyEval(PK, C,\langle i,\phi(i)', \omega_i'\rangle )$ return true \parencite{KZG}. Since \textit{VerifyEval} is a pairing check against $e(C,\mathbf{g})$ we can conclude that: 
+
+$$e(\omega_i,\mathbf{g}^{\alpha-i})e(\mathbf{g}, \mathbf{g})^{\phi(i)} = e(C,\mathbf{g}) = e(\omega_i',\mathbf{g}^{\alpha-i})e(\mathbf{g}, \mathbf{g})^{\phi(i)'}$$
+which is the pairing term for: 
+\begin{equation*}
+    \begin{aligned}
+        &\psi_i(\alpha) \cdot (\alpha-i) + \phi(i) = \psi_i(\alpha)' \cdot (\alpha-i) + \phi(i)' \\
+        \iff&  \psi_i(\alpha) \cdot (\alpha-i) - \psi_i(\alpha)' \cdot (\alpha-i) = \phi(i)' - \phi(i)\\
+        \iff& (\alpha-i)  \cdot (\psi_i(\alpha) - \psi_i(\alpha)') = \phi(i)' - \phi(i)\\
+        \iff& \frac{\psi_i(\alpha) - \psi_i(\alpha)'}{\phi(i)' - \phi(i)} = \frac{1}{\alpha - i}\\
+    \end{aligned}
+\end{equation*}
+where $\psi_i(\alpha)= log_{\mathbf{g}}\ \omega_i$ and $\psi_i(\alpha)'= log_{\mathbf{g}}\ \omega_i'$ and omitting the $e(C,\mathbf{g})$
+\parencite{KZG}.
+Hence: 
+\begin{equation*}
+    \begin{aligned}
+        &\Bigl(\frac{\omega_i}{\omega_i'}\Bigr)^{\frac{1}{\phi(i)'-\phi(i)}} 
+        = \biggl(\frac{\mathbf{g}^{\psi_i(\alpha)}}{\mathbf{g}^{\psi_i(\alpha)}}\biggr)^{\frac{1}{\phi(i)'-\phi(i)}}
+        = \mathbf{g}^{\frac{\psi_i(\alpha) - \psi_i(\alpha)'}{\phi(i)' - \phi(i)}}
+        = \mathbf{g}^{\frac{1}{\alpha-i}}
+    \end{aligned}
+\end{equation*}
+Since $\mathbf{g}^{\frac{1}{\alpha-i}}$ breaks the t-SDH assumption for i, $\mathcal{B}$ is correct.
+
+\subsection{formalization}
+We formally define the evaluation binding game in CryptHOL as follows:
+\begin{lstlisting}[language=isabelle]
+    TRY do {
+        PK $\leftarrow$ key_gen;
+        (C, i, $\phi$_i, w_i, $\phi$_i', w_i') $\leftarrow \mathcal{A}$ PK;
+        _::unit $\leftarrow$ assert_spmf($\phi$_i$\ne\phi$_i' $\land$ valid_msg $\phi$_i w_i 
+            $\land$ valid_msg $\phi$_i' w_i');
+        let b = VerifyEval PK C i $\phi$_i w_i;
+        let b' = VerifyEval PK C i $\phi$_i' w_i';
+        return_spmf (b $\land$ b')
+    } ELSE return_spmf False
+\end{lstlisting}
+The game captures the spmf over True and False, which represent the events that the Adversary has broken evaluation binding or not.
+The public key $PK$ is generated using the formalized \textit{key\_gen} function of the KZG. The Adversary $\mathcal{A}$, given PK, outputs values to break evaluation binding, namely a commitment value $C$ and two witnesses, w\_i and w\_i', and evaluations, $\phi$\_i and $\phi$\_i',  for a freely chosen point $i$. 
+Note that we use \textit{assert\_spmf} to ensure that the Adversary's messages are wellformed and correct, where correct means $\phi$\_i and $\phi$\_i' are indeed two different values. Should the assert not hold, the game is counted as lost for the Adversary.
+We assign to b and b' the result of the formalized \textit{VerifyEval} algorithm of the KZG. Evaluation binding is broken if and only if b and b' hold i.e. both witnesses and evaluations verify at the same point for the same commitment.
+
+We formally define the reduction adversary as follows:
+\begin{lstlisting}[language=isabelle]
+    fun bind_reduction $\mathcal{A}$ PK = do {
+        (C, i, $\phi$_i, w_i, $\phi$_i', w_i') $\leftarrow \mathcal{A}$ PK;
+        return_spmf (-i, (w_i $\div$ w_i')^(1/($\phi$_i' - $\phi$_i)));
+    }
+\end{lstlisting}
+That is a higher-order function, that takes the evaluation binding adversary $\mathcal{A}$ and returns an adversary for the t-SDH game.
+That is, the function that calls the adversary $\mathcal{A}$ on some public key PK and returns $(\frac{\omega_i}{\omega_i'})^{\frac{1}{\phi(i)'-\phi(i)}}$. 
+
+\subsection{game-based transformation}
+The goal of this proof is to show the following theorem, which states that the probability of any adversary breaking evaluation binding is less than or equal to winning the DL game (using the reduction adversary) in a game-based proof:
+\begin{lstlisting}[language=isabelle]
+    theorem evaluation_binding: "eval_bind_advantage $\mathcal{A}$ 
+        $\le$ t_SDH.advantage (bind_reduction $\mathcal{A}$)"
+\end{lstlisting}
+
+A look at the games reveals that \textit{key\_gen}'s generation of PK is equivalent to generating a t-SDH instance. Furthermore, the games differ only in their checks in the respective \textit{assert\_spmf} calls.  
+Additionally, we know from the paper proof that the adversary's messages, if correct and wellformed, which is checked in the eval\_bind game's asserts, already break the t-SDH assumptions on PK. 
+Hence we follow the following idea for the proof :
+\begin{enumerate}
+    \item rearrange the eval\_bind game to accumulate (i.e. conjuncture) the return-check and all other checks into an assert
+    \item derive that this conjuncture of statements already implies that the t-SDH is broken and add that fact to the conjuncture.
+    \item erase every check in the conjuncture by over-estimation, to be only left with the result that the t-SDH is broken.
+\end{enumerate}
+The resulting game is the t-SDH game with the reduction Adversary. 
+See Appendix A for the fully outlined game-based proof or the Isabelle theory \textit{KZG\_eval\_bind} for the formal proof.
+
+\section{hiding}
+Note that the hiding property of the KZG does not unconditionally fulfill the hiding property as defined in \ref{hiding_def}, but requires additionally the polynomial to be uniformly randomly chosen to hold.
+
+The paper argues that given an Adversary $\mathcal{A}$, that can break the hiding property, an algorithm $\mathcal{B}$ can be constructed, that can break the DL assumption \parencite{KZG}. Intuitively, the construction given in the paper proof exploits the fact that the commitment is a group value and interpolates a polynomial over t random group points and the DL instance for the commitment. Since the adversary can retrieve the polynomial of a commitment, it can hence also retrieve the value of the DL-instance, which is just an evaluation of the polynomial at some point. Note, that the proof contains more boilerplate simulations, like creating a correct public key $PK$ and creating witnesses for the t random group points. We outline the concrete reduction $B$ from the paper, as we understand it, in a probabilistic algorithm, given $\mathbf{g}^a$ as the DL-instance:
+\begin{equation*}
+    \left(
+        \begin{aligned}
+            (\alpha,PK) & \leftarrow \text{Setup}, \\
+            pts & \leftarrow \mathbb{Z}_p^{2^t}\\
+            \text{let } grp\_pts &= (0,\mathbf{g}^a)\#\text{map } (\lambda (x,y).\ (x,\mathbf{g}^y))\ pts,\\
+            \text{let } C &= \text{interpolate } grp\_pts,\\ 
+            \text{let } wtnss &= \text{map } (\lambda (x,y).\ (x,y, ((C/\mathbf{g}^y)^{\frac{1}{\alpha-x}})))\ pts,\\
+            \phi(x) & \leftarrow \mathcal{A}\ PK \ C\ wtnss, \\
+            & \ \phi(0)
+        \end{aligned}
+    \right)
+\end{equation*}
+Firstly, $\mathcal{B}$ generates the public key $PK$ using the function \textit{Setup}, which additionally exposes the secret key $\alpha$, as opposed to \textit{key\_gen}, which is wrapped around \textit{Setup} as a filter for the public key. Secondly, $\mathcal{B}$ samples t-random points $pts$, which are used to create the t-witnesses $wtnss$ the adversary requires and interpolated with the DL-instance for the commitment $C$. Once all inputs for the adversary, namely the public key $PK$, the commitment $C$, and the t witness tuple $wtnss$ are generated, the adversary $\mathcal{A}$ is called on them to retrieve the polynomial $\phi(x)$. The result is the polynomial $\phi(x)$ evaluated at zero. Note that the evaluation of $\phi(x)$ at zero is the value $a$ from the DL-instance $\mathbf{g}^a$ because they were paired for the interpolation values. Since returning $a$ from $\mathbf{g}^a$ wins the DL game, this reduction breaks the DL assumption.
+
+\subsection{formalization}
+We formally define the hiding game in CryptHOL as follows:
+\begin{lstlisting}[language=isabelle]
+    TRY do {
+        $\phi \leftarrow$ sample_uniform_poly t;
+        PK $\leftarrow$ key_gen;
+        let C = Commit PK $\phi$;
+        let wtns_tpls = map ($\lambda$ i. CreateWitness PK $\phi$ i) I;
+        $\phi'$ $\leftarrow \mathcal{A}$ PK C wtns_tpls;
+        return_spmf ($\phi = \phi'$)
+    } ELSE return_spmf False
+\end{lstlisting}
+The game captures the spmf over True and False, which represent the events that the Adversary has broken hiding or not.
+Firstly, the polynomial $\phi\in\mathbb{Z}[X]^t$ of degree t (wlog) is uniformly sampled.
+Secondly, the public key $PK$ is generated using \textit{key\_gen}. 
+The commitment $C$ to $\phi$ is computed using \textit{Commit} and $PK$. Then, t valid witness tuples $wtns\_tpls$ are computed, where $\text{I}\in\mathbb{Z}_p^t$ is a list of t arbitrary but distinct field elements.
+The Adversary $\mathcal{A}$ receives the public key $PK$, the commitment $C$ and the t witness tuples $wtns\_tpls$ and returns a guess for a polynomial $\phi'$.
+The adversary wins if and only if the guessed polynomial $\phi'$ equals the chosen polynomial $\phi$.
+
+The reduction cannot be trivially turned into a reduction adversary that works for a game-based proof (see the next section for details), hence we need to define a slightly different reduction.
+We formally define the reduction adversary as follows:
+\begin{lstlisting}[language=isabelle]
+    fun bind_reduction $\mathcal{A}$ PK = do {
+        let i = pick_not_from I;
+        eval_values $\leftarrow$ sample_uniform_list t;
+        let eval_group = g # map ($\lambda$i. $\mathbf{g}^i$) eval_values;
+        ($\alpha$, PK) $\leftarrow$ Setup;
+        let C = interpolate_on (zip (i#I) eval_group) $\alpha$;
+        let wtns_tpls = map ($\lambda$(x,y). (x,y, (($\text{C} \div \mathbf{g}^y)^{\frac{1}{\alpha-x}}$))) (zip (i#I) 
+            eval_values);
+        $\phi$' $\leftarrow \mathcal{A}$ PK C wtns_tpls;
+        return_spmf (poly $\phi$' i);
+    }
+\end{lstlisting}
+That is a higher-order function, that takes the hiding adversary $\mathcal{A}$ and an arbitrary field element list I and returns an adversary for the DL game.
+The algorithm starts by picking a field element $i$ that is distinct from the list $I$. Then it samples a list of t uniform random field elements $eval\_values$ and computes the group values $eval\_group$ of those. 
+The secret key $\alpha$ and the public key $PK$ are generated using the \textit{Setup} function.
+Once these primitives are generated, the algorithm can compute the commitment $C$, which is $\mathbf{g}^{\phi(\alpha)}$, where $\phi$ is the Lagrange interpolation of the points list $(i, a)\#(\text{zip } I\ eval\_values)$. We omit further details on the interpolation as that would go beyond the scope, for the exact computation, we refer the reader to the function \textit{interpolate\_on} of the KZG\_hiding theory in the formalization.
+Using the Commitment, valid witnesses can be created for the points in the list 'zip $I$ $eval\_values$', note: 
+\begin{equation*}
+    (\text{C} \div \mathbf{g}^y)^{\frac{1}{\alpha-x}}
+    = (\mathbf{g}^{\phi(\alpha)} \div \mathbf{g}^{\phi(x)})^{\frac{1}{\alpha-x}}
+    = (\mathbf{g}^{\phi(\alpha)-\phi(x)})^{\frac{1}{\alpha-x}}
+    = \mathbf{g}^{\frac{\phi(\alpha)-\phi(x)}{\alpha-x}}
+\end{equation*}
+and $\mathbf{g}^{\frac{\phi(\alpha)-\phi(x)}{\alpha-x}}$ is the result of \textit{CreateWitness} $PK$ $\phi$ x.
+
+The hiding game adversary $\mathcal{A}$ is supplied with the commitment $C$ to $\phi$ and the t witness tuples $wtns\_tpls$ and returns the guessed polynomial $\phi'$. The result of the algorithm is then the polynomial $\phi$' evaluated at $i$. Note if the adversary $\mathcal{A}$
+can break the hiding property i.e. guess the polynomial to which $C$ is the commitment and the t-witness tuples belong, then $\phi'=\phi$ and thus $\phi'$ evaluated at $i$ is $a$. Furthermore, returning $a$ for the DL-instance $\mathbf{g}^a$ breaks the DL-assumptions, hence this reduction is correct.
+
+\subsection{game-based transformation}
+
+
+\section{knowledge soundness}
+
+\subsection{formalization}
+
+\subsection{game-based transformation}
