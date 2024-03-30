@@ -8,6 +8,22 @@ Each section covers one security property. Firstly, we describe the paper proof,
 Note, we skip the property of \textit{polynomial-binding} as it was shown as part of a practical course and thus is not part of this thesis.
 
 \section{evaluation binding}
+We formalize the property \textit{evaluation binding} according to \ref{PCS_def}. Formally we define \textit{evaluation binding} as the following game against an efficient adversary $\mathcal{A}$: 
+\begin{equation*}
+    \left(
+        \begin{aligned}
+            PK & \leftarrow \text{key\_gen}, \\
+            (C, i,\phi_i,\omega_i, \phi_i',\omega_i') & \leftarrow \mathcal{A} \ PK, \\
+            \_::\text{unit} & \leftarrow \text{assert\_spmf}(\phi_i \ne \phi_i' \\
+            &\land \text{valid\_msg}\ \phi_i\ \omega_i \land \text{valid\_msg}\ \phi_i'\ \omega_i'), \\
+            b &= \text{VerifyEval } PK\ C\ i\ \phi_i\ \omega_i,\\
+            b' &= \text{VerifyEval } PK\ C\ i\ \phi_i'\ \omega_i',\\
+            & : \ b \land b'
+        \end{aligned}
+        \right)
+\end{equation*}
+
+\subsection{original paper proof}
 The paper proof argues that given an Adversary $\mathcal{A}$, that can break the evaluation binding property, an algorithm $\mathcal{B}$ can be constructed, that can break the t-SDH assumption \parencite{KZG}. The concrete construction for $\mathcal{B}$ is: given the t-SDH instance $tsdh\_inst =(\mathbf{g}, \mathbf{g}^{\alpha}, \mathbf{g}^{\alpha^2},\dots, \mathbf{g}^{\alpha^t})$, call $\mathcal{A}$ with $tsdh\_inst$ as $PK$ for $(C,i,\phi(i),\omega_i,\phi(i)',\omega_i')$ and return: 
 $$(\frac{\omega_i}{\omega_i'})^{\frac{1}{\phi(i)'-\phi(i)}}$$
 
@@ -38,6 +54,24 @@ Hence:
 \end{equation*}
 Since $\mathbf{g}^{\frac{1}{\alpha-i}}$ breaks the t-SDH assumption for i, $\mathcal{B}$ is correct.
 
+\subsection{game-based transformation}
+The goal of this proof is to show the following theorem, which states that the probability of any adversary breaking evaluation binding is less than or equal to winning the DL game (using the reduction adversary) in a game-based proof:
+\begin{lstlisting}[language=isabelle]
+    theorem evaluation_binding: "eval_bind_advantage $\mathcal{A}$ 
+        $\le$ t_SDH.advantage (bind_reduction $\mathcal{A}$)"
+\end{lstlisting}
+
+A look at the \textit{evaluation binding} and \textit{t-SDH} games reveals that \textit{key\_gen}'s generation of PK is equivalent to generating a t-SDH instance. Furthermore, the games differ only in their checks in the respective \textit{assert\_spmf} calls (and the adversary's return types).  
+Additionally, we know from the paper proof that the adversary's messages, if correct and wellformed, which is checked in the eval\_bind game's asserts, already break the t-SDH assumptions on PK. 
+Hence we give the following idea for the proof:
+\begin{enumerate}
+    \item rearrange the eval\_bind game to accumulate (i.e. conjuncture) the return-check and all other checks into an assert
+    \item derive that this conjuncture of statements already implies that the t-SDH is broken and add that fact to the conjuncture.
+    \item erase every check in the conjuncture by over-estimation, to be only left with the result that the t-SDH is broken.
+\end{enumerate}
+The resulting game is the t-SDH game with the reduction Adversary. 
+See Appendix A for the fully outlined game-based proof or the Isabelle theory \textit{KZG\_eval\_bind} for the formal proof.
+
 \subsection{formalization}
 We formally define the evaluation binding game in CryptHOL as follows:
 \begin{lstlisting}[language=isabelle]
@@ -66,28 +100,24 @@ We formally define the reduction adversary as follows:
 That is a higher-order function, that takes the evaluation binding adversary $\mathcal{A}$ and returns an adversary for the t-SDH game.
 That is, the function that calls the adversary $\mathcal{A}$ on some public key PK and returns $(\frac{\omega_i}{\omega_i'})^{\frac{1}{\phi(i)'-\phi(i)}}$. 
 
-\subsection{game-based transformation}
-The goal of this proof is to show the following theorem, which states that the probability of any adversary breaking evaluation binding is less than or equal to winning the DL game (using the reduction adversary) in a game-based proof:
-\begin{lstlisting}[language=isabelle]
-    theorem evaluation_binding: "eval_bind_advantage $\mathcal{A}$ 
-        $\le$ t_SDH.advantage (bind_reduction $\mathcal{A}$)"
-\end{lstlisting}
-
-A look at the games reveals that \textit{key\_gen}'s generation of PK is equivalent to generating a t-SDH instance. Furthermore, the games differ only in their checks in the respective \textit{assert\_spmf} calls.  
-Additionally, we know from the paper proof that the adversary's messages, if correct and wellformed, which is checked in the eval\_bind game's asserts, already break the t-SDH assumptions on PK. 
-Hence we follow the following idea for the proof :
-\begin{enumerate}
-    \item rearrange the eval\_bind game to accumulate (i.e. conjuncture) the return-check and all other checks into an assert
-    \item derive that this conjuncture of statements already implies that the t-SDH is broken and add that fact to the conjuncture.
-    \item erase every check in the conjuncture by over-estimation, to be only left with the result that the t-SDH is broken.
-\end{enumerate}
-The resulting game is the t-SDH game with the reduction Adversary. 
-See Appendix A for the fully outlined game-based proof or the Isabelle theory \textit{KZG\_eval\_bind} for the formal proof.
-
 \section{hiding}
-Note that the hiding property of the KZG does not unconditionally fulfill the hiding property as defined in \ref{hiding_def}, but requires additionally the polynomial to be uniformly randomly chosen to hold.
+We formalize the \textit{hiding} property as given in the original paper \parencite{KZG} that slightly differs from the standard definition as given in \ref{PCS_def}. 
+The \textit{hiding} property of the KZG does not unconditionally fulfill the \textit{hiding} property as defined in \ref{hiding_def} but requires additionally the polynomial to be uniformly randomly chosen to hold \parencite{KZG}. Formally we define \textit{hiding} as the following game against an efficient adversary $\mathcal{A}$, where $I\in\mathbb{Z}_p^t$ is an arbitrary distinct list of length t:
+\begin{equation*}
+    \left(
+        \begin{aligned}
+            \phi & \leftarrow \text{sample\_uniform } \{\phi. \text{ degree}(\phi)=t\},\\
+            PK & \leftarrow \text{key\_gen}, \\
+            C & = \text{Commit}(PK,\phi), \\
+            wtnss &= \text{map } (\text{CreateWitness}(PK,\phi,i))\ I,\\
+            \phi' & \leftarrow \mathcal{A}(PK,C,wtnss), \\
+            & : \ \phi = \phi'
+        \end{aligned}
+    \right)
+\end{equation*}
 
-The paper argues that given an Adversary $\mathcal{A}$, that can break the hiding property, an algorithm $\mathcal{B}$ can be constructed, that can break the DL assumption \parencite{KZG}. Intuitively, the construction given in the paper proof exploits the fact that the commitment is a group value and interpolates a polynomial over t random group points and the DL instance for the commitment. Since the adversary can retrieve the polynomial of a commitment, it can hence also retrieve the value of the DL-instance, which is just an evaluation of the polynomial at some point. Note, that the proof contains more boilerplate simulations, like creating a correct public key $PK$ and creating witnesses for the t random group points. We outline the concrete reduction $B$ from the paper, as we understand it, in a probabilistic algorithm, given $\mathbf{g}^a$ as the DL-instance:
+\subsection{original paper proof}
+The paper argues that given an Adversary $\mathcal{A}$, that can break the hiding property, an algorithm $\mathcal{B}$ can be constructed, that can break the DL assumption \parencite{KZG}. Intuitively, the construction given in the paper proof exploits the fact that the commitment is a group value. Using the trapdoor information, the secret key $\alpha$, the construction interpolates a polynomial over t random group points and the DL instance and obtains a commitment value for the interpolated polynomial. Since the adversary can retrieve the polynomial of a commitment, it can hence also retrieve the value of the DL-instance, which is just an evaluation of the polynomial at some point. Note, that the proof contains more boilerplate simulations, like creating a correct public key $PK$ and creating witnesses for the t random group points. We outline the concrete reduction $B$ from the paper, as we understand it, in a probabilistic algorithm, given $\mathbf{g}^a$ as the DL-instance:
 \begin{equation*}
     \left(
         \begin{aligned}
@@ -101,9 +131,130 @@ The paper argues that given an Adversary $\mathcal{A}$, that can break the hidin
         \end{aligned}
     \right)
 \end{equation*}
-Firstly, $\mathcal{B}$ generates the public key $PK$ using the function \textit{Setup}, which additionally exposes the secret key $\alpha$, as opposed to \textit{key\_gen}, which is wrapped around \textit{Setup} as a filter for the public key. Secondly, $\mathcal{B}$ samples t-random points $pts$, which are used to create the t-witnesses $wtnss$ the adversary requires and interpolated with the DL-instance for the commitment $C$. Once all inputs for the adversary, namely the public key $PK$, the commitment $C$, and the t witness tuple $wtnss$ are generated, the adversary $\mathcal{A}$ is called on them to retrieve the polynomial $\phi(x)$. The result is the polynomial $\phi(x)$ evaluated at zero. Note that the evaluation of $\phi(x)$ at zero is the value $a$ from the DL-instance $\mathbf{g}^a$ because they were paired for the interpolation values. Since returning $a$ from $\mathbf{g}^a$ wins the DL game, this reduction breaks the DL assumption.
+Firstly, $\mathcal{B}$ generates the public key $PK$ using the function \textit{Setup}, which additionally exposes the secret key $\alpha$, as opposed to \textit{key\_gen}, which is wrapped around \textit{Setup} as a filter for the public key. Secondly, $\mathcal{B}$ samples t-random points $pts$, which are used to create the t-witnesses $wtnss$ the adversary requires. Thirdly, $\mathcal{B}$ interpolates the random points in group form ($grp\_pts$) together with the DL-instance for the commitment $C$. Once all inputs for the adversary, namely the public key $PK$, the commitment $C$, and the t witness tuple $wtnss$ are generated, the adversary $\mathcal{A}$ is called on them to retrieve the polynomial $\phi(x)$. The result is the polynomial $\phi(x)$ evaluated at zero. Note that the evaluation of $\phi(x)$ at zero is the value $a$ from the DL-instance $\mathbf{g}^a$ because they were paired for the interpolation values. Since returning $a$ from $\mathbf{g}^a$ wins the DL game, this reduction breaks the DL assumption.
 
+\subsection{game-based transformation}
+\label{security:hiding:game_based_transf}
+The goal of the hiding proof is to show the following theorem, which states that the probability of any adversary breaking hiding is less than or equal to winning the DL game (using the reduction adversary) in a game-based proof:
+\begin{lstlisting}[language=isabelle]
+    theorem hiding: "hiding_advantage $\mathcal{A}$ $\le$ t_SDH.advantage (reduction $\mathcal{A}$)"
+\end{lstlisting}
+
+Firstly, we outline why the reduction algorithm $\mathcal{B}$ cannot trivially be transformed into a reduction adversary for a game-based proof. Note that while $\mathcal{B}$ samples the point list uniform random and thus creates witnesses at uniform random positions, the hiding game evaluates the polynomial on a given arbitrary list $I$ and thus creates witnesses at the positions from I. Hence, the witnesses in the hiding game are fundamentally different from the ones in the DL-reduction game (uniform random vs arbitrary). Moreover, the probability of the uniformly randomly sampled points matching the arbitrary $I$ is negligible in $\mathbb{Z}_p$, thus, following the game-hops described in \ref{game-hops-def}, we see no trivial conversion between the witnesses and thus games.
+
+Our approach to solving this incompatibility is to introduce the arbitrary list $I$ into the reduction algorithm. Instead of uniformly randomly sampling the complete points list, we take an arbitrary $I$ for the positions and let the reduction sample only the evaluations for those positions uniformly random. Thus the reduction creates witnesses at exactly the positions that are in $I$, hence, provided with the same $I$  (and that the witness creation is correct) the reduction and the hiding game produce the same witness tuples.
+
+However, introducing an arbitrary $I$ for the positions creates a new problem. Note, that to interpolate a polynomial from a list of points, the list must be distinct. Choosing zero for the position on that the polynomial should evaluate to the DL-value was okay in the reduction proof as the probability of t uniformly random points containing zero is negligible in $\mathbb{Z}_p$, however the probability of zero being contained in an arbitrary list is not negligible (in fact, note, we cannot express any probability for this event, as we cannot know the probability distribution for the arbitrary list).
+
+We could solve this problem by choosing a random position $i$, which again would make the probability of $i$ being contained in an arbitrary list of length t negligible. However, we decided to solve this problem algorithmically, by picking an $i$ that is deterministically distinct from $I$ (see \ref{appendix:security:hiding:picki} for the concrete algorithm to pick i). This decision eases the proof as we do not have to explicitly expose the probability of $i$ being contained in $I$, which would be necessary to make a negligibility argument in CryptHOL, but can use the fact that $i$ is distinct from $I$ directly in Isabelle.
+
+We obtain the following new reduction algorithm: 
+\begin{equation*}
+    \left(
+        \begin{aligned}
+            \text{let } i &= PickDistinct(I), \\
+            (\alpha,PK) & \leftarrow \text{Setup}, \\
+            pts & \leftarrow \mathbb{Z}_p^t\\
+            \text{let } grp\_pts &= (i,\mathbf{g}^a)\#\text{map} (\lambda (x,y).\ (x,\mathbf{g}^y))\ pts,\\
+            \text{let } C &= \text{interpolate} (\text{zip}(I,grp\_pts)),\\ 
+            \text{let } wtnss &= \text{map} (\lambda (x,y).\ (x,y, ((C/\mathbf{g}^y)^{\frac{1}{\alpha-x}})))\ pts,\\
+            \phi(x) & \leftarrow \mathcal{A}\ PK \ C\ wtnss, \\
+            & \ \phi(i)
+        \end{aligned}
+    \right)
+\end{equation*}
+
+Now that we have discussed the changes to the reduction algorithm as outlined in \ref{security:hiding:formalization}, we tend to the proof. We outline the main ideas behind the proof and refer the reader to appendix \ref{appendix:security:hiding} for a detailed proof and the Isabelle theory $KZG\_hiding$ for the formalized proof.
+
+We start with the hiding game and use a bridging step to restate uniformly random sampling of a polynomial as the interpolation of a zipped list of arbitrary $I$ (in the formalized game $i\#I$) and uniformly random sampled evaluations: 
+
+\begin{equation*}
+    \begin{aligned}
+        \left(
+        \begin{aligned}
+            \phi & \leftarrow \text{sample\_uniform},
+        \end{aligned}
+        \right)
+        = \left(
+            \begin{aligned}
+                evals &\leftarrow \text{sample\_uniform } \mathbb{Z}_p^t, \\
+                \text{let } grp\_evls &= \text{map } (\lambda\ i. \ \mathbf{g}^i)\ evals,\\
+                \text{let } \phi &= \text{interpolate}(\text{zip}(I,grp\_evals)),
+            \end{aligned}
+            \right)
+    \end{aligned}
+\end{equation*}
+This enables us to split up the DL-instance creation:
+\begin{equation*}
+    \begin{aligned}
+        &\left(
+            \begin{aligned}
+                evals &\leftarrow \text{sample\_uniform } \mathbb{Z}_p^t, \\
+                \text{let } grp\_evls &= \text{map } (\lambda\ i. \ \mathbf{g}^i)\ evals,
+            \end{aligned}
+        \right)\\
+        =&\left(
+            \begin{aligned}
+                a &\leftarrow \text{sample\_uniform } \mathbb{Z}_p,\\
+                \text{let } g^a &= \mathbf{g}^a,\\
+                evals &\leftarrow \text{sample\_uniform } \mathbb{Z}_p^{t-1}, \\
+                \text{let } grp\_evls &= g^a\#\text{ map } (\lambda\ i. \ \mathbf{g}^i)\ evals,
+            \end{aligned}
+        \right)
+    \end{aligned}
+\end{equation*}
+
+The obtained game is equivalent to the DL game for the reduction-adversary except for the computation of the commitment and witnesses and the equality check in the end. 
+
+While the hiding game checks whether $\phi=\phi'$, where $\phi$' is the polynomial outputted by the Adversary and  $\phi$ is the randomly sampled polynomial, the DL game for the reduction-adversary only asserts $\phi'(i)=a$, which is equivalent to $\phi'(i)=\phi(i)$ since $\phi$ is interpolated for $(i, a)$. Since $\phi'=\phi$ implies $\phi'(i)=\phi(i)$, we can use over-estimation to conclude that the probability of solving the hiding game's check is greater or equal to solving the DL-game's check. Semantically we are over-estimating the hiding game with the DL game: 
+\begin{equation*}
+    \begin{aligned}
+        &\left(
+            \begin{aligned}
+                &: \phi'=\phi
+            \end{aligned}
+        \right)
+        \le&\left(
+            \begin{aligned}
+                &: \phi'(i)=\phi(i)
+            \end{aligned}
+        \right)
+    \end{aligned}
+\end{equation*}
+
+The only remaining difference between the game we have obtained now and the DL game is the computation of the commitment and the witness. We describe in the formalization \ref{security:hiding:formalization} why the computation of the commitment is equivalent and thus omit the details here. 
+The only difference left in the games is the computation of the witnesses: 
+\begin{equation*}
+    \begin{aligned}
+        \text{CreateWitness}(Pk,\phi,i)=&\left(
+            \begin{aligned}
+                \psi(x) &= \frac{\phi(x)-\phi(i)}{x-i}, \\
+                & (i,\phi(i), \mathbf{g}^{\psi(\alpha)})
+            \end{aligned}
+        \right)\\
+        \overset{!}{=}&\left(
+            \begin{aligned}
+                &\text{map } (\lambda (i,\phi(i)).\ (i,\phi(i), ((C/\mathbf{g}^{\phi(i)})^{\frac{1}{\alpha-i}})))\ pts,\\
+            \end{aligned}
+        \right)
+    \end{aligned}
+\end{equation*}
+The computation using \textit{map} is the computation by the reduction adversary and the \textit{CreateWitness} function is the standard KZG computation which is used by the hiding game. Moreover: 
+\begin{equation*}
+    (\text{C} / \mathbf{g}^{\phi(i)})^{\frac{1}{\alpha-i}}
+    = (\mathbf{g}^{\phi(\alpha)} \div \mathbf{g}^{\phi(i)})^{\frac{1}{\alpha-i}}
+    = (\mathbf{g}^{\phi(\alpha)-\phi(i)})^{\frac{1}{\alpha-i}}
+    = \mathbf{g}^{\frac{\phi(\alpha)-\phi(i)}{\alpha-i}}
+    = \mathbf{g}^{\psi(\alpha)}
+\end{equation*}
+
+
+Note, however, that this equation does not hold for  $i=\alpha$ as $\frac{1}{i-\alpha}$ would be a division by zero. While the reduction's function is undefined due to the division by zero in the event that $i=\alpha$,  \textit{CreateWitness} is not undefined, as it uses polynomial division before evaluating the polynomial at $\alpha$.
+However, the probability of $i=\alpha$ i.e. $i\in pts$ is negligible as the length of $pts$ $t$ is $2^\kappa$ and $p\ge 2^{2^\kappa}$ ,for $\mathbb{Z}_p$. Hence, we can use a game-hop based on a failure event to restate $CreateWitness$ with '$\text{map } (\lambda (i,\phi(i)).\ (i,\phi(i), ((C/\mathbf{g}^{\phi(i)})^{\frac{1}{\alpha-i}})))\ pts$' and obtain the DL-game for the reduction adversary. Thus proving the theorem stated at the beginning of this subsection.
+
+ 
 \subsection{formalization}
+\label{security:hiding:formalization}
 We formally define the hiding game in CryptHOL as follows:
 \begin{lstlisting}[language=isabelle]
     TRY do {
@@ -122,10 +273,15 @@ The commitment $C$ to $\phi$ is computed using \textit{Commit} and $PK$. Then, t
 The Adversary $\mathcal{A}$ receives the public key $PK$, the commitment $C$ and the t witness tuples $wtns\_tpls$ and returns a guess for a polynomial $\phi'$.
 The adversary wins if and only if the guessed polynomial $\phi'$ equals the chosen polynomial $\phi$.
 
-The reduction cannot be trivially turned into a reduction adversary that works for a game-based proof (see the next section for details), hence we need to define a slightly different reduction.
-We formally define the reduction adversary as follows:
+Additionally, we formalize the reduction algorithm.
+The prior introduced reduction algorithm $\mathcal{B}$ cannot be trivially turned into a reduction adversary that works for a game-based proof (see the next section for details), hence we need to define a slightly different reduction. We alter the reduction in two ways: 
+\begin{enumerate}
+    \item we sample random evaluations for a given arbitrary list $I$, instead of randomly sampling the complete point list. This changes the reduction to be more compatible with the hiding game, which evaluates a random polynomial on a given list $I$. 
+    \item We pick an $i$ that is guaranteed to be distinct from the list $I$ instead of zero for the position where $\phi$ evaluates to the DL value $a$. This will ease the proof outlined in the next section as the probability of 0 being in the arbitrary list $I$ can be neglected.
+\end{enumerate}
+Formally, we define the reduction adversary as follows:
 \begin{lstlisting}[language=isabelle]
-    fun bind_reduction $\mathcal{A}$ PK = do {
+    fun reduction $\mathcal{A}$ PK = do {
         let i = pick_not_from I;
         eval_values $\leftarrow$ sample_uniform_list t;
         let eval_group = g # map ($\lambda$i. $\mathbf{g}^i$) eval_values;
@@ -141,23 +297,106 @@ That is a higher-order function, that takes the hiding adversary $\mathcal{A}$ a
 The algorithm starts by picking a field element $i$ that is distinct from the list $I$. Then it samples a list of t uniform random field elements $eval\_values$ and computes the group values $eval\_group$ of those. 
 The secret key $\alpha$ and the public key $PK$ are generated using the \textit{Setup} function.
 Once these primitives are generated, the algorithm can compute the commitment $C$, which is $\mathbf{g}^{\phi(\alpha)}$, where $\phi$ is the Lagrange interpolation of the points list $(i, a)\#(\text{zip } I\ eval\_values)$. We omit further details on the interpolation as that would go beyond the scope, for the exact computation, we refer the reader to the function \textit{interpolate\_on} of the KZG\_hiding theory in the formalization.
-Using the Commitment, valid witnesses can be created for the points in the list 'zip $I$ $eval\_values$', note: 
-\begin{equation*}
-    (\text{C} \div \mathbf{g}^y)^{\frac{1}{\alpha-x}}
-    = (\mathbf{g}^{\phi(\alpha)} \div \mathbf{g}^{\phi(x)})^{\frac{1}{\alpha-x}}
-    = (\mathbf{g}^{\phi(\alpha)-\phi(x)})^{\frac{1}{\alpha-x}}
-    = \mathbf{g}^{\frac{\phi(\alpha)-\phi(x)}{\alpha-x}}
-\end{equation*}
-and $\mathbf{g}^{\frac{\phi(\alpha)-\phi(x)}{\alpha-x}}$ is the result of \textit{CreateWitness} $PK$ $\phi$ x.
-
+Using the Commitment, valid witnesses can be created for the points in the list 'zip $I$ $eval\_values$' except for the event that $\alpha\in I$, which has negligible probability (see \ref{security:hiding:game_based_transf} for details).
 The hiding game adversary $\mathcal{A}$ is supplied with the commitment $C$ to $\phi$ and the t witness tuples $wtns\_tpls$ and returns the guessed polynomial $\phi'$. The result of the algorithm is then the polynomial $\phi$' evaluated at $i$. Note if the adversary $\mathcal{A}$
 can break the hiding property i.e. guess the polynomial to which $C$ is the commitment and the t-witness tuples belong, then $\phi'=\phi$ and thus $\phi'$ evaluated at $i$ is $a$. Furthermore, returning $a$ for the DL-instance $\mathbf{g}^a$ breaks the DL-assumptions, hence this reduction is correct.
 
-\subsection{game-based transformation}
+Additionally, we outline how we formalized the game-hop based on a failure event, for the exact proof details see the \textit{KZG\_hiding} theory.
+Our formalization follows the approach from the CryptHOL tutorial\parencite{CryptHOL_tutorial}, which uses the fundamental lemma to bind the probability of winning one game to the probability of winning a similar game except for a possible failure event and externalizes the probability of the failure event \parencite{CryptHOL_tutorial}. We define $\alpha \in I$ as the failure event and show that we can exchange the witness creation in the games except for the probability that $\alpha\in I$ i.e. the games are equivalent except for the failure event. Using the fundamental lemma we conclude: 
+\begin{lstlisting}[language=isabelle]
+    theorem fundamental_lemma_game1_game2: 
+        "spmf (game2 I $\mathcal{A}$) True + (max_deg+1)/p $\ge$ spmf (game1 I $\mathcal{A}$) True"
+\end{lstlisting}
+where game1 is the DL-game with an inlined reduction adversary and game2 is the game that is equivalent to game1 except that it uses \textit{CreateWitness} to create the witnesses. Furthermore, note that $max\_deg=t$ and thus $(max\_deg + 1)/p$ is negligible. 
 
+% TODO negligible wrapper to erase (t+1)/p
 
 \section{knowledge soundness}
+We formalize the property \textit{knowledge soundness} according to \ref{PCS_def} in the AGM. Formally we define \textit{knowledge soundness} as the following game against an efficient adversary $\mathcal{A=(A',A'')}$ and an efficient extractor $E$: 
+\begin{equation*}
+    \left(
+        \begin{aligned}
+            PK &\leftarrow \text{key\_gen}, \\
+            (C,calc\_vec) &\leftarrow \mathcal{A'}, \\
+            \_::\text{unit} &\leftarrow \text{assert\_spmf}\biggl(\text{len}(PK)=\text{len}(calc\_vec) \land C = \prod_{1}^{len(calc\_vec)}PK_i^{calc\_vec_i}\biggr), \\
+            \phi &= E(C, calc\_vec),\\
+            (i, \phi_i, \omega_i) &\leftarrow \mathcal{A''}(PK, C, calc\_vec), \\
+            & : \ \phi(i) \ne \phi_i \land \text{VerifyEval}(PK,C,i,\phi_i,\omega_i)
+        \end{aligned}
+        \right)
+\end{equation*}
+We omit the AGM vector for \textit{w\_i} as we do not need it for our proof, for completeness one can think of it as an implicit output that is never used.
 
-\subsection{formalization}
+\subsection{original paper proof}
+\label{security:knowledge:paper}
+There are multiple proofs for knowledge soundness in different SNARK schemes (see e.g. Plonk\parencite{plonk} and Halo\parencite{halo}). We will not discuss them in detail but note one important property, all of them share: they use an additional security assumption to prove knowledge soundness, for example, the Q-DLOG assumption in the case of Plonk and Halo. We provide a novel proof that exploits the binding property of the KZG to prove knowledge soundness, without adding a security assumption: 
+
+Firstly, note that $calc\_vec$ provides exactly the coefficients one would need to obtain from a polynomial one wants to commit to. Thus $E$ can return a polynomial $\phi$ that has exactly the coefficients from $calc\_vec$. Since we know $C= \text{Commit}(PK, \phi)$ and the KZG is correct, we can conclude that for every value $i$, VerifyEval$(PK, C, i, \phi, \phi(i))$ must hold. Hence, if the adversary $\mathcal{A''}$ can provide a $\phi_i$, such that $\phi_i\ne\phi(i)$
+and VerifyEval$(PK, C, i, \phi, \phi_i)$, the binding property is already broken, because VerifyEval verifies for two different evaluations at the same point of a polynomial.
 
 \subsection{game-based transformation}
+\label{security:knowledge:gamebased}
+The goal of this proof is to show the following theorem, which states that the probability of any adversary breaking  knowledge soundness is less than or equal to breaking the binding property (using a reduction adversary) in a game-based proof:
+\begin{lstlisting}[language=isabelle]
+    theorem knowledge_soundness_eval_bind: "knowledge_soundness_advantage $\mathcal{A}$ 
+        $\le$ eval_bind_advantage (reduction $\mathcal{A}$)"
+\end{lstlisting}
+Moreover, since we already formalized the theorem \textit{evaluation\_binding} (i.e. that the probability of breaking evaluation binding is less than or equal to breaking the t-SDH assumption), we get the following theorem through transitivity, given the $knowledge\_soundness\_eval\_bind$ theorem holds: 
+
+\begin{lstlisting}[language=isabelle]
+    theorem knowledge_soundness: "knowledge_soundness_advantage $\mathcal{A}$ 
+        $\le$ t_SDH.advantage (bind_reduction $\mathcal{A}$)"
+\end{lstlisting}
+
+Based on the idea from \ref{security:knowledge:paper}, we formally define the following reduction adversary to the evaluation binding game, given the knowledge soundness adversary $\mathcal{A=(A',A'')}$, the extractor $E$, and the input for the evaluation binding adversary; the public key $PK$:
+\begin{equation*}
+    \left(
+        \begin{aligned}
+            (C,calc\_vec) &\leftarrow \mathcal{A'}(PK), \\
+            \phi &= E(C, calc\_vec),\\
+            (i, \phi_i, \omega_i) &\leftarrow \mathcal{A''}(PK, C, calc\_vec), \\
+            \phi_i' &= \phi(i), \\
+            \omega_i' &= \text{CreateWitness}(PK,\phi, i), \\
+            &  (C, i, \phi_i, \omega_i, \phi_i', \omega_i')
+        \end{aligned}
+        \right)
+\end{equation*}
+The reduction creates a tuple $(C, i, \phi_i, \omega_i, \phi_i', \omega_i')$ to break the evaluation binding property. The commitment $C$ is determined by the adversary $\mathcal{A'}$, from which messages the extractor $E$ also computes the polynomial $\phi$, to which $C$ is a commitment (see \ref{security:knowledge:paper}). The position $i$, as well as the first evaluation $\phi_i$ and witness $\omega_i$ are provided by the adversary $\mathcal{A''}$. The second evaluation $\phi_i'=\phi(i)$ and witness $\omega_i'= \text{CreateWitness}(PK,\phi, i)$ are computed from $\phi$. Note, if the knowledge soundness adversary is efficient and correct, then $\phi_i\ne\phi_i'$ and $\text{VerifyEval}(PK,C,i,\phi_i,\omega_i) \land \text{VerifyEval}(PK,C,i,\phi_i',\omega_i')$ holds, hence the reduction is a correct and efficient adversary for \text{evaluation binding}. 
+
+For the game-based proof note that the knowledge soundness game and the evaluation binding game with the reduction adversary are equivalent except for the asserts: while the knowledge soundness game asserts 
+$$\phi(i) \ne \phi_i \land \text{VerifyEval}(PK, C, i,\phi_i,\omega_i)$$ the evaluation binding game asserts 
+$$\phi_i \ne \phi_i' \land \text{VerifyEval } PK\ C\ i\ \phi_i\ \omega_i \land \text{VerifyEval } PK\ C\ i\ \phi_i\ \omega_i$$ where $\phi(i)=\phi_i$. Furthermore, note that the two statements are equivalent since VerifyEval for $\phi(i)$ is trivially true. Hence, the game-based proof is effectively equational reasoning over the asserts. The complete game-based proof is to be found in appendix \ref{appendix:security:knowledgesound}.
+
+\subsection{formalization}
+We formalize the knowledge soundness game in CryptHOL as follows: 
+\begin{lstlisting}[language=isabelle]
+    TRY do {
+        PK $\leftarrow$ key_gen;
+        (C, calc_vec) $\leftarrow \mathcal{A'}$ PK;
+        _ :: unit $\leftarrow$ assert_spmf (length PK = length calc_vec 
+            $\land$ C = fold ($\lambda$ i acc. acc $\cdot$ PK!i ^ (calc_vec!i)) [0..<length PK] 1);
+        let $\phi$ = E C calc_vec;
+        (i,$\phi$_i, w_i) $\leftarrow \mathcal{A}$ PK C calc_vec;
+        _::unit $\leftarrow$ assert_spmf(valid_msg $\phi_i$, w_i);
+        return_spmf (VerifyEval PK C i $\phi$_i w_i $\land$  $\phi$_i $\ne$ poly $\phi$ i)
+    } ELSE return_spmf False
+\end{lstlisting}
+The game captures the spmf over True and False, which represent the events that the adversary has broken knowledge soundness or not.
+Firstly, the public key $PK$ is generated using \textit{key\_gen}. 
+Secondly, the adversary $\mathcal{A'}$ provides a commitment $C$ in the algebraic group model i.e. with the vector $calc\_vec$, which constructs $C$ from $PK$. We use an assert to ensure in Isabelle that the message of the $\mathcal{A'}$ is correct according to the AGM.
+Thirdly, the extractor $E$ computes a polynomial $\phi$ given access to the messages of $\mathcal{A'}$. The second part of the adversary, $\mathcal{A''}$, computes a position $i$, an evaluation $\phi\_i$ for that position, and a respective witness $w\_i$. We use an assert to check that the messages of $\mathcal{A''}$ are valid, that is to ensure in Isabelle that $w\_i$ is a group element.
+The adversary wins the game if $\phi\_i \ne \phi(i)$ and VerifyEval($PK,C,i,\phi\_i,w\_i$) hold.
+
+We formalize the reduction adversary to the binding game as defined in \ref{security:knowledge:gamebased}: 
+\begin{lstlisting}[language=isabelle]
+    fun reduction $\mathcal{(A',A'')}$ PK = do {
+        (C, calc_vec) $\leftarrow$ $\mathcal{A'} PK$;
+        _ :: unit $\leftarrow$ assert_spmf (length PK = length calc_vec 
+            $\land$ C = fold ($\lambda$ i acc. acc $\cdot$ PK!i ^ (calc_vec!i)) [0..<length PK] 1);
+        let $\phi$ = E C calc_vec;
+        (i,$\phi$_i, w_i) $\leftarrow \mathcal{A}$ PK C calc_vec;
+        _::unit $\leftarrow$ assert_spmf(valid_msg $\phi_i$, w_i);
+        return_spmf (C, i, $\phi$_i, w_i, $\phi$_i',w_i')
+    }
+\end{lstlisting}
+This function mirrors exactly the outline in \ref{security:knowledge:gamebased} except for the validity checks of the adversary's messages in the form of the asserts (see the game definition above for details), thus we skip a detailed description. 

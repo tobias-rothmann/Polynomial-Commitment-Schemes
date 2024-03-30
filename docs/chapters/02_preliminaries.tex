@@ -76,7 +76,7 @@ We call an Adversary efficient if its running time is poly-bounded in $\kappa$ e
 Besides this definition, we will use a stronger definition of Adversaries, namely that of the Adversary in the Algebraic Group Model (AGM) \parencite{AGM}.
 
 \begin{definition}[AGM Adversary]
-    Let $\mathbb{F}_p$ be a finite field of prime order p and $\mathbb{G}$ a cyclic group of prime order p. An adversary in the AGM is an adversary as in definition \ref{Adversary}, that furthermore outputs a vector $\vec{z} \in \mathbb{F}_p^t$ for every element $e$ from $\mathbb{G}$ in its output, such that $e = \prod_{1}^{t} g_i^{z_i}$, where $g\in \mathbb{G}^t$ is the vector of all elements of $\mathbb{G}$ that the Adversary has seen so far
+    Let $\mathbb{F}_p$ be a finite field of prime order p and $\mathbb{G}$ a cyclic group of prime order p. An adversary in the AGM is an adversary as in definition \ref{Adversary}, that furthermore outputs a vector $\vec{v}_e \in \mathbb{F}_p^t$ for every element $e$ from $\mathbb{G}$ in its output, such that $e = \prod_{1}^{t} g_i^{v_{e_i}}$, where $g\in \mathbb{G}^t$ is the vector of all elements of $\mathbb{G}$ that the Adversary has seen so far
     \parencite{AGM}. 
 
     The efficiency definition is analogue to definition \ref*{Adversary}
@@ -104,6 +104,7 @@ Note, that the notation is applicable for any probabilistic algorithms, not just
 Next, we define game-based proofs, the method which we will use to formally prove security.
 
 \begin{definition}[game-based proofs]
+    \label{game-hops-def}
     Game-based proofs are a sequence of game-hops that bound the probability of one game to another \parencite{gamesB&R,shoup_games}.
 
     The two types of game hops we will use in our proofs are:
@@ -270,9 +271,9 @@ We formally define four security properties for a PCS:
         \left(
             \begin{aligned}
                 (ck,vk) & \leftarrow \text{KeyGen} \\
-                (C,\vec{v}, \sigma) & \leftarrow \mathcal{A}_1(ck)\\
+                (C,\vec{v}_C, \sigma) & \leftarrow \mathcal{A}_1(ck)\\
                 p & \leftarrow E(C,\vec{v}) \\
-                (i, \phi(i), w) &\leftarrow \mathcal{A}_2(\sigma)\\
+                (i, \phi(i), \omega, \vec{v}_{\omega}) &\leftarrow \mathcal{A}_2(\sigma)\\
                 & : \phi(i) \ne p(i) \land \\
                 & \hspace{3.5mm} \text{VerifyEval}(vk, C,(i,\phi(i)),w)
             \end{aligned}

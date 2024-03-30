@@ -299,3 +299,33 @@ pages="257--267",
 abstract="Pairing-based cryptosystems depend on the existence of groups where the Decision Diffie-Hellman problem is easy to solve, but the Computational Diffie-Hellman problem is hard. Such is the case of elliptic curve groups whose embedding degree is large enough to maintain a good security level, but small enough for arithmetic operations to be feasible. However, the embedding degree for most elliptic curves is enormous, and the few previously known suitable elliptic curves have embedding degree k ≤ 6. In this paper, we examine criteria for curves with larger k that generalize prior work by Miyaji et al. based on the properties of cyclotomic polynomials, and propose efficient representations for the underlying algebraic structures.",
 isbn="978-3-540-36413-9"
 }
+
+@phdthesis{fhe,
+author = {Gentry, Craig},
+advisor = {Boneh, Dan},
+title = {A fully homomorphic encryption scheme},
+year = {2009},
+isbn = {9781109444506},
+publisher = {Stanford University},
+address = {Stanford, CA, USA},
+abstract = {We propose the first fully homomorphic encryption scheme, solving an old open problem. Such a scheme allows one to compute arbitrary functions over encrypted data without the decryption key—i.e., given encryptions  E (  m  1), ...,  E (  m t ) of  m  1, ...,  m  t,  one can efficiently compute a compact ciphertext that encrypts  f (  m  1, ...,  m  t ) for any efficiently computable function  f . Fully homomorphic encryption has numerous applications. For example, it enables encrypted search engine queries—i.e., a search engine can give you a succinct encrypted answer to your (boolean) query without even knowing what your query was. It also enables searching on encrypted data; you can store your encrypted data on a remote server, and later have the server retrieve only files that (when decrypted) satisfy some boolean constraint, even though the server cannot decrypt the files on its own. More broadly, it improves the efficiency of secure multiparty computation. In our solution, we begin by designing a somewhat homomorphic "boostrappable" encryption scheme that works when the function  f  is  the scheme's own decryption function.  We then show how, through recursive self-embedding, bootstrappable encryption gives fully homomorphic encryption.},
+note = {AAI3382729}
+}
+
+@misc{CryptHOL_tutorial,
+      author = {Andreas Lochbihler and S.  Reza Sefidgar},
+      title = {A tutorial introduction to CryptHOL},
+      howpublished = {Cryptology ePrint Archive, Paper 2018/941},
+      year = {2018},
+      note = {\url{https://eprint.iacr.org/2018/941}},
+      url = {https://eprint.iacr.org/2018/941}
+}
+
+@misc{halo,
+      author = {Dan Boneh and Justin Drake and Ben Fisch and Ariel Gabizon},
+      title = {Halo Infinite: Recursive zk-SNARKs from any Additive Polynomial Commitment Scheme},
+      howpublished = {Cryptology ePrint Archive, Paper 2020/1536},
+      year = {2020},
+      note = {\url{https://eprint.iacr.org/2020/1536}},
+      url = {https://eprint.iacr.org/2020/1536}
+}
