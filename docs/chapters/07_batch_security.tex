@@ -1,15 +1,225 @@
 % !TeX root = ../main.tex
 % Add the above to each chapter to make compiling the PDF easier in some editors.
 \chapter{Formalized Batch Version Security}\label{chapter:batch_security}
+In this chapter, we outline the security properties for the batched version of the KZG as well as the idea behind the formalization of each security property. Again, as in chapter \ref{chapter:security}, we will not give concrete proofs in Isabelle syntax as this would go beyond the scope due to a lot of boilerplate Isabelle-specific abbreviations and functions.
 
-\section{evaluation binding}
+Similarly to chapter \ref{chapter:security}, each section covers one security property. Firstly, we describe the paper proof, followed by the \textit{formalization} subsection, which outlines the target of our formalization, namely the security game, the reduction algorithm and if needed additional intermediary games. Lastly, we outline the game-based proof in the \textit{games-based transformation} subsection.
 
-\subsection{formalization}
+Note, the property of \textit{polynomial-binding} does not involve any partially opening functions (i.e. neither CreateWitness nor CreateWitnessBatch) and hence does not change for the batched version. The property thus holds automatically for the batched version (see chapter \ref{chapter:security}).
 
-\section{hiding}
+\section{Evaluation Binding}
+We formalize the property \textit{evaluation binding} slightly adapted from \ref{PCS_def} (we introduce \textit{VerifyEvalBatch}) as described in the original paper \parencite{KZG}. Formally we define \textit{evaluation binding} as the following game against an efficient adversary $\mathcal{A}$ according to \parencite{KZG}: 
+\begin{equation*}
+    \left(
+        \begin{aligned}
+            PK & \leftarrow \text{key\_gen}, \\
+            (C, i,\phi_i,\omega_i, B, r(x),\omega_B) & \leftarrow \mathcal{A} \ PK, \\
+            \_::\text{unit} & \leftarrow \text{assert\_spmf}(i\in B \land \phi_i \ne r(x)), \\
+            b &= \text{VerifyEval}(PK, C, i, \phi_i, \omega_i),\\
+            b' &= \text{VerifyEvalBatch}(PK, C, B, r(x), \omega_B),\\
+            & : \ b \land b'
+        \end{aligned}
+        \right)
+\end{equation*}
+Intuitively this game expresses that no adversary can find an $r(x)$ (with a witness) and an evaluation (with a witness) that diverges from the evaluation of $r(x)$ at any $i \in B$.
 
-\subsection{formalization}
+\subsection{Original Paper Proof}
+The paper proof is similar to the evaluation binding proof outlined in \ref{security:binding:paper}. Essentially, the values provided by the adversary, if they are correct i.e. accepted by VerifyEval and respectively VerifyEvalBatch, can be rearranged to obtain the result for the t-BSDH instance, which is the public key. Nevertheless, we outline the paper proof concretely for completeness:
 
-\section{knowledge soundness}
+The paper proof argues that given an Adversary $\mathcal{A}$, that can break the evaluation binding property, an algorithm $\mathcal{B}$ can be constructed, that can break the t-BSDH assumption \parencite{KZG}. The concrete construction for $\mathcal{B}$ is: given the t-BSDH instance $tsdh\_inst =(\mathbf{g}, \mathbf{g}^{\alpha}, \mathbf{g}^{\alpha^2},\dots, \mathbf{g}^{\alpha^t})$, call $\mathcal{A}$ with $tsdh\_inst$ as $PK$ for $(C,B, r(x), \omega_B, i \in B,\phi(i),\omega_i)$ and return: 
+$$ \biggl(e\biggl(\mathbf{g}^{p'(\alpha)}, \omega_B\biggr) \oplus e\biggl(\frac{\mathbf{g}^{r'(\alpha)}}{\omega_i}, \mathbf{g}\biggr)\biggr)^{\frac{1}{\phi(i)-r(i)}}$$
+where $p'(x)$ is the product polynomial $\prod_{j\in B\backslash\{i\}}^{}(x-j) = \frac{\prod_{j\in B}^{}(x-j)}{(x-i)}$ and $r'(x)=\frac{r(x)-r(i)}{(x-i)}$.
+The reason to why $\mathcal{B}$ is a correct construction is the following: 
 
-\subsection{formalization}
+Breaking evaluation binding means, that $\mathcal{A}$, given a valid public key $PK=(\mathbf{g}, \mathbf{g}^{\alpha}, \mathbf{g}^{\alpha^2},\dots, \mathbf{g}^{\alpha^t})$, can give a Commitment $C$ and two witness-tuples, $\langle i, \phi(i),\omega_i\rangle$ and $\langle B, r(x), \omega_B\rangle$, where $i \in B$, such that $VerifyEval(PK, C,\langle i,\phi(i), \omega_i\rangle )$ and $VerifyEvalBatch(PK, C,\langle B,r(x), \omega_B\rangle )$ return true \parencite{KZG}. Since \textit{VerifyEvalBatch}, as well as \textit{VerifyEval}, is a pairing check against $e(C,\mathbf{g})$ we can conclude that: 
+
+$$e(\omega_i,\mathbf{g}^{\alpha-i})e(\mathbf{g}, \mathbf{g})^{\phi(i)} = e(C,\mathbf{g}) = e(\mathbf{g}^{\prod_{i\in B}^{}(\alpha-i)}, \omega_B)e(\mathbf{g}, \mathbf{g}^{r(\alpha)})$$
+which is the pairing term for: 
+\begin{equation*}
+    \begin{aligned}
+        &\psi_i(\alpha) \cdot (\alpha-i) + \phi(i) = \prod_{j\in B}^{}(\alpha-j) \cdot \psi_B(\alpha) + r(\alpha) \\
+        \iff&\phi(i) - r(\alpha) = \prod_{j\in B}^{}(\alpha-j) \cdot \psi_B(\alpha) - \psi_i(\alpha) \cdot (\alpha-i)\\
+        \iff&\phi(i) - r(\alpha) = \frac{\prod_{j\in B}^{}(\alpha-j)}{(\alpha-i)} \cdot (\alpha-i) \cdot \psi_B(\alpha) - \psi_i(\alpha) \cdot (\alpha-i)\\
+        \iff&\phi(i) - r(\alpha) = p'(\alpha) \cdot (\alpha-i) \cdot \psi_B(\alpha) - \psi_i(\alpha) \cdot (\alpha-i)\\
+        \iff&\phi(i) - r(\alpha) = (p'(\alpha) \cdot \psi_B(\alpha) - \psi_i(\alpha)) \cdot (\alpha-i)\\
+        \iff&\phi(i) - (r'(\alpha) \cdot (\alpha-i) + r(i)) = (p'(\alpha) \cdot \psi_B(\alpha) - \psi_i(\alpha)) \cdot (\alpha-i)\\
+        \iff&\phi(i) - r(i) = (p'(\alpha) \cdot \psi_B(\alpha) - \psi_i(\alpha) + r'(\alpha)) \cdot (\alpha-i)\\
+        \iff&\frac{1}{(\alpha-i)} = \frac{p'(\alpha) \cdot \psi_B(\alpha) - \psi_i(\alpha) + r'(\alpha)}{\phi(i) - r(i)}\\
+    \end{aligned}
+\end{equation*}
+where $\psi_i(\alpha)= log_{\mathbf{g}}\ \omega_i$ and $\psi_B(\alpha)= log_{\mathbf{g}}\ \omega_B$ and omitting the $e(C,\mathbf{g})$
+\parencite{KZG}.
+
+Hence: 
+\begin{equation*}
+    \begin{aligned}
+        &\biggl(e\biggl(\mathbf{g}^{p'(\alpha)}, \omega_B\biggr) \oplus e\biggl(\frac{\mathbf{g}^{r'(\alpha)}}{\omega_i}, \mathbf{g}\biggr)\biggr)^{\frac{1}{\phi(i)-r(i)}} \\
+        &= \biggl(e\biggl(\mathbf{g}^{p'(\alpha)}, \mathbf{g}^{\psi_B(\alpha)}\biggr) \oplus e\biggl(\frac{\mathbf{g}^{r'(\alpha)}}{\mathbf{g}^{\psi_i(\alpha)}}, \mathbf{g}\biggr)\biggr)^{\frac{1}{\phi(i)-r(i)}} \\
+        &= \biggl(e(\mathbf{g}, \mathbf{g})^{p'(\alpha) \cdot \psi_B(\alpha)} \oplus e(\mathbf{g}, \mathbf{g})^{r'(\alpha) - \psi_i(\alpha)}\biggr)^{\frac{1}{\phi(i)-r(i)}}\\
+        &= \biggl(e(\mathbf{g}, \mathbf{g})^{p'(\alpha) \cdot \psi_B(\alpha) + r'(\alpha) - \psi_i(\alpha)} \biggr)^{\frac{1}{\phi(i)-r(i)}}\\
+        &= e(\mathbf{g}, \mathbf{g})^{\frac{p'(\alpha) \cdot \psi_B(\alpha) + r'(\alpha) - \psi_i(\alpha)}{\phi(i)-r(i)}}\\
+        &= e(\mathbf{g}, \mathbf{g})^{\frac{1}{\alpha-i}}\\
+    \end{aligned}
+\end{equation*}
+Since $e(\mathbf{g},\mathbf{g})^{\frac{1}{\alpha-i}}$ breaks the t-BSDH assumption for i, $\mathcal{B}$ is correct.
+
+\subsection{Game-based Proof}
+The transformation into a game-based proof is analog to \ref{security:binding:gamebased}: 
+
+The goal of this proof is to show the following theorem, which states that the probability of any adversary breaking evaluation binding is less than or equal to winning the DL game (using the reduction adversary) in a game-based proof:
+\begin{lstlisting}[language=isabelle]
+    theorem batchOpening_binding: "bind_advantage $\mathcal{A}$ 
+        $\le$ t_BSDH.advantage (bind_reduction $\mathcal{A}$)"
+\end{lstlisting}
+
+A look at the \textit{evaluation binding} and \textit{t-BSDH} games reveals that \textit{key\_gen}'s generation of PK is equivalent to generating a t-BSDH instance. Furthermore, the games differ only in their checks in the respective \textit{assert\_spmf} calls (and the adversary's return types).  
+Additionally, we know from the paper proof that the adversary's messages, if correct and wellformed, which is checked in the eval\_bind game's asserts, already break the t-BSDH assumptions on PK. 
+Hence we give the following idea (which is analog to \ref{security:binding:gamebased}) for the proof:
+\begin{enumerate}
+    \item rearrange the eval\_bind game to accumulate (i.e. conjuncture) the return-check and all other checks into an assert
+    \item derive that this conjuncture of statements already implies that the t-BSDH is broken and add that fact to the conjuncture.
+    \item erase every check in the conjuncture by over-estimation, to be only left with the result that the t-BSDH is broken.
+\end{enumerate}
+The resulting game is the t-BSDH game with the reduction Adversary. 
+See Appendix A for the fully outlined game-based proof or the Isabelle theory \textit{KZG\_BatchOpening\_bind} for the formal proof.
+
+
+
+\subsection{Formalization}
+We formally define the evaluation binding game in CryptHOL as follows:
+\begin{lstlisting}[language=isabelle]
+    TRY do {
+        PK $\leftarrow$ key_gen;
+        (C, i, $\phi$_i, w_i, B, w_B, r_x) $\leftarrow \mathcal{A}$ PK;
+        _::unit $\leftarrow$ assert_spmf($i\in B$ $\land$ $\phi$_i $\ne$ poly r_x i 
+            $\land$ valid_msg $\phi$_i w_i $\land$ valid_batch_msg r_x w_B B);
+        let b = VerifyEval PK C i $\phi$_i w_i;
+        let b' = VerifyEvalBatch PK C B r_x w_B;
+        return_spmf (b $\land$ b')
+    } ELSE return_spmf False
+\end{lstlisting}
+The game captures the spmf over True and False, which represent the events that the Adversary has broken evaluation binding or not.
+The public key $PK$ is generated using the formalized \textit{key\_gen} function of the KZG. The Adversary $\mathcal{A}$, given PK, outputs values to break the evaluation binding game, namely a commitment value $C$, a set of positions $B$, that are to be opened, a polynomial $r\_x$ which evaluates to the claimed evaluations of $\phi$ (the polynomial $C$ is the commitment to) at the positions in B, a witness $w\_B$ that validates that the points from $B$ and $r\_x$ are valid for $C$, a point $i \in B$, a claimed value $\phi\_i$ that should be different from the value of $r\_x$ at $i$ and a witness, w\_i for the point $(i,\phi\_i)$. 
+Note that we use \textit{assert\_spmf} to ensure that the Adversary's messages are wellformed and correct, where correct means that $i \in B$, $\phi$\_i and the evaluation of $r\_x$ at $i$ are indeed two different values. Should the assert not hold, the game is counted as lost for the Adversary.
+We assign to b and b' the result of the formalized \textit{VerifyEvalBatch} and respectively \textit{VerifyEval} algorithm of the KZG. Evaluation binding is broken if and only if b and b' hold i.e. both witnesses and verifying checks pass and thus the same commitment can efficiently be resolved to two different values at some point.
+
+We formally define the reduction adversary as follows:
+\begin{lstlisting}[language=isabelle]
+    fun bind_reduction $\mathcal{A}$ PK = do {
+        (C, i, $\phi$_i, w_i, B, w_B, r_x) $\leftarrow$ $\mathcal{A}$ PK;
+        let p' = g_pow_PK_Prod PK (prod ($\lambda$i. [:-i,1:]) B div [:-i,1:]);
+        let r' = g_pow_PK_Prod PK ((r_x - [:poly r_x i:]) div [:-i,1:]);
+        return_spmf (-i, (e p' w_B $\oplus$ e (r' $\div$ w_i) $\mathbf{g}$)^(1/($\phi$_i - poly r_x i)))
+    }
+\end{lstlisting}
+That is a higher-order function, that takes the evaluation binding adversary $\mathcal{A}$ and returns an adversary for the t-BSDH game.
+That is, the function that calls the adversary $\mathcal{A}$ on some public key PK and returns $\bigl(-i, \bigl(e\bigl(\mathbf{g}^{p'(\alpha)}, \omega_B\bigr) \oplus e\bigl(\frac{\mathbf{g}^{r'(\alpha)}}{\omega_i}, \mathbf{g}\bigr)\bigr)^{\frac{1}{\phi(i)-r(i)}}\bigr)$, the solution to the t-BSDH game for $-i$. 
+
+The term \textit{[:poly r\_x i:]} is Isabelle's notation for a constant polynomial with the constant value of the polynomial $r\_x$ evaluated at $i$. The term $[:-i,1:]$ is Isabelle's notation for the polynomial $(x-i)$ and \textit{prod ($\lambda$. [:-i,1:]) B} is the product term $\prod_{i\in B}^{}(x-i)$. The $g\_pow\_PK\_Prod$ function returns the group generator $\mathbf{g}$, exponentiated with the evaluation of a polynomial on the secret key $\alpha$, hence, $p'=\mathbf{g}^{\frac{\prod_{i\in B}^{}(x-i)}{(x-i)}}$ and $r'=\mathbf{g}^{\frac{r_x-r_x(i)}{(x-i)}}$.
+
+\section{Hiding}
+
+\subsection{Original Paper Proof}
+
+\subsection{Game-based Proof}
+
+\subsection{Formalization}
+
+\section{Knowledge Soundness}
+We extend the knowledge soundness property as defined in \ref{knowledgesound_def}
+and proved for the KZG in \ref{security:knowledgesound} to the batched KZG version. Formally we define \textit{knowledge soundness} as the following game against an efficient AGM adversary $\mathcal{A=(A',A'')}$ and an efficient extractor $E$: 
+\begin{equation*}
+    \left(
+        \begin{aligned}
+            PK &\leftarrow \text{key\_gen}, \\
+            (C,calc\_vec) &\leftarrow \mathcal{A'}, \\
+            \_::\text{unit} &\leftarrow \text{assert\_spmf}\biggl(\text{len}(PK)=\text{len}(calc\_vec) \land C = \prod_{1}^{len(calc\_vec)}PK_i^{calc\_vec_i}\biggr), \\
+            \phi &= E(C, calc\_vec),\\
+            (i, B, r(x), \omega_B) &\leftarrow \mathcal{A''}(PK, C, calc\_vec), \\
+            & : \ \phi(i) \ne r(i) \land \text{VerifyEvalBatch}(PK,C,B,r(x),\omega_B)
+        \end{aligned}
+        \right)
+\end{equation*}
+We omit the AGM vector for \textit{w\_B} as we do not need it for our proof, for completeness one can think of it as an implicit output that is never used.
+
+\subsection{Original Paper Proof}
+\label{batch:security:knowledge:paper}
+The proof is analog to \ref{security:knowledge:paper}:
+
+Firstly, note that $calc\_vec$ provides exactly the coefficients one would need to obtain from a polynomial one wants to commit to. Thus $E$ can return a polynomial $\phi$ that has exactly the coefficients from $calc\_vec$. Since we know $C= \text{Commit}(PK, \phi)$ and the KZG is correct, we can conclude that for every value $i$, VerifyEval$(PK, C, i, \phi, \phi(i))$ must hold. Hence, if the adversary $\mathcal{A''}$ can provide $B$ and $r(x)$, such that $i\in B$, $r(i)\ne\phi(i)$
+and VerifyEvalBatch$(PK, C, B, r(x), \omega_B)$ hold, the evaluation binding property is already broken because VerifyEval and VerifyEvalBatch verify for two different evaluations at the same point of a polynomial.
+
+\subsection{Game-based Proof}
+\label{batch:security:knowledge:gamebased}
+
+The game-based transformation is analog to \ref{security:knowledge:gamebased}:
+
+The goal of this proof is to show the following theorem, which states that the probability of any efficient AGM adversary breaking  knowledge soundness is less than or equal to breaking the evaluation binding property (using a reduction adversary) in a game-based proof:
+%TODO ab hier
+\begin{lstlisting}[language=isabelle]
+    theorem knowledge_soundness_game_eq_bind_game_knowledge_soundness_reduction: 
+        "knowledge_soundness_game E $\mathcal{A'}$ $\mathcal{A''}$ 
+         = bind_game (knowledge_soundness_reduction E $\mathcal{A'}$ $\mathcal{A''}$)"
+\end{lstlisting}
+Moreover, since we already formalized the theorem \textit{evaluation\_binding} (i.e. that the probability of breaking evaluation binding is less than or equal to breaking the t-BSDH assumption), we get the following theorem through transitivity, given the $knowledge\_soundness\_game\_eq\_bind\_game_knowledge\_soundness\_reduction$ theorem holds: 
+
+\begin{lstlisting}[language=isabelle]
+    theorem knowledge_soundness: "knowledge_soundness_advantage $\mathcal{A}$ 
+        $\le$ t_BSDH.advantage (bind_reduction (knowledge_soundness_reduction $\mathcal{A}$))"
+\end{lstlisting}
+
+Based on the idea from \ref{batch:security:knowledge:paper}, we formally define the following reduction adversary to the evaluation binding game, given the knowledge soundness adversary $\mathcal{A=(A',A'')}$, the extractor $E$, and the input for the evaluation binding adversary; the public key $PK$:
+\begin{equation*}
+    \left(
+        \begin{aligned}
+            (C,calc\_vec) &\leftarrow \mathcal{A'}(PK), \\
+            \phi &= E(C, calc\_vec),\\
+            (i, B, r(x), \omega_B) &\leftarrow \mathcal{A''}(PK, C, calc\_vec), \\
+            \phi_i &= \phi(i), \\
+            \omega_i &= \text{CreateWitness}(PK,\phi, i), \\
+            &  (C, i, \phi_i, \omega_i, B, r(x), \omega_B)
+        \end{aligned}
+        \right)
+\end{equation*}
+The reduction creates a tuple $(C, i, \phi_i, \omega_i, B, r(x), \omega_B)$ to break the evaluation binding property. The commitment $C$ is determined by the adversary $\mathcal{A'}$, from which messages the extractor $E$ also computes the polynomial $\phi$, to which $C$ is a commitment (see \ref{security:knowledge:paper}). The adversary $\mathcal{A'}$ provides a set of positions $B$, the claimed evaluations of $\phi$ to the positions captured in the polynomial $r(x)$ (i.e. $\forall i\in B.\ r(i)\stackrel{!}{=}\phi(i)$), a witness $\omega_B$ for $r(x)$ (i.e. such that $VerifyEvalBatch(PK,C,B,r(x), \omega_B)$ holds) and $B$, and a position $i \in B$ for that it claims that $\phi(i) \ne r(i)$. Then the real evaluation of $\phi$ on $i$, $\phi(i)$ is computed as $\phi_i$ and a witness $\omega_i$ for the point $(i,\phi(i))$ is computed using $CreateWitness$.
+Note, if the knowledge soundness adversary is correct, then $\phi_i=\phi(i)\ne r(x)$ and $\text{VerifyEval}(PK,C,i,\phi_i,\omega_i) \land \text{VerifyEvalBatch}(PK,C,B, r(x),\omega_B)$ holds, hence the reduction is a correct and efficient adversary for \text{evaluation binding}.
+
+For the game-based proof note that the knowledge soundness game and the evaluation binding game with the reduction adversary are equivalent except for the asserts: while the knowledge soundness game asserts 
+$$\phi(i) \ne r(i) \land \text{VerifyEvalBatch}(PK, C, B,r(x),\omega_B)$$ the evaluation binding game asserts 
+$$\phi_i \ne r(i) \land \text{VerifyEval}(PK, C, i, \phi_i, \omega_i) \land \text{VerifyEvalBatch}(PK, C, B, r(x), \omega_B)$$ where $\phi(i)=\phi_i$. Furthermore, note that the two statements are equivalent since VerifyEval for $\phi(i)$ is trivially true. Hence, the game-based proof is effectively equational reasoning over the asserts. The complete game-based proof is to be found in Appendix B.
+%TODO Appendix B + proof
+
+\subsection{Formalization}
+We formalize the knowledge soundness game in CryptHOL as follows: 
+\begin{lstlisting}[language=isabelle]
+    TRY do {
+        PK $\leftarrow$ key_gen;
+        (C, calc_vec) $\leftarrow \mathcal{A'}$ PK;
+        _ :: unit $\leftarrow$ assert_spmf (length PK = length calc_vec 
+            $\land$ C = fold ($\lambda$ i acc. acc $\cdot$ PK!i ^ (calc_vec!i)) [0..<length PK] 1);
+        let $\phi$ = E C calc_vec;
+        (i, B, r_x, w_B) $\leftarrow \mathcal{A}$ PK C calc_vec;
+        _::unit $\leftarrow$ assert_spmf(i$\in$B $\land$ valid_batch_msg r_x w_B B);
+        return_spmf (VerifyEvalBatch PK C B r_x w_B $\land$  poly r_x i $\ne$ poly $\phi$ i)
+    } ELSE return_spmf False
+\end{lstlisting}
+The game captures the spmf over True and False, which represent the events that the adversary has broken knowledge soundness or not.
+Firstly, the public key $PK$ is generated using \textit{key\_gen}. 
+Secondly, the adversary $\mathcal{A'}$ provides a commitment $C$ in the algebraic group model i.e. with the vector $calc\_vec$, which constructs $C$ from $PK$. We use an assert to ensure in Isabelle that the message of the $\mathcal{A'}$ is correct according to the AGM.
+Thirdly, the extractor $E$ computes a polynomial $\phi$ given access to the messages of $\mathcal{A'}$. 
+The second part of the adversary, $\mathcal{A''}$, computes a set of position $B$, an evaluation polynomial $r\_x$ that captures the claimed evaluations of $\phi$ on the positions $B$ (i.e. $\forall i\in B.\ \phi(i)\stackrel{!}{=}r(i)$), a witness $w\_B$ for $B$ and $r\_x$, and a position $i\in B$ for which $\phi(i)\ne r(i)$ should hold. We use an assert to check that the messages of $\mathcal{A''}$ are valid, that is to ensure in Isabelle that $w\_B$ is a group element and $i\in B$.
+The adversary wins the game if and only if $r(x) \ne \phi(i)$ and VerifyEvalBatch($PK,C,B, r\_x, w\_B$) hold.
+
+We formalize the reduction adversary to the binding game as defined in \ref{security:knowledge:gamebased}: 
+\begin{lstlisting}[language=isabelle]
+    fun reduction $\mathcal{(A',A'')}$ PK = do {
+        (C, calc_vec) $\leftarrow$ $\mathcal{A'} PK$;
+        _ :: unit $\leftarrow$ assert_spmf (length PK = length calc_vec 
+            $\land$ C = fold ($\lambda$ i acc. acc $\cdot$ PK!i ^ (calc_vec!i)) [0..<length PK] 1);
+        let $\phi$ = E C calc_vec;
+        (i,$\phi$_i, w_i) $\leftarrow \mathcal{A}$ PK C calc_vec;
+        _::unit $\leftarrow$ assert_spmf(valid_msg $\phi_i$, w_i);
+        return_spmf (C, i, $\phi$_i, w_i, $\phi$_i',w_i')
+    }
+\end{lstlisting}
+This function mirrors exactly the outline in \ref{batch:security:knowledge:gamebased} except for the validity checks of the adversary's messages in the form of the asserts (see the game definition above for details), thus we skip a detailed description.

@@ -266,6 +266,7 @@ We formally define four security properties for a PCS:
 \end{definition}
 
 \begin{definition}[Knowledge Soundness (AGM)]
+    \label{knowledgesound_def}
     We say a PCS is knowledge sound in the AGM if and only if there exists an efficient extractor algorithm $E$ such that for every efficient Adversary $\mathcal{A}=(\mathcal{A}_1, \mathcal{A}_2)$ in the AGM the probability of winning the following game is negligible: 
     \begin{equation*}
         \left(
