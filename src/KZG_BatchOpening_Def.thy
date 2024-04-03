@@ -6,7 +6,7 @@ begin
 
 section \<open>Batch Opening Definition\<close>
 
-locale KZG_BatchOpening_def = KZG_correct 
+locale KZG_BatchOpening_def = KZG_Def 
 begin
 
 (*TODO remove*)
@@ -95,32 +95,8 @@ proof -
     by simp
 qed
 
-thm poly_mod_mult_right
-
-thm degree_mult_eq
-
 lemma "(\<Prod>i\<in>B. [:- i, 1:]) dvd \<phi> \<Longrightarrow> \<phi> mod (\<Prod>i\<in>B. [:- i, 1:]) = 0 "
-  by fastforce
-
-(*
-lemma "degree (r B \<phi>) = card B"
-proof (cases "(\<Prod>i\<in>B. [:- i, 1:]) dvd \<phi>")
-  case True
-  then show ?thesis sorry
-next
-  case False
-  have neq_0: "(\<Prod>i\<in>B. [:- i, 1:]) \<noteq> 0"
-    by simp
-  show ?thesis 
-  unfolding r.simps
-  Let_def
-  using 
-  degree_mod_less_degree[OF neq_0 False]
-  
-  sorry
-qed*)
-
-  
+  by fastforce  
 
 subsection \<open>Function definitions\<close>
 
@@ -132,7 +108,7 @@ where
         \<psi> = \<psi>\<^sub>B B \<phi>; \<comment>\<open>(\<phi>(x) - r(x)) / (\<Prod>i\<in>B. (x-i))\<close>
         w_i = g_pow_PK_Prod PK \<psi> \<comment>\<open>g^\<psi>(\<alpha>)\<close>
     in
-    (B, r ,w_i) \<comment>\<open>(B, r(x), g^\<psi>(\<alpha>))\<close>
+    (B, r, w_i) \<comment>\<open>(B, r(x), g^\<psi>(\<alpha>))\<close>
   )" 
 
 definition VerifyEvalBatch :: "'a pk \<Rightarrow> 'a commit \<Rightarrow> 'e eval_position set \<Rightarrow> 'e polynomial \<Rightarrow> 'a eval_witness 

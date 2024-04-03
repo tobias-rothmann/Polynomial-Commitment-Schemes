@@ -2,6 +2,7 @@ theory Cyclic_Group_SPMF_ext
 
 imports CryptHOL.Cyclic_Group_SPMF "HOL-Computational_Algebra.Polynomial" 
   Berlekamp_Zassenhaus.Finite_Field Polynomial_Interpolation.Lagrange_Interpolation
+  Polynomial_Interpolation.Polynomial_Interpolation
 
 begin
 
@@ -245,12 +246,26 @@ qed
 subsection \<open>sample uniform polynomial\<close>
 
 definition sample_uniform_poly :: "nat \<Rightarrow> 'a::zero poly spmf" 
-  where "sample_uniform_poly t = spmf_of_set {p. degree p = t}"
+  where "sample_uniform_poly t = spmf_of_set {p. degree p \<le> t}"
 
+lemma of_int_mod_inj_on_ff: "inj_on (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e::prime_card mod_ring) {..<CARD ('e)}"
+proof 
+  fix x 
+  fix y
+  assume x: "x \<in> {..<CARD('e)}"
+  assume y: "y \<in> {..<CARD('e)}"
+  assume app_x_eq_y: "(of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) x = (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) y"
+  show "x = y"
+    using x y app_x_eq_y 
+    by (metis comp_apply lessThan_iff nat_int of_nat_0_le_iff of_nat_less_iff to_int_mod_ring_of_int_mod_ring)
+qed
+
+declare [[show_types]]
 lemma sample_uniform_evals_is_sample_poly:
   assumes "distinct I"
+  and "length I = t+1"
   shows "(sample_uniform_poly t::'e mod_ring poly spmf) = do {
-      evals::('e::prime_card) mod_ring list \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int)) (sample_uniform_list (t+1) (CARD ('e)));
+      evals::('e::prime_card) mod_ring list \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring)) (sample_uniform_list (t+1) (CARD ('e)));
       return_spmf (lagrange_interpolation_poly (zip I evals))}"
   (is "?lhs = ?rhs")
 proof -
@@ -258,18 +273,65 @@ proof -
       evals \<leftarrow> spmf_of_set {x::'e mod_ring list. length x = t + 1};
       return_spmf (lagrange_interpolation_poly (zip I evals))}"
   proof - 
-    have "map_spmf (map (of_int_mod_ring \<circ> int)) (sample_uniform_list (t + 1) CARD('e))
-    = spmf_of_set {x::'e mod_ring list. length x = t + 1}"
+    have uni_list_set_is_card_set: "(\<Union> (set ` {x::nat list. set x \<subseteq> {..<CARD('e)} \<and> length x = t + (1::nat)})) 
+      = {..<CARD('e)}"
+    proof 
+      show "{..<CARD('e)} \<subseteq> \<Union> (set ` {x::nat list. set x \<subseteq> {..<CARD('e)} \<and> length x = t + (1::nat)})"
+      proof 
+        fix x 
+        assume "x \<in> {..<CARD('e)}"
+        then have "replicate (t+1) x \<in> {x::nat list. set x \<subseteq> {..<CARD('e)} \<and> length x = t + (1::nat)}"
+          by fastforce
+        then show "x \<in> \<Union> (set ` {x::nat list. set x \<subseteq> {..<CARD('e)} \<and> length x = t + (1::nat)})"
+          by fastforce
+      qed
+    qed auto
+    have "map_spmf (map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring)) (sample_uniform_list (t + 1) CARD('e))
+    = spmf_of_set ((map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring)) ` {x. set x \<subseteq> {..<CARD('e)} \<and> length x = t+1})"
     (is "?map = ?set")
-    proof (rule spmf_eqI)
-      fix i :: "'e mod_ring list"
-      obtain nat_i where "i = map (of_int_mod_ring \<circ> int) nat_i" sorry
-      show "spmf ?map i = spmf ?set i"
-        unfolding sample_uniform_list_def
-        
-        sorry
-    qed
-    then show ?thesis by metis
+      unfolding sample_uniform_list_def
+      apply (rule map_spmf_of_set_inj_on)
+      apply (rule inj_on_mapI)
+      unfolding uni_list_set_is_card_set
+      by (rule of_int_mod_inj_on_ff)
+    also have "(map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring)) ` {x. set x \<subseteq> {..<CARD('e)} \<and> length x = t+1} 
+      = {x::'e mod_ring list. length x = t + 1}"
+    proof 
+      show "{x::'e mod_ring list. length x = t + (1::nat)}
+        \<subseteq> map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) ` {x::nat list. set x \<subseteq> {..<CARD('e)} \<and> length x = t + (1::nat)}"
+      proof 
+        fix x 
+        assume asm: "x \<in> {x::'e mod_ring list. length x = t + (1::nat)}"
+        obtain x_int where x_int : "x_int = map to_int_mod_ring x" by force
+        have x_eq_map_x_int: "x = map of_int_mod_ring x_int"
+          unfolding x_int 
+          by (simp add: nth_equalityI)
+        obtain x_nat where x_nat: "x_nat = map nat x_int" by simp
+        have x_int_x_nat: "x_int = map int x_nat"
+        proof -
+          have "map int x_nat =  map (\<lambda>i. if i\<ge>0 then i else 0)  x_int"
+            unfolding x_nat using int_nat_eq by simp
+          moreover have "\<forall>x \<in> set x_int. x\<ge>0"
+            unfolding x_int 
+            using range_to_int_mod_ring
+            by (metis atLeastLessThan_iff ex_map_conv rangeI)
+          ultimately show ?thesis
+            by (simp add: map_idI)
+        qed
+        have "x_nat \<in> {x::nat list. set x \<subseteq> {..<CARD('e)} \<and> length x = t + (1::nat)}"
+          unfolding x_nat x_int
+          apply auto 
+           apply (metis range_to_int_mod_ring UNIV_I atLeastLessThan_iff image_iff nat_less_iff)
+          using asm apply force
+          done
+        moreover have "x = map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) x_nat"
+          by (simp add: x_eq_map_x_int x_int_x_nat)
+        ultimately show "x \<in> map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) 
+          ` {x::nat list. set x \<subseteq> {..<CARD('e)} \<and> length x = t + (1::nat)}"
+          by blast
+      qed
+    qed auto
+    finally show ?thesis by metis
   qed
   also have "\<dots> =  do {
       evals \<leftarrow> spmf_of_set {x::'e mod_ring list. length x = t + 1};
@@ -278,20 +340,74 @@ proof -
   also have "\<dots> = map_spmf (\<lambda>evals. lagrange_interpolation_poly (zip I evals)) 
                          (spmf_of_set {x::'e mod_ring list. length x = t + 1})"
     by (simp add: map_spmf_conv_bind_spmf)
-  also have "\<dots> = spmf_of_set {}"
-    (is "?map = ?set")
-  proof (rule spmf_eqI)
-    fix i 
-    show "spmf ?map i = spmf ?set i"
-    
-      sorry
+  also have "\<dots> = spmf_of_set ((\<lambda>evals. lagrange_interpolation_poly (zip I evals)) ` {x::'e mod_ring list. length x = t + 1})"
+  proof (rule map_spmf_of_set_inj_on)
+    show "inj_on (\<lambda>evals::'e mod_ring list. lagrange_interpolation_poly (zip I evals))
+     {x::'e mod_ring list. length x = t + (1::nat)}"
+    proof 
+      fix x y
+      assume x_in:"x \<in> {x::'e mod_ring list. length x = t + (1::nat)}"
+      assume y_in:"y \<in> {x::'e mod_ring list. length x = t + (1::nat)}"
+      assume asm: "lagrange_interpolation_poly (zip I x) = lagrange_interpolation_poly (zip I y)"
+      have poly_xi: "\<And>i. i<length I \<Longrightarrow> poly (lagrange_interpolation_poly (zip I x)) (I!i) = x!i"
+        using lagrange_interpolation_poly[of "zip I x" "lagrange_interpolation_poly (zip I x)"]
+        assms(1)
+        by (smt (verit, del_insts) assms(2) length_zip map_fst_zip mem_Collect_eq min_less_iff_conj nth_mem nth_zip x_in)
+      have poly_y: "\<And>i. i<length I \<Longrightarrow> poly (lagrange_interpolation_poly (zip I y)) (I!i) = y!i"
+        using lagrange_interpolation_poly[of "zip I y" "lagrange_interpolation_poly (zip I y)"]
+        assms(1)
+        by (smt (verit, del_insts) assms(2) length_zip map_fst_zip mem_Collect_eq min_less_iff_conj nth_mem nth_zip y_in)
+      then have "\<And>i. i<length I \<Longrightarrow> poly (lagrange_interpolation_poly (zip I x)) (I!i) = y!i"
+        using asm by presburger
+      then show "x=y"
+        using poly_y assms(2) x_in y_in
+        by (simp add: nth_equalityI poly_xi)
+    qed
   qed
-    
-  show ?thesis
-    sorry
+  also have "\<dots> = spmf_of_set {p. degree p \<le> t}"
+    (is "?map = ?set")
+  proof -
+    have "{p. degree p \<le> t} = (\<lambda>evals::'e mod_ring list. lagrange_interpolation_poly (zip I evals)) `
+      {x::'e mod_ring list. length x = t + (1::nat)}"
+    proof 
+      show "{p::'e mod_ring poly. degree p \<le> t}
+    \<subseteq> (\<lambda>evals::'e mod_ring list. lagrange_interpolation_poly (zip I evals)) `
+       {x::'e mod_ring list. length x = t + (1::nat)}"
+      proof 
+        fix x 
+        assume asm: "x \<in> {p::'e mod_ring poly. degree p \<le> t}"
+        obtain x_evals where x_evals: "x_evals = map (\<lambda>i. poly x i) I" by simp
+        then have "length x_evals = t+1"
+          by (simp add: assms(2))
+        moreover have "x = lagrange_interpolation_poly (zip I x_evals)"
+          apply (rule uniqueness_of_interpolation_point_list[of "zip I x_evals" x "lagrange_interpolation_poly (zip I x_evals)"])
+              apply (simp add: assms(1) x_evals)
+             apply (metis fst_eqD in_set_zip nth_map snd_eqD x_evals)
+          using asm assms(2) calculation apply force
+           apply (metis assms(1) assms(2) calculation lagrange_interpolation_poly map_fst_zip)
+          apply (metis Suc_eq_plus1 assms(2) calculation degree_lagrange_interpolation_poly diff_Suc_1 le_refl length_zip less_Suc_eq min.absorb1 order.strict_trans1)
+          done
+        ultimately show "x \<in> (\<lambda>evals::'e mod_ring list. lagrange_interpolation_poly (zip I evals)) `
+            {x::'e mod_ring list. length x = t + (1::nat)}"
+          by blast
+      qed
+      show "(\<lambda>evals::'e mod_ring list. lagrange_interpolation_poly (zip I evals)) `
+    {x::'e mod_ring list. length x = t + (1::nat)}
+    \<subseteq> {p::'e mod_ring poly. degree p \<le> t}"
+      proof 
+        fix x 
+        assume asm: "x \<in> (\<lambda>evals::'e mod_ring list. lagrange_interpolation_poly (zip I evals)) `
+            {x::'e mod_ring list. length x = t + (1::nat)}"
+        then show "x \<in> {p::'e mod_ring poly. degree p \<le> t}"
+          using degree_lagrange_interpolation_poly
+          by (smt (verit) Nat.le_diff_conv2 One_nat_def Suc_eq_plus1 add_leE diff_Suc_1 diff_is_0_eq image_iff le_trans length_zip mem_Collect_eq min.absorb1 min.absorb2 nat_le_linear plus_1_eq_Suc zero_le)
+      qed
+    qed
+    then show ?thesis by argo
+  qed
+  finally show ?thesis 
+    unfolding sample_uniform_poly_def by argo
 qed
-
-
 
 subsection \<open>sample distinct uniform list\<close>  
 

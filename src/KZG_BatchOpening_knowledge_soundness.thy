@@ -3,7 +3,7 @@ theory KZG_BatchOpening_knowledge_soundness
 imports KZG_BatchOpening_binding
 begin
 
-(*TODOD change discrp*)
+(*TODO change discrp*)
 text \<open>We show knowledge soundness oriented at the definition in the PLONK paper (see section 3.1
 in the PLONK paper: https://eprint.iacr.org/2019/953.pdf). However, we show the property only for 
 a commitment to one polynomial to stay consistent with the other proofs in this work. Due to the 

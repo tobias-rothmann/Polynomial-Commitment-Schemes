@@ -82,6 +82,4 @@ proof -
     by (simp add: spmf_try_spmf)
 qed
 
-lemma "spmf_of_set A \<bind> f  = spmf_of_set {}"
-
 end

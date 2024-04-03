@@ -132,7 +132,7 @@ lemma key_gen_alt_def: "key_gen = do {
     let \<alpha>::'e mod_ring = of_int_mod_ring (int x) in
     return_spmf (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1])
   }"
-    unfolding key_gen_def Setup_def Let_def split_def by simp
+  unfolding key_gen_def Setup_def Let_def split_def by simp
 
 lemma knowledge_soundness_game_alt_def: 
   "knowledge_soundness_game E \<A> \<A>' = 

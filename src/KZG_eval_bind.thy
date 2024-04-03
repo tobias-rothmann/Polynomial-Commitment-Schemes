@@ -275,7 +275,7 @@ lemma helping_1: "\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i
                             \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha> + (-i))) 
                               = (w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i)) 
 \<longleftrightarrow> 
-\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 
+                  \<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 
                             \<and> valid_msg \<phi>_of_i w_i
                             \<and> valid_msg \<phi>'_of_i w'_i
                             \<and> VerifyEval ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1])) C i \<phi>_of_i w_i 
@@ -383,7 +383,7 @@ proof -
     return_spmf True 
   } ELSE return_spmf False"  
    using helping_1 by algebra 
- text \<open>remove additional fact about the witnesses unequalness\<close>
+ text \<open>remove additional fact about the witnesses inequality\<close>
  also have "\<dots> = TRY do { 
      \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> (?PK \<alpha>);

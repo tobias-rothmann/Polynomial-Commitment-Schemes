@@ -57,6 +57,7 @@ sublocale DL_G\<^sub>p: DL G\<^sub>p "of_int_mod_ring \<circ> int" "pow_mod_ring
 
 subsection \<open>Reduction\<close>
 
+(*TODO rename to interpolate_on*)
 definition compute_g_pow_\<phi>_of_\<alpha> :: "('e mod_ring \<times> 'a) list \<Rightarrow> 'e mod_ring \<Rightarrow> 'a" where
   "compute_g_pow_\<phi>_of_\<alpha> xs_ys \<alpha>= do {
   let xs = map fst xs_ys;
@@ -352,7 +353,28 @@ lemma hiding_game_to_game1:
 shows "hiding_game I \<A> = game1 I \<A>"
   (is "?lhs = ?rhs")
 proof -
+  (* sample phi uniform random is sampling evaluation points for some I uniform random *)
   have "?lhs = TRY do {
+  let i = pick_not_from I;
+  \<phi> \<leftarrow> do {
+      evals::'e mod_ring list \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring)) (sample_uniform_list (max_deg+1) (CARD ('e)));
+      return_spmf (lagrange_interpolation_poly (zip (i#I) evals))};
+  PK \<leftarrow> key_gen;
+  let C = Commit PK \<phi>;
+  let witn_tupel = map (\<lambda>i. CreateWitness PK \<phi> i) I;
+  \<phi>' \<leftarrow> \<A> C witn_tupel;                             
+  return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
+  proof -
+    have distnct: "distinct (pick_not_from I# I)"
+      using assms(1) assms(3) pick_not_from by presburger
+    have lengt: "length (pick_not_from I# I) = max_deg +1"
+      using assms(2) by fastforce
+    show ?thesis
+    unfolding hiding_game_def
+    unfolding sample_uniform_evals_is_sample_poly[OF distnct lengt]
+    unfolding Let_def ..
+qed
+  also have "\<dots> = TRY do {
   let i = pick_not_from I;
   evals::'e mod_ring list \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
@@ -361,8 +383,13 @@ proof -
   let witn_tupel = map (\<lambda>i. CreateWitness PK \<phi> i) I;
   \<phi>' \<leftarrow> \<A> C witn_tupel;                             
   return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
-    (* sample phi uniform random is sampling evaluation points for some I uniform random *)
-    sorry
+  proof -
+    have exchange: "CARD ('e) = order G\<^sub>p"
+      using CARD_G\<^sub>p CARD_q by fastforce
+    show ?thesis 
+      unfolding Let_def exchange
+      by simp
+  qed
   also have "\<dots> = TRY do {
   let i = pick_not_from I;
   evals::'e mod_ring list \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));

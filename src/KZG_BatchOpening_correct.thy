@@ -3,7 +3,7 @@ theory KZG_BatchOpening_correct
 imports KZG_BatchOpening_Def KZG_correct
 begin
 
-locale KZG_BatchOpening_correct = KZG_BatchOpening_def
+locale KZG_BatchOpening_correct = KZG_BatchOpening_def + KZG_correct
 begin
 
 definition BatchEval_game:: "'e polynomial \<Rightarrow> 'e eval_position set \<Rightarrow> bool spmf"
