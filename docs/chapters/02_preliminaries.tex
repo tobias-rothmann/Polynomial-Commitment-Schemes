@@ -296,7 +296,7 @@ Note that we will use the abbreviation \textit{Isabelle} to refer to \textit{Isa
 Isabelle is an interactive theorem prover for higher-order logic (HOL) that supports a minimal functional programming language \parencite{isabelle_manual}, as well as a large set of formalizations of mathematical areas such as Algebra and Analysis. The most essential formalizations are shipped with Isabelle in the \textit{HOL-library}, besides that there exists a large database of formalizations, the \textit{Archive of Formal Proofs (AFP)}\footnote{https://www.isa-afp.org}. We will use the finite field definition as well as the factorization algorithm for polynomials over finite fields from the Berlekamp-Zassenhaus\parencite{Berlekamp_Zassenhaus-AFP} AFP entry. Furthermore, we use the Lagrange Polynomial Interpolation algorithm from the AFP entry \textit{Polynomial Interpolation}\parencite{Polynomial_Interpolation-AFP}.
 Apart from that, we use another AFP entry that is central to our proofs, the CryptHOL framework\parencite{CryptHOL-AFP}:
 
-\subsection{CryptHOL}
+\subsection*{CryptHOL}
 CryptHOL is a framework for game-based proofs in Isabelle \parencite{CryptHOL_game_based}. It captures games in a sub-probability mass function (spmf) monad. That is essentially a \textit{Option} type wrapped in a probability mass function (pmf). The unassigned probability mass, represented as the pmf of \textit{None} is propagated through the monad.
 Elementary events from spmf's can be bound to variables through the monadic notation. 
 The notation for games in CryptHOL is drawn from Haskell's do-notation.  

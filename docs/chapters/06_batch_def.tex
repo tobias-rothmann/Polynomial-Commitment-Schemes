@@ -19,7 +19,7 @@ Intuitively, \textit{CreateWitnessBatch} uses the same technique as \textit{Crea
 
 Similarly, \textit{VerifyEvalBatch} checks an equation that matches the equation checked by \textit{CreateWitness}, except for the evaluation point $\phi(i)$, which is replaced by the evaluation polynomial $r(x)$, and the division for multiple positions $\prod_{i\in B}^{}(x-i)$ instead of one $(x-i)$, i.e. $\phi(x)=\psi_B(x)*(\prod_{i\in B}^{}(x-i)) + r(x)$ instead of $\phi(x)=\psi_i(x)*(x-i) + \phi(i)$.
 
-\section{Formalization}
+\section*{Formalization}
 We formalize the batch version as a locale extension of the KZG definition locale \textit{KZG\_Def}: 
 \begin{lstlisting}[language=isabelle]
     locale KZG_BatchOpening_def = KZG_Def 

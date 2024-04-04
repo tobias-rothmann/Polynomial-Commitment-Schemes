@@ -23,7 +23,7 @@ We formalize the property \textit{evaluation binding} slightly adapted from \ref
 \end{equation*}
 Intuitively this game expresses that no adversary can find an $r(x)$ (with a witness) and an evaluation (with a witness) that diverges from the evaluation of $r(x)$ at any $i \in B$.
 
-\subsection{Original Paper Proof}
+\subsection*{Original Paper Proof}
 The paper proof is similar to the evaluation binding proof outlined in \ref{security:binding:paper}. Essentially, the values provided by the adversary, if they are correct i.e. accepted by VerifyEval and respectively VerifyEvalBatch, can be rearranged to obtain the result for the t-BSDH instance, which is the public key. Nevertheless, we outline the paper proof concretely for completeness:
 
 The paper proof argues that given an Adversary $\mathcal{A}$, that can break the evaluation binding property, an algorithm $\mathcal{B}$ can be constructed, that can break the t-BSDH assumption \parencite{KZG}. The concrete construction for $\mathcal{B}$ is: given the t-BSDH instance $tsdh\_inst =(\mathbf{g}, \mathbf{g}^{\alpha}, \mathbf{g}^{\alpha^2},\dots, \mathbf{g}^{\alpha^t})$, call $\mathcal{A}$ with $tsdh\_inst$ as $PK$ for $(C,B, r(x), \omega_B, i \in B,\phi(i),\omega_i)$ and return: 
@@ -63,7 +63,7 @@ Hence:
 \end{equation*}
 Since $e(\mathbf{g},\mathbf{g})^{\frac{1}{\alpha-i}}$ breaks the t-BSDH assumption for i, $\mathcal{B}$ is correct.
 
-\subsection{Game-based Proof}
+\subsection*{Game-based Proof}
 The transformation into a game-based proof is analog to \ref{security:binding:gamebased}: 
 
 The goal of this proof is to show the following theorem, which states that the probability of any adversary breaking evaluation binding is less than or equal to winning the DL game (using the reduction adversary) in a game-based proof:
@@ -85,7 +85,7 @@ See Appendix A for the fully outlined game-based proof or the Isabelle theory \t
 
 
 
-\subsection{Formalization}
+\subsection*{Formalization}
 We formally define the evaluation binding game in CryptHOL as follows:
 \begin{lstlisting}[language=isabelle]
     TRY do {
@@ -119,11 +119,11 @@ The term \textit{[:poly r\_x i:]} is Isabelle's notation for a constant polynomi
 
 \section{Hiding}
 
-\subsection{Original Paper Proof}
+\subsection*{Original Paper Proof}
 
-\subsection{Game-based Proof}
+\subsection*{Game-based Proof}
 
-\subsection{Formalization}
+\subsection*{Formalization}
 
 \section{Knowledge Soundness}
 We extend the knowledge soundness property as defined in \ref{knowledgesound_def}
@@ -142,14 +142,14 @@ and proved for the KZG in \ref{security:knowledgesound} to the batched KZG versi
 \end{equation*}
 We omit the AGM vector for \textit{w\_B} as we do not need it for our proof, for completeness one can think of it as an implicit output that is never used.
 
-\subsection{Original Paper Proof}
+\subsection*{Original Paper Proof}
 \label{batch:security:knowledge:paper}
 The proof is analog to \ref{security:knowledge:paper}:
 
 Firstly, note that $calc\_vec$ provides exactly the coefficients one would need to obtain from a polynomial one wants to commit to. Thus $E$ can return a polynomial $\phi$ that has exactly the coefficients from $calc\_vec$. Since we know $C= \text{Commit}(PK, \phi)$ and the KZG is correct, we can conclude that for every value $i$, VerifyEval$(PK, C, i, \phi, \phi(i))$ must hold. Hence, if the adversary $\mathcal{A''}$ can provide $B$ and $r(x)$, such that $i\in B$, $r(i)\ne\phi(i)$
 and VerifyEvalBatch$(PK, C, B, r(x), \omega_B)$ hold, the evaluation binding property is already broken because VerifyEval and VerifyEvalBatch verify for two different evaluations at the same point of a polynomial.
 
-\subsection{Game-based Proof}
+\subsection*{Game-based Proof}
 \label{batch:security:knowledge:gamebased}
 
 The game-based transformation is analog to \ref{security:knowledge:gamebased}:
@@ -189,7 +189,7 @@ $$\phi(i) \ne r(i) \land \text{VerifyEvalBatch}(PK, C, B,r(x),\omega_B)$$ the ev
 $$\phi_i \ne r(i) \land \text{VerifyEval}(PK, C, i, \phi_i, \omega_i) \land \text{VerifyEvalBatch}(PK, C, B, r(x), \omega_B)$$ where $\phi(i)=\phi_i$. Furthermore, note that the two statements are equivalent since VerifyEval for $\phi(i)$ is trivially true. Hence, the game-based proof is effectively equational reasoning over the asserts. The complete game-based proof is to be found in Appendix B.
 %TODO Appendix B + proof
 
-\subsection{Formalization}
+\subsection*{Formalization}
 We formalize the knowledge soundness game in CryptHOL as follows: 
 \begin{lstlisting}[language=isabelle]
     TRY do {

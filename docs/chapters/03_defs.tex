@@ -4,7 +4,7 @@
 In this chapter, we give the concrete construction, as well as an intuition of the KZG.
 Furthermore, we outline how the KZG has been formalized, note, however, that the definitions were formalized in a practical course and are not part of this thesis. 
 
-\section{Intuition}
+\section*{Intuition}
 In this section, we want to give an intuitive idea of how the KZG constructs a PCS, specifically, how a commitment is constructed and how the createWitness function works. 
 We neglect the exact setup process for the intuition but note that we obtain the ability to evaluate a polynomial on a fixed unknown random point $\alpha$.
 
@@ -18,7 +18,7 @@ $C=\omega*(\alpha-i) + \phi(i) \iff \phi(\alpha)=\psi(\alpha)*(\alpha-i) + \phi(
 
 In the real protocol, the values for the unknown random point, the commitment and the witness are provided in a group (e.g. $\alpha$ is given as $\mathbf{g}^\alpha$) to hide them and a pairing is used to check the equation for the witness.
 
-\section{Definition}
+\section*{Definition}
 \label{Def}
 The KZG is a polynomial commitment scheme as defined in definition \ref{PCS_def}. In this section, we outline the PCS-constructing functions based on the original paper \parencite{KZG}:
 \begin{itemize}
@@ -50,11 +50,7 @@ The KZG is a polynomial commitment scheme as defined in definition \ref{PCS_def}
     takes the public key $PK$, a commitment $C$, a claimed point $(i,\phi(i))$ and a witness $\omega_i$ for that point \parencite{KZG}. VerifyEval checks the equation $\phi(\alpha)=\psi(\alpha)(\alpha-i)+\phi(i)$ using the pairing $e$ as: $e(C,g) = e(\omega_i,\mathbf{g}^\alpha/\mathbf{g}^i)e(\mathbf{g},\mathbf{g})^{\phi(i)}$ and returns the result.
 \end{itemize}
 
-
-
-
-
-\section{Formalization}
+\section*{Formalization}
 
 In the formalization, we extract the algebraic primitives (i.e. the groups and the pairing) into a locale that can be instantiated. The major advantage of this is its compatibility with formalized instances of these algebraic primitives. Hence, the KZG's security could be instantiated for concrete constructions of pairings, such as the Barreto-Nährig\parencite{BN-EC} or Baretto-Lynn-Scott\parencite{BLS-EC} pairing friendly Elliptic Curves (ECs), should they be formalized.
 
