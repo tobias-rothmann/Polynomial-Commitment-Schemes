@@ -64,24 +64,65 @@ definition compute_g_pow_\<phi>_of_\<alpha> :: "('e mod_ring \<times> 'a) list \
   let lagrange_exp = map (\<lambda>(xj,yj). yj ^\<^bsub>G\<^sub>p\<^esub> (poly (lagrange_basis_poly xs xj) \<alpha>)) xs_ys;
   fold (\<lambda>x prod. prod \<otimes>\<^bsub>G\<^sub>p\<^esub> x) lagrange_exp \<one>}"
 
-(*TODO implement fun*)
-fun pick_not_from :: "'e eval_position list \<Rightarrow> 'e eval_position"
-  where "pick_not_from I = (SOME x. x \<notin> set I)"
+fun filter_distinct :: "'e mod_ring list \<Rightarrow> 'e eval_position list \<Rightarrow> 'e eval_position list"
+  where "filter_distinct xs ys = filter (\<lambda>x. find ((=) x) ys = None) xs"
 
-lemma pick_not_from:
+lemma set_filter_distinct: "set (filter_distinct xs ys) = {x. x \<in> set xs \<and> x \<notin> set ys}"
+  by (simp add: find_None_iff)
+
+lemma length_filter_distinct:
+  assumes "card (set xs) > card (set ys)"
+  shows "length (filter_distinct xs ys) > 0"
+proof -
+  have "{x. x \<in> set xs \<and> x \<notin> set ys} = set xs - set ys"
+    by blast
+  moreover have "card (set xs - set ys) \<ge> card (set xs) - card (set ys)"
+    using diff_card_le_card_Diff by blast
+  moreover have "\<dots> > 0"
+    using assms calculation(2) by linarith
+  ultimately show ?thesis
+    using set_filter_distinct 
+    by (metis bot_nat_0.extremum_uniqueI card_length not_gr_zero)
+qed
+
+fun PickDistinct :: "'e eval_position list \<Rightarrow> 'e eval_position"
+  where "PickDistinct I = hd (filter_distinct (map (of_int_mod_ring::int \<Rightarrow> 'e mod_ring) [0..<CARD('e)]) I)"
+
+lemma card_map_card: "card (set (map (of_int_mod_ring::int \<Rightarrow> 'e mod_ring) [0..<CARD('e)])) = CARD('e)"
+proof -
+  have "card ((of_int_mod_ring \<circ> int::nat \<Rightarrow> 'e mod_ring) ` {0..<CARD('e)}) = card {0..<CARD('e)}"
+    apply (rule card_image)
+    apply (rule comp_inj_on)
+    apply simp
+    apply (metis of_int_mod_inj_on_ff atLeast0LessThan inj_on_imageI)
+    done
+  then show ?thesis by force
+qed
+
+lemma PickDistinct: 
   assumes "length I < CARD('e)"
   and "distinct I"
-shows "distinct (pick_not_from I#I)"
-  using assms 
-  apply simp
-  apply (metis CARD_mod_ring UNIV_eq_I distinct_card order_less_irrefl someI_ex)
-  done
+shows "distinct ((PickDistinct I)#I)"
+proof -
+  have "length (filter_distinct (map of_int_mod_ring [0..<CARD('e)]) I) > 0"
+    apply (rule length_filter_distinct)
+    unfolding card_map_card 
+    using assms
+    by (simp add: distinct_card) 
+  then have "filter_distinct (map of_int_mod_ring [0..<CARD('e)]) I \<noteq> []"
+    by blast
+  then  have "PickDistinct I \<notin> set I"
+    using set_filter_distinct[of _ I]
+    by (metis (no_types, lifting) PickDistinct.elims list.set_sel(1) mem_Collect_eq)
+  then show ?thesis 
+    by (meson assms(2) distinct.simps(2))
+qed
 
 fun reduction
   :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Rightarrow> ('a,'e) DL.adversary"                     
 where
   "reduction I \<A> g_pow_a = do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   plain_evals \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p));
   let evals = g_pow_a # map (\<lambda>i. \<^bold>g ^ i) plain_evals ;
   (\<alpha>, PK) \<leftarrow> Setup;
@@ -278,7 +319,7 @@ subsubsection \<open>reduction proof\<close>
 
 definition game1 :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Rightarrow> bool spmf" where 
   "game1 I \<A> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
   let exp_evals = map (\<lambda>i. \<^bold>g ^ i) evals;
@@ -290,7 +331,7 @@ definition game1 :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Ri
 
 definition game2 :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Rightarrow> bool spmf" where 
   "game2 I \<A> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
   let exp_evals = map (\<lambda>i. \<^bold>g ^ i) evals;
@@ -302,7 +343,7 @@ definition game2 :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Ri
 
 definition game2_w_assert :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Rightarrow> bool spmf" where 
   "game2_w_assert I \<A> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
   (\<alpha>, PK) \<leftarrow> Setup;
@@ -314,7 +355,7 @@ definition game2_w_assert :: "'e eval_position list \<Rightarrow> ('a, 'e) adver
 
 definition game2_wo_assert :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Rightarrow> bool spmf" where 
   "game2_wo_assert I \<A> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
   (\<alpha>, PK) \<leftarrow> Setup;
@@ -355,7 +396,7 @@ shows "hiding_game I \<A> = game1 I \<A>"
 proof -
   (* sample phi uniform random is sampling evaluation points for some I uniform random *)
   have "?lhs = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   \<phi> \<leftarrow> do {
       evals::'e mod_ring list \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring)) (sample_uniform_list (max_deg+1) (CARD ('e)));
       return_spmf (lagrange_interpolation_poly (zip (i#I) evals))};
@@ -365,9 +406,9 @@ proof -
   \<phi>' \<leftarrow> \<A> C witn_tupel;                             
   return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
   proof -
-    have distnct: "distinct (pick_not_from I# I)"
-      using assms(1) assms(3) pick_not_from by presburger
-    have lengt: "length (pick_not_from I# I) = max_deg +1"
+    have distnct: "distinct (PickDistinct I# I)"
+      using assms(1) assms(3) PickDistinct by presburger
+    have lengt: "length (PickDistinct I# I) = max_deg +1"
       using assms(2) by fastforce
     show ?thesis
     unfolding hiding_game_def
@@ -375,7 +416,7 @@ proof -
     unfolding Let_def ..
 qed
   also have "\<dots> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   evals::'e mod_ring list \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
   PK \<leftarrow> key_gen;
@@ -391,7 +432,7 @@ qed
       by simp
   qed
   also have "\<dots> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   evals::'e mod_ring list \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
   (\<alpha>, PK) \<leftarrow> Setup;
@@ -403,34 +444,34 @@ qed
   also have "\<dots> = TRY do {
   evals::'e mod_ring list \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   \<alpha>::'e mod_ring \<leftarrow>  map_spmf (\<lambda>x. of_int_mod_ring (int x)) (sample_uniform (order G\<^sub>p));
-  let C = Commit (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (lagrange_interpolation_poly (zip (pick_not_from I#I) evals));
-  let witn_tupel = map (\<lambda>j. (j, poly (lagrange_interpolation_poly (zip (pick_not_from I#I) evals)) j, createWitness (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (lagrange_interpolation_poly (zip (pick_not_from I#I) evals)) j)) I;
+  let C = Commit (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (lagrange_interpolation_poly (zip (PickDistinct I#I) evals));
+  let witn_tupel = map (\<lambda>j. (j, poly (lagrange_interpolation_poly (zip (PickDistinct I#I) evals)) j, createWitness (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (lagrange_interpolation_poly (zip (PickDistinct I#I) evals)) j)) I;
   \<phi>' \<leftarrow> \<A> C witn_tupel;                     
-  return_spmf (lagrange_interpolation_poly (zip (pick_not_from I#I) evals) = \<phi>')} ELSE return_spmf False"
+  return_spmf (lagrange_interpolation_poly (zip (PickDistinct I#I) evals) = \<phi>')} ELSE return_spmf False"
     unfolding Setup_def split_def Let_def 
-    by (simp add: bind_map_spmf o_def del: createWitness.simps pick_not_from.simps)
+    by (simp add: bind_map_spmf o_def del: createWitness.simps PickDistinct.simps)
   also have "\<dots> = TRY do {
   evals:: 'e mod_ring list \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   \<alpha>::'e mod_ring \<leftarrow>  map_spmf (\<lambda>x. of_int_mod_ring (int x)) (sample_uniform (order G\<^sub>p));
-  let C = compute_g_pow_\<phi>_of_\<alpha> (zip (pick_not_from I#I) (map (\<lambda>i. \<^bold>g ^ i) evals)) \<alpha>;
-  let witn_tupel = map (\<lambda>j. (j, poly (lagrange_interpolation_poly (zip (pick_not_from I#I) evals)) j, createWitness (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (lagrange_interpolation_poly (zip (pick_not_from I#I) evals)) j)) I;
+  let C = compute_g_pow_\<phi>_of_\<alpha> (zip (PickDistinct I#I) (map (\<lambda>i. \<^bold>g ^ i) evals)) \<alpha>;
+  let witn_tupel = map (\<lambda>j. (j, poly (lagrange_interpolation_poly (zip (PickDistinct I#I) evals)) j, createWitness (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (lagrange_interpolation_poly (zip (PickDistinct I#I) evals)) j)) I;
   \<phi>' \<leftarrow> \<A> C witn_tupel;                             
-  return_spmf (lagrange_interpolation_poly (zip (pick_not_from I#I) evals) = \<phi>')} ELSE return_spmf False"
+  return_spmf (lagrange_interpolation_poly (zip (PickDistinct I#I) evals) = \<phi>')} ELSE return_spmf False"
    proof(rule literal_exchange_lemma)
      fix evals :: "'e mod_ring list"
      fix \<alpha>
-     have 1: "distinct (map fst ((zip (pick_not_from I#I) evals)))"
-       by (metis assms(1) assms(3) distinct_take map_fst_zip_take pick_not_from)
+     have 1: "distinct (map fst ((zip (PickDistinct I#I) evals)))"
+       by (metis assms(1) assms(3) distinct_take map_fst_zip_take PickDistinct)
      have [symmetric]: "evals \<in> set_spmf (map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p))) 
-      \<Longrightarrow> compute_g_pow_\<phi>_of_\<alpha> (map2 (\<lambda>x y. (x, \<^bold>g ^ y)) (pick_not_from I#I) evals) \<alpha> = Commit (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly (zip (pick_not_from I#I) evals))"
+      \<Longrightarrow> compute_g_pow_\<phi>_of_\<alpha> (map2 (\<lambda>x y. (x, \<^bold>g ^ y)) (PickDistinct I#I) evals) \<alpha> = Commit (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly (zip (PickDistinct I#I) evals))"
        using compute_g_pow_\<phi>_of_\<alpha>_is_Commit[OF 1] by auto
      then show "evals \<in> set_spmf (map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p))) 
-      \<Longrightarrow> Commit (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly (zip (pick_not_from I#I) evals)) = compute_g_pow_\<phi>_of_\<alpha> (zip (pick_not_from I#I) (map (\<lambda>i. \<^bold>g ^ i) evals)) \<alpha>"
+      \<Longrightarrow> Commit (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly (zip (PickDistinct I#I) evals)) = compute_g_pow_\<phi>_of_\<alpha> (zip (PickDistinct I#I) (map (\<lambda>i. \<^bold>g ^ i) evals)) \<alpha>"
       by (simp add: zip_map2)
   qed
   also have "\<dots> = ?rhs"
     unfolding game1_def Setup_def Let_def split_def 
-    by (simp add: bind_map_spmf o_def del: createWitness.simps pick_not_from.simps)
+    by (simp add: bind_map_spmf o_def del: createWitness.simps PickDistinct.simps)
   finally show ?thesis .
 qed
 
@@ -443,7 +484,7 @@ lemma game2_to_game2_assert:
   (is "?lhs = ?rhs")
 proof -
   have "?lhs =  TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   TRY do {
     let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
@@ -462,7 +503,7 @@ proof -
   unfolding game2_def split_def Let_def
   by (fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
   also have "\<dots> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   TRY do {
     let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
@@ -482,7 +523,7 @@ proof -
     unfolding Let_def
     by(auto simp add: try_bind_assert_spmf try_spmf_return_spmf1 intro!: try_spmf_cong bind_spmf_cong)
   also have "\<dots> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
     let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
     let exp_evals = map (\<lambda>i. \<^bold>g ^ i) evals;
@@ -496,7 +537,7 @@ proof -
    unfolding split_def Let_def
    by (fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
   also have "\<dots> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
     let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
     let exp_evals = map (\<lambda>i. \<^bold>g ^ i) evals;
@@ -504,32 +545,32 @@ proof -
     let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
     let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
     \<phi>' \<leftarrow> \<A> C witn_tupel;
-  _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>' \<and> hd evals = poly \<phi>' (pick_not_from I));
+  _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>' \<and> hd evals = poly \<phi>' (PickDistinct I));
   return_spmf True}
   ELSE return_spmf False"
   proof -
     have "\<And>evals \<phi>'. evals \<in> set_spmf (map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p)))  
-      \<Longrightarrow> ((lagrange_interpolation_poly (zip (pick_not_from I#I) evals) = \<phi>' 
-      \<longleftrightarrow> (lagrange_interpolation_poly (zip (pick_not_from I#I) evals)) = \<phi>' \<and> hd evals = poly \<phi>' (pick_not_from I)))"
+      \<Longrightarrow> ((lagrange_interpolation_poly (zip (PickDistinct I#I) evals) = \<phi>' 
+      \<longleftrightarrow> (lagrange_interpolation_poly (zip (PickDistinct I#I) evals)) = \<phi>' \<and> hd evals = poly \<phi>' (PickDistinct I)))"
     proof -
       fix evals :: "'e mod_ring list"
       fix \<phi>'
       assume "evals \<in> set_spmf (map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p)))"
       then have evals_length: "length evals = max_deg+1"
         by (force simp add: bind_map_spmf o_def)
-      show "(lagrange_interpolation_poly (zip (pick_not_from I#I) evals) = \<phi>' 
-      \<longleftrightarrow> lagrange_interpolation_poly (zip (pick_not_from I#I) evals) = \<phi>' \<and> hd evals = poly \<phi>' (pick_not_from I))"
+      show "(lagrange_interpolation_poly (zip (PickDistinct I#I) evals) = \<phi>' 
+      \<longleftrightarrow> lagrange_interpolation_poly (zip (PickDistinct I#I) evals) = \<phi>' \<and> hd evals = poly \<phi>' (PickDistinct I))"
       proof
-        show "lagrange_interpolation_poly (zip (pick_not_from I#I) evals) = \<phi>' \<Longrightarrow> lagrange_interpolation_poly (zip (pick_not_from I#I) evals) = \<phi>' \<and> hd evals = poly \<phi>' (pick_not_from I)"
+        show "lagrange_interpolation_poly (zip (PickDistinct I#I) evals) = \<phi>' \<Longrightarrow> lagrange_interpolation_poly (zip (PickDistinct I#I) evals) = \<phi>' \<and> hd evals = poly \<phi>' (PickDistinct I)"
         proof 
-          assume asm: "lagrange_interpolation_poly (zip (pick_not_from I#I) evals) = \<phi>'"
-          show "hd evals = poly \<phi>' (pick_not_from I)"
-          proof(rule lagrange_interpolation_poly[symmetric, of "zip (pick_not_from I#I) evals"])
-            show "distinct (map fst (zip (pick_not_from I#I) evals))"
-              by (metis assms distinct_take map_fst_zip_take pick_not_from)
-            show "\<phi>' = lagrange_interpolation_poly (zip (pick_not_from I#I) evals)"
+          assume asm: "lagrange_interpolation_poly (zip (PickDistinct I#I) evals) = \<phi>'"
+          show "hd evals = poly \<phi>' (PickDistinct I)"
+          proof(rule lagrange_interpolation_poly[symmetric, of "zip (PickDistinct I#I) evals"])
+            show "distinct (map fst (zip (PickDistinct I#I) evals))"
+              by (metis assms distinct_take map_fst_zip_take PickDistinct)
+            show "\<phi>' = lagrange_interpolation_poly (zip (PickDistinct I#I) evals)"
               using asm[symmetric] .
-            show "(pick_not_from I, hd evals) \<in> set (zip (pick_not_from I#I) evals)" 
+            show "(PickDistinct I, hd evals) \<in> set (zip (PickDistinct I#I) evals)" 
               using assms(2) evals_length
               by (metis Nil_eq_zip_iff add_is_0 hd_in_set hd_zip length_0_conv list.discI list.sel(1) rel_simps(92))
           qed
@@ -542,7 +583,7 @@ proof -
       by (smt (verit))
   qed
  also have "\<dots> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   TRY do {
     let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
@@ -553,7 +594,7 @@ proof -
       let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
       \<phi>' \<leftarrow> \<A> C witn_tupel;
       TRY do {
-        _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>' \<and> hd evals = poly \<phi>' (pick_not_from I));
+        _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>' \<and> hd evals = poly \<phi>' (PickDistinct I));
         return_spmf True
       } ELSE return_spmf False
     } ELSE return_spmf False
@@ -562,7 +603,7 @@ proof -
   unfolding split_def Let_def
   by (fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
  also have "\<dots> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   TRY do {
     let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
@@ -574,7 +615,7 @@ proof -
       \<phi>' \<leftarrow> \<A> C witn_tupel;
       TRY do {
         _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>'); 
-        _::unit \<leftarrow> assert_spmf (hd evals = poly \<phi>' (pick_not_from I));
+        _::unit \<leftarrow> assert_spmf (hd evals = poly \<phi>' (PickDistinct I));
         return_spmf True
       } ELSE return_spmf False
     } ELSE return_spmf False
@@ -582,7 +623,7 @@ proof -
   } ELSE return_spmf False"
    using assert_anding by presburger
   also have "\<dots> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   TRY do {
     let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
@@ -605,7 +646,7 @@ proof -
     unfolding split_def Let_def
     by (fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
   also have "\<dots> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   TRY do {
     let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
@@ -627,7 +668,7 @@ proof -
     unfolding Let_def split_def
     by(auto simp add: try_bind_assert_spmf try_spmf_return_spmf1 intro!: try_spmf_cong bind_spmf_cong)
   also have "\<dots> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
   let exp_evals = map (\<lambda>i. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i) evals;
@@ -649,7 +690,7 @@ lemma game2_wo_assert_to_DL_reduction_game:"game2_wo_assert I \<A> =  DL_G\<^sub
   (is "?lhs = ?rhs")
 proof -
   have "?lhs = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   nat_evals \<leftarrow> sample_uniform_list (max_deg+1) (order G\<^sub>p);
   let evals = map (of_int_mod_ring \<circ> int) nat_evals;
   (\<alpha>, PK) \<leftarrow> Setup;
@@ -660,7 +701,7 @@ proof -
     (* throw out \<phi> it is no longer needed since the assert is gone*)
     unfolding game2_wo_assert_def Let_def by(simp add: bind_map_spmf o_def)
   also have "\<dots> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   nat_evals \<leftarrow> do {x \<leftarrow> sample_uniform (order G\<^sub>p);
                    xs \<leftarrow> (sample_uniform_list max_deg (order G\<^sub>p));
                    return_spmf (x#xs)};
@@ -673,7 +714,7 @@ proof -
     (* split random list up in a random point concatenated with a one element shorter random list*)
     using pretty_Cons_random_list_split p_gr_two CARD_G\<^sub>p by force
   also have "\<dots> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   x \<leftarrow> sample_uniform (order G\<^sub>p);
   xs \<leftarrow> (sample_uniform_list max_deg (order G\<^sub>p));
   let nat_evals = (x#xs);
@@ -685,7 +726,7 @@ proof -
   return_spmf (hd evals = poly \<phi>' i)} ELSE return_spmf False"
     by force
   also have "\<dots> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   a \<leftarrow> sample_uniform (order G\<^sub>p);
   nat_evals \<leftarrow> sample_uniform_list max_deg (order G\<^sub>p);
   let evals = map (of_int_mod_ring \<circ> int) (a#nat_evals);
@@ -696,7 +737,7 @@ proof -
   return_spmf (hd evals = poly \<phi>' i)} ELSE return_spmf False"
     unfolding Let_def ..
   also have "\<dots> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   a \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
   plain_evals \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p));
   let evals = a # plain_evals;
@@ -707,7 +748,7 @@ proof -
   return_spmf (a = poly \<phi>' i)} ELSE return_spmf False"
     by (force simp add: bind_map_spmf o_def)
   also have "\<dots> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   a \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
   plain_evals \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p));
   let evals = \<^bold>g ^ a # map (\<lambda>i. \<^bold>g ^ i) plain_evals;
@@ -719,7 +760,7 @@ proof -
     by auto
   also have "\<dots> = TRY do {
   a \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   plain_evals \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p));
   let evals = \<^bold>g ^ a # map (\<lambda>i. \<^bold>g ^ i) plain_evals;
   (\<alpha>, PK) \<leftarrow> Setup;
@@ -731,7 +772,7 @@ proof -
   also have "\<dots> = TRY do {
   a \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
   a' \<leftarrow> do {
-    let i = pick_not_from I;
+    let i = PickDistinct I;
     plain_evals \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int)) (sample_uniform_list max_deg (order G\<^sub>p));
     let evals = \<^bold>g ^ a # map (\<lambda>i. \<^bold>g ^ i) plain_evals;
     (\<alpha>, PK) \<leftarrow> Setup;
@@ -740,7 +781,7 @@ proof -
     \<phi>' \<leftarrow> \<A> C witn_tupel;
     return_spmf (poly \<phi>' i)};
   return_spmf (a = a')} ELSE return_spmf False"
-    by (simp add: Let_def split_def o_def del: pick_not_from.simps)
+    by (simp add: Let_def split_def o_def del: PickDistinct.simps)
   also have "\<dots> = DL_G\<^sub>p.game (reduction I \<A>)"
     unfolding DL_G\<^sub>p.game_alt_def2 reduction.simps ..
   finally show ?thesis .
@@ -796,7 +837,7 @@ proof -
 
   define game1b :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Rightarrow> 'e mod_ring \<Rightarrow> (bool\<times>bool) spmf"
     where "game1b I \<A> \<alpha> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
   let exp_evals = map (\<lambda>i. \<^bold>g ^ i) evals;
@@ -804,12 +845,12 @@ proof -
   let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
   let witn_tupel = map (\<lambda>j. (j, poly \<phi> j, createWitness PK \<phi> j)) I;
   \<phi>' \<leftarrow> \<A> C witn_tupel;                             
-  return_spmf (\<phi> = \<phi>', \<alpha> \<in> set (pick_not_from I#I))} ELSE return_spmf (False, \<alpha> \<in> set (pick_not_from I#I))" for I \<A> \<alpha>
+  return_spmf (\<phi> = \<phi>', \<alpha> \<in> set (PickDistinct I#I))} ELSE return_spmf (False, \<alpha> \<in> set (PickDistinct I#I))" for I \<A> \<alpha>
 
   have game1b: "game1 I \<A> = map_spmf fst (?sample (game1b I \<A>))"
   proof -
     have "game1 I \<A> = TRY do {
-      let i = pick_not_from I;
+      let i = PickDistinct I;
       evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
       let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
       let exp_evals = map (\<lambda>i. \<^bold>g ^ i) evals;
@@ -822,7 +863,7 @@ proof -
       unfolding game1_def Setup_alt_def Let_def by auto
     also have "\<dots> = TRY do {
       \<alpha> :: 'e mod_ring \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
-      let i = pick_not_from I;
+      let i = PickDistinct I;
       evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
       let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
       let exp_evals = map (\<lambda>i. \<^bold>g ^ i) evals;
@@ -836,7 +877,7 @@ proof -
     also have "\<dots> = do {
       \<alpha> :: 'e mod_ring \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
       TRY do {
-      let i = pick_not_from I;
+      let i = PickDistinct I;
       evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
       let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
       let exp_evals = map (\<lambda>i. \<^bold>g ^ i) evals;
@@ -849,13 +890,13 @@ proof -
       by (rule try_spmf_bind_spmf_lossless)(simp add: local.G\<^sub>p.order_gt_0)
     also have "\<dots> = map_spmf fst (?sample (game1b I \<A>))"
       unfolding game1b_def
-      by (simp add: map_try_spmf del: pick_not_from.simps createWitness.simps)
+      by (simp add: map_try_spmf del: PickDistinct.simps createWitness.simps)
     finally show ?thesis .
   qed
 
   define game2b :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Rightarrow> 'e mod_ring \<Rightarrow> (bool\<times>bool) spmf"
     where "game2b I \<A> \<alpha> = TRY do {
-  let i = pick_not_from I;
+  let i = PickDistinct I;
   evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
   let exp_evals = map (\<lambda>i. \<^bold>g ^ i) evals;
@@ -863,12 +904,12 @@ proof -
   let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
   let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
   \<phi>' \<leftarrow> \<A> C witn_tupel;
-  return_spmf (\<phi> = \<phi>', \<alpha> \<in> set (pick_not_from I#I))} ELSE return_spmf (False, \<alpha> \<in> set (pick_not_from I#I))" for I \<A> \<alpha>
+  return_spmf (\<phi> = \<phi>', \<alpha> \<in> set (PickDistinct I#I))} ELSE return_spmf (False, \<alpha> \<in> set (PickDistinct I#I))" for I \<A> \<alpha>
 
   have game2b: "game2 I \<A> = map_spmf fst (?sample (game2b I \<A>))"
   proof -
     have "game2 I \<A> = TRY do {
-      let i = pick_not_from I;
+      let i = PickDistinct I;
       evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
       let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
       let exp_evals = map (\<lambda>i. \<^bold>g ^ i) evals;
@@ -881,7 +922,7 @@ proof -
       unfolding game2_def Setup_alt_def Let_def by auto
     also have "\<dots> = TRY do {
       \<alpha> :: 'e mod_ring \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
-      let i = pick_not_from I;
+      let i = PickDistinct I;
       evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
       let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
       let exp_evals = map (\<lambda>i. \<^bold>g ^ i) evals;
@@ -895,7 +936,7 @@ proof -
     also have "\<dots> = do {
       \<alpha> :: 'e mod_ring \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
       TRY do {
-      let i = pick_not_from I;
+      let i = PickDistinct I;
       evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
       let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
       let exp_evals = map (\<lambda>i. \<^bold>g ^ i) evals;
@@ -908,7 +949,7 @@ proof -
       by (rule try_spmf_bind_spmf_lossless)(simp add: local.G\<^sub>p.order_gt_0)
     also have "\<dots> = map_spmf fst (?sample (game2b I \<A>))"
       unfolding game2b_def
-      by (simp add: map_try_spmf del: pick_not_from.simps createWitness.simps)
+      by (simp add: map_try_spmf del: PickDistinct.simps createWitness.simps)
     finally show ?thesis .
   qed
 
@@ -917,7 +958,7 @@ proof -
     \<alpha>::'e mod_ring \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
     return_spmf (\<alpha> \<in> set l)}" for l
 
-  have map_snd_game1_is_collision_game: "map_spmf snd (?sample (game1b I \<A>)) = collision_game (pick_not_from I#I)"
+  have map_snd_game1_is_collision_game: "map_spmf snd (?sample (game1b I \<A>)) = collision_game (PickDistinct I#I)"
   proof - 
     define collision_game_for :: "'e eval_position list \<Rightarrow> 'e mod_ring \<Rightarrow> bool spmf" where 
     "collision_game_for l \<alpha> = TRY do {
@@ -926,15 +967,15 @@ proof -
 
     have "\<And>I. collision_game I = ?sample (collision_game_for I)"
       unfolding collision_game_def collision_game_for_def by simp
-    moreover have "map_spmf snd (?sample (game1b I \<A>)) = ?sample (collision_game_for (pick_not_from I#I))"
-      by (simp add: map_try_spmf game1b_def collision_game_for_def lossless_\<A> del: pick_not_from.simps createWitness.simps)
+    moreover have "map_spmf snd (?sample (game1b I \<A>)) = ?sample (collision_game_for (PickDistinct I#I))"
+      by (simp add: map_try_spmf game1b_def collision_game_for_def lossless_\<A> del: PickDistinct.simps createWitness.simps)
     ultimately show ?thesis by presburger
   qed
 
-  have spmf_collision_game: "spmf (collision_game (pick_not_from I#I)) True = (max_deg+1) / p"
+  have spmf_collision_game: "spmf (collision_game (PickDistinct I#I)) True = (max_deg+1) / p"
   proof -
-    obtain A where A: "A = set (pick_not_from I#I)" by blast
-    then have "spmf (collision_game (pick_not_from I#I)) True = spmf (do {
+    obtain A where A: "A = set (PickDistinct I#I)" by blast
+    then have "spmf (collision_game (PickDistinct I#I)) True = spmf (do {
     \<alpha>::'e mod_ring \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
     return_spmf (\<alpha> \<in> A)}) True"
       unfolding collision_game_def by blast
@@ -980,7 +1021,7 @@ proof -
     proof - 
       have "card A = max_deg +1"
         unfolding A
-        by (metis CARD_q Suc_eq_plus1 add_0_left assms(2) assms(3) d_l_p distinct_card list.size(4) of_nat_less_imp_less pick_not_from)
+        by (metis CARD_q Suc_eq_plus1 add_0_left assms(2) assms(3) d_l_p distinct_card list.size(4) of_nat_less_imp_less PickDistinct)
       moreover have "card (UNIV::'e mod_ring set) = p"
         by (simp add: CARD_q)
       ultimately show ?thesis by force
@@ -993,42 +1034,42 @@ proof -
     apply (rule rel_spmf_try_spmf)
     subgoal TRY
       apply (rule rel_spmf_bind_reflI)
-      apply (cases "\<alpha> \<in> set (pick_not_from I #I)")
+      apply (cases "\<alpha> \<in> set (PickDistinct I #I)")
       subgoal True for evals
         by (auto intro!: rel_spmf_bindI1 rel_spmf_bindI2 lossless_\<A>)
       subgoal False for evals
       proof -
-        assume asm1: "\<alpha> \<notin> set (pick_not_from I # I)"
+        assume asm1: "\<alpha> \<notin> set (PickDistinct I # I)"
         assume asm2: "evals \<in> set_spmf (map_spmf (map (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg + 1) (Coset.order G\<^sub>p)))"
         then have evals_length: "length evals = max_deg + 1" by auto
 
-        have witness_equal:"(map (\<lambda>j. (j, poly (lagrange_interpolation_poly (zip (pick_not_from I # I) evals)) j,
-                   createWitness (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly (zip (pick_not_from I # I) evals)) j))
-         I) = map (\<lambda>(x,y). (x,y,(compute_g_pow_\<phi>_of_\<alpha> (zip (pick_not_from I#I) (map (\<lambda>i. \<^bold>g ^ i) evals)) \<alpha>  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals))"
+        have witness_equal:"(map (\<lambda>j. (j, poly (lagrange_interpolation_poly (zip (PickDistinct I # I) evals)) j,
+                   createWitness (map (\<lambda>t. \<^bold>g ^ \<alpha> ^ t) [0..<max_deg + 1]) (lagrange_interpolation_poly (zip (PickDistinct I # I) evals)) j))
+         I) = map (\<lambda>(x,y). (x,y,(compute_g_pow_\<phi>_of_\<alpha> (zip (PickDistinct I#I) (map (\<lambda>i. \<^bold>g ^ i) evals)) \<alpha>  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals))"
         proof -
-           have dist_pick_I_I: "distinct (map fst (zip (pick_not_from I # I) evals))"
+           have dist_pick_I_I: "distinct (map fst (zip (PickDistinct I # I) evals))"
           proof -
-            have "map fst (zip (pick_not_from I # I) evals) = pick_not_from I#I"
+            have "map fst (zip (PickDistinct I # I) evals) = PickDistinct I#I"
               by (simp add: assms(3) evals_length)
             also have "distinct \<dots>"
-              using CARD_q d_l_p dist_I len_I of_nat_less_imp_less pick_not_from by blast
+              using CARD_q d_l_p dist_I len_I of_nat_less_imp_less PickDistinct by blast
             finally show ?thesis by blast
           qed
-          have len_zip: "length (zip (pick_not_from I # I) evals) \<le> max_deg + 1"
+          have len_zip: "length (zip (PickDistinct I # I) evals) \<le> max_deg + 1"
             by (simp add: evals_length)
-          have tl_zip_switch:"tl (zip (pick_not_from I # I) evals) = zip I (tl evals)"
+          have tl_zip_switch:"tl (zip (PickDistinct I # I) evals) = zip I (tl evals)"
             by (metis list.exhaust_sel list.sel(2) list.sel(3) zip.simps(1) zip_Cons_Cons)
           have map_fst_zip_is_I: "map fst (zip I (tl evals)) = I"
             by (simp add: assms(3) evals_length)
           have \<alpha>_not_in_I: "\<alpha> \<notin> set I"
             using asm1 by force
           have compute_pow_is_g_pow_\<alpha>: 
-           "compute_g_pow_\<phi>_of_\<alpha> (zip (pick_not_from I # I) (map (\<lambda>i. \<^bold>g ^ i) evals)) \<alpha>  
-          = \<^bold>g ^ poly (lagrange_interpolation_poly (zip (pick_not_from I # I) evals)) \<alpha>"
+           "compute_g_pow_\<phi>_of_\<alpha> (zip (PickDistinct I # I) (map (\<lambda>i. \<^bold>g ^ i) evals)) \<alpha>  
+          = \<^bold>g ^ poly (lagrange_interpolation_poly (zip (PickDistinct I # I) evals)) \<alpha>"
             using compute_g_pow_\<phi>_of_\<alpha>_is_\<phi>_of_\<alpha>[OF dist_pick_I_I len_zip]
             by (simp add: zip_map2)
           show ?thesis 
-            using witness_calc_correct[of "zip (pick_not_from I # I) evals" \<alpha>]
+            using witness_calc_correct[of "zip (PickDistinct I # I) evals" \<alpha>]
             unfolding tl_zip_switch compute_pow_is_g_pow_\<alpha> map_fst_zip_is_I
             using dist_pick_I_I len_zip \<alpha>_not_in_I by blast
         qed

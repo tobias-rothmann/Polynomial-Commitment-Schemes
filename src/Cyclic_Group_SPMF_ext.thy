@@ -260,7 +260,6 @@ proof
     by (metis comp_apply lessThan_iff nat_int of_nat_0_le_iff of_nat_less_iff to_int_mod_ring_of_int_mod_ring)
 qed
 
-declare [[show_types]]
 lemma sample_uniform_evals_is_sample_poly:
   assumes "distinct I"
   and "length I = t+1"
