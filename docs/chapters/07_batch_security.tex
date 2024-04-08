@@ -118,6 +118,7 @@ That is, the function that calls the adversary $\mathcal{A}$ on some public key 
 The term \textit{[:poly r\_x i:]} is Isabelle's notation for a constant polynomial with the constant value of the polynomial $r\_x$ evaluated at $i$. The term $[:-i,1:]$ is Isabelle's notation for the polynomial $(x-i)$ and \textit{prod ($\lambda$. [:-i,1:]) B} is the product term $\prod_{i\in B}^{}(x-i)$. The $g\_pow\_PK\_Prod$ function returns the group generator $\mathbf{g}$, exponentiated with the evaluation of a polynomial on the secret key $\alpha$, hence, $p'=\mathbf{g}^{\frac{\prod_{i\in B}^{}(x-i)}{(x-i)}}$ and $r'=\mathbf{g}^{\frac{r_x-r_x(i)}{(x-i)}}$.
 
 \section{Hiding}
+\label{batch:security:hiding}
 
 \subsection*{Original Paper Proof}
 
