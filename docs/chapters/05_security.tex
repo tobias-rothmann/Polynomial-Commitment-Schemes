@@ -105,12 +105,12 @@ That is a higher-order function, that takes the evaluation binding adversary $\m
 That is, the function that calls the adversary $\mathcal{A}$ on some public key PK and returns $(\frac{\omega_i}{\omega_i'})^{\frac{1}{\phi(i)'-\phi(i)}}$. 
 
 \section{Hiding}
-We formalize the \textit{hiding} property as given in the original paper \parencite{KZG} that slightly differs from the standard definition as given in \ref{PCS_def}. 
+We formalize the \textit{hiding} property as given in the original paper \parencite{KZG} that slightly differs from the standard definition as given in \ref{hiding_def}. 
 The \textit{hiding} property of the KZG does not unconditionally fulfill the \textit{hiding} property as defined in \ref{hiding_def} but requires additionally the polynomial to be uniformly randomly chosen to hold \parencite{KZG}. Formally we define \textit{hiding} as the following game against an efficient adversary $\mathcal{A}$, where $I\in\mathbb{Z}_p^t$ is an arbitrary distinct list of length t:
 \begin{equation*}
     \left(
         \begin{aligned}
-            \phi & \leftarrow \text{sample\_uniform } \{\phi. \text{ degree}(\phi)=t\},\\
+            \phi & \overset{{\scriptscriptstyle\$}}{\leftarrow} \{\phi. \text{ degree}(\phi)\le t\},\\
             PK & \leftarrow \text{key\_gen}, \\
             C & = \text{Commit}(PK,\phi), \\
             wtnss &= \text{map } (\text{CreateWitness}(PK,\phi,i))\ I,\\
@@ -126,10 +126,10 @@ The paper argues that given an Adversary $\mathcal{A}$, that can break the hidin
     \left(
         \begin{aligned}
             (\alpha,PK) & \leftarrow \text{Setup}, \\
-            pts & \leftarrow \mathbb{Z}_p^{2^t}\\
-            \text{let } grp\_pts &= (0,\mathbf{g}^a)\#\text{map } (\lambda (x,y).\ (x,\mathbf{g}^y))\ pts,\\
-            \text{let } C &= \text{interpolate } grp\_pts,\\ 
-            \text{let } wtnss &= \text{map } (\lambda (x,y).\ (x,y, ((C/\mathbf{g}^y)^{\frac{1}{\alpha-x}})))\ pts,\\
+            pts & \overset{{\scriptscriptstyle\$}}{\leftarrow} \mathbb{Z}_p^{2^t}\\
+            grp\_pts &= (0,\mathbf{g}^a)\#\text{map } (\lambda (x,y).\ (x,\mathbf{g}^y))\ pts,\\
+            C &= \text{interpolate } grp\_pts,\\ 
+            wtnss &= \text{map } (\lambda (x,y).\ (x,y, ((C/\mathbf{g}^y)^{\frac{1}{\alpha-x}})))\ pts,\\
             \phi(x) & \leftarrow \mathcal{A}\ PK \ C\ wtnss, \\
             & \ \phi(0)
         \end{aligned}
@@ -148,7 +148,9 @@ Firstly, we outline why the reduction algorithm $\mathcal{B}$ cannot trivially b
 
 Our approach to solving this incompatibility is to introduce the arbitrary list $I$ into the reduction algorithm. Instead of uniformly randomly sampling the complete points list, we take an arbitrary $I$ for the positions and let the reduction sample only the evaluations for those positions uniformly random. Thus the reduction creates witnesses at exactly the positions that are in $I$, hence, provided with the same $I$  (and that the witness creation is correct) the reduction and the hiding game produce the same witness tuples.
 
-However, introducing an arbitrary $I$ for the positions creates a new problem. Note, that to interpolate a polynomial from a list of points, the list must be distinct. Choosing zero for the position on that the polynomial should evaluate to the DL-value was okay in the reduction proof as the probability of t uniformly random points containing zero is negligible in $\mathbb{Z}_p$, however the probability of zero being contained in an arbitrary list is not negligible (in fact, note, we cannot express any probability for this event, as we cannot know the probability distribution for the arbitrary list).
+However, introducing an arbitrary $I$ for the positions creates a new problem. Note, that to interpolate a polynomial from a list of points, the list must be distinct. 
+
+Choosing zero for the position on that the polynomial should evaluate to the DL-value was okay in the reduction proof as the probability of t uniformly random points containing zero is negligible in $\mathbb{Z}_p$, however the probability of zero being contained in an arbitrary list is not negligible (in fact, note, we cannot express any probability for this event, as we cannot know the probability distribution for the arbitrary list).
 
 We could solve this problem by choosing a random position $i$, which again would make the probability of $i$ being contained in an arbitrary list of length t negligible. However, we decided to solve this problem algorithmically, by picking an $i$ that is deterministically distinct from $I$ (see \ref{appendix:security:hiding:picki} for the concrete algorithm to pick i). This decision eases the proof as we do not have to explicitly expose the probability of $i$ being contained in $I$, which would be necessary to make a negligibility argument in CryptHOL, but can use the fact that $i$ is distinct from $I$ directly in Isabelle.
 
@@ -156,12 +158,12 @@ We obtain the following new reduction algorithm:
 \begin{equation*}
     \left(
         \begin{aligned}
-            \text{let } i &= PickDistinct(I), \\
+            i &= PickDistinct(I), \\
             (\alpha,PK) & \leftarrow \text{Setup}, \\
-            pts & \leftarrow \mathbb{Z}_p^t\\
-            \text{let } grp\_pts &= (i,\mathbf{g}^a)\#\text{map} (\lambda (x,y).\ (x,\mathbf{g}^y))\ pts,\\
-            \text{let } C &= \text{interpolate} (\text{zip}(I,grp\_pts)),\\ 
-            \text{let } wtnss &= \text{map} (\lambda (x,y).\ (x,y, ((C/\mathbf{g}^y)^{\frac{1}{\alpha-x}})))\ pts,\\
+            pts & \overset{{\scriptscriptstyle\$}}{\leftarrow} \mathbb{Z}_p^t\\
+            grp\_pts &= (i,\mathbf{g}^a)\#\text{map} (\lambda (x,y).\ (x,\mathbf{g}^y))\ pts,\\
+            C &= \text{interpolate} (\text{zip}(I,grp\_pts)),\\ 
+            wtnss &= \text{map} (\lambda (x,y).\ (x,y, ((C/\mathbf{g}^y)^{\frac{1}{\alpha-x}})))\ pts,\\
             \phi(x) & \leftarrow \mathcal{A}\ PK \ C\ wtnss, \\
             & \ \phi(i)
         \end{aligned}
@@ -176,14 +178,14 @@ We start with the hiding game and use a bridging step to restate uniformly rando
     \begin{aligned}
         \left(
         \begin{aligned}
-            \phi & \leftarrow \text{sample\_uniform},
+            \phi & \overset{{\scriptscriptstyle\$}}{\leftarrow} \{\phi. \text{ degree}(\phi)\le t\},
         \end{aligned}
         \right)
         = \left(
             \begin{aligned}
-                evals &\leftarrow \text{sample\_uniform } \mathbb{Z}_p^t, \\
-                \text{let } grp\_evls &= \text{map } (\lambda\ i. \ \mathbf{g}^i)\ evals,\\
-                \text{let } \phi &= \text{interpolate}(\text{zip}(I,grp\_evals)),
+                evals &\overset{{\scriptscriptstyle\$}}{\leftarrow} \mathbb{Z}_p^t, \\
+                grp\_evals &= \text{map } (\lambda\ i. \ \mathbf{g}^i)\ evals,\\
+                \phi &= \text{interpolate}(\text{zip}(I,grp\_evals)),
             \end{aligned}
             \right)
     \end{aligned}
@@ -193,16 +195,16 @@ This enables us to split up the DL-instance creation:
     \begin{aligned}
         &\left(
             \begin{aligned}
-                evals &\leftarrow \text{sample\_uniform } \mathbb{Z}_p^t, \\
-                \text{let } grp\_evls &= \text{map } (\lambda\ i. \ \mathbf{g}^i)\ evals,
+                evals &\overset{{\scriptscriptstyle\$}}{\leftarrow} \mathbb{Z}_p^t, \\
+                grp\_evals &= \text{map } (\lambda\ i. \ \mathbf{g}^i)\ evals,
             \end{aligned}
         \right)\\
         =&\left(
             \begin{aligned}
-                a &\leftarrow \text{sample\_uniform } \mathbb{Z}_p,\\
-                \text{let } g^a &= \mathbf{g}^a,\\
+                a &\overset{{\scriptscriptstyle\$}}{\leftarrow} \mathbb{Z}_p,\\
+                g^a &= \mathbf{g}^a,\\
                 evals &\leftarrow \text{sample\_uniform } \mathbb{Z}_p^{t-1}, \\
-                \text{let } grp\_evls &= g^a\#\text{ map } (\lambda\ i. \ \mathbf{g}^i)\ evals,
+                grp\_evals &= g^a\#\text{ map } (\lambda\ i. \ \mathbf{g}^i)\ evals,
             \end{aligned}
         \right)
     \end{aligned}
@@ -227,7 +229,9 @@ While the hiding game checks whether $\phi=\phi'$, where $\phi$' is the polynomi
 \end{equation*}
 
 The only remaining difference between the game we have obtained now and the DL game is the computation of the commitment and the witness. We describe in the formalization \ref{security:hiding:formalization} why the computation of the commitment is equivalent and thus omit the details here. 
-The only difference left in the games is the computation of the witnesses: 
+The only difference left in the games is the computation of the witnesses. 
+
+The hiding game computes the witnesses using the standard KZG function \textit{CreateWitness} for every value in $I$:  
 \begin{equation*}
     \begin{aligned}
         \text{CreateWitness}(Pk,\phi,i)=&\left(
@@ -235,15 +239,21 @@ The only difference left in the games is the computation of the witnesses:
                 \psi(x) &= \frac{\phi(x)-\phi(i)}{x-i}, \\
                 & (i,\phi(i), \mathbf{g}^{\psi(\alpha)})
             \end{aligned}
-        \right)\\
-        \overset{!}{=}&\left(
+        \right)
+    \end{aligned}
+\end{equation*}
+The reduction adversary emulates the witness computed by \textit{CreateWitness} with the term $(C/\mathbf{g}^{\phi(i)})^{\frac{1}{\alpha-i}}$ and returns the emulated value together with each point $(i\phi(i))\in pts$. Note, $pts$ is $I$ zipped with some randomly chosen evaluations. We state the full emulation here:
+\begin{equation*}
+    \begin{aligned}
+        &\left(
             \begin{aligned}
                 &\text{map } (\lambda (i,\phi(i)).\ (i,\phi(i), ((C/\mathbf{g}^{\phi(i)})^{\frac{1}{\alpha-i}})))\ pts,\\
             \end{aligned}
         \right)
     \end{aligned}
 \end{equation*}
-The computation using \textit{map} is the computation by the reduction adversary and the \textit{CreateWitness} function is the standard KZG computation which is used by the hiding game. Moreover: 
+
+Moreover, note the following equality: 
 \begin{equation*}
     (\text{C} / \mathbf{g}^{\phi(i)})^{\frac{1}{\alpha-i}}
     = (\mathbf{g}^{\phi(\alpha)} \div \mathbf{g}^{\phi(i)})^{\frac{1}{\alpha-i}}
@@ -253,7 +263,7 @@ The computation using \textit{map} is the computation by the reduction adversary
 \end{equation*}
 
 
-Note, however, that this equation does not hold for  $i=\alpha$ as $\frac{1}{i-\alpha}$ would be a division by zero. While the reduction's function is undefined due to the division by zero in the event that $i=\alpha$,  \textit{CreateWitness} is not undefined, as it uses polynomial division before evaluating the polynomial at $\alpha$.
+However, this equation does not hold for  $i=\alpha$ as $\frac{1}{i-\alpha}$ would be a division by zero. While the reduction's function is undefined due to the division by zero in the event that $i=\alpha$,  \textit{CreateWitness} is not undefined, as it uses polynomial division before evaluating the polynomial at $\alpha$.
 However, the probability of $i=\alpha$ i.e. $i\in pts$ is negligible as the length of $pts$ $t$ is $2^\kappa$ and $p\ge 2^{2^\kappa}$ ,for $\mathbb{Z}_p$. Hence, we can use a game-hop based on a failure event to restate $CreateWitness$ with '$\text{map } (\lambda (i,\phi(i)).\ (i,\phi(i), ((C/\mathbf{g}^{\phi(i)})^{\frac{1}{\alpha-i}})))\ pts$' and obtain the DL-game for the reduction adversary. Thus proving the theorem stated at the beginning of this subsection.
 
  
@@ -271,7 +281,7 @@ We formally define the hiding game in CryptHOL as follows:
     } ELSE return_spmf False
 \end{lstlisting}
 The game captures the spmf over True and False, which represent the events that the Adversary has broken hiding or not.
-Firstly, the polynomial $\phi\in\mathbb{Z}[X]^t$ of degree t (wlog) is uniformly sampled.
+Firstly, the polynomial $\phi\in\mathbb{Z}[X]^{\le t}$ of degree $t$ or less is uniformly sampled.
 Secondly, the public key $PK$ is generated using \textit{key\_gen}. 
 The commitment $C$ to $\phi$ is computed using \textit{Commit} and $PK$. Then, t valid witness tuples $wtns\_tpls$ are computed, where $\text{I}\in\mathbb{Z}_p^t$ is a list of t arbitrary but distinct field elements.
 The Adversary $\mathcal{A}$ receives the public key $PK$, the commitment $C$ and the t witness tuples $wtns\_tpls$ and returns a guess for a polynomial $\phi'$.

@@ -17,17 +17,17 @@ Groups are written in a multiplicate manner with the  $\cdot$ operator and the a
 Furthermore, we use the notation $\mathbb{F}_p$ for a finite field of prime order p (note that the integers modulo p are isomorph to any finite field of prime order p \parencite{algebra}) with the conventional operators `+` and `$\cdot$` for addition and multiplication. We let $a$,$b$, and $c$ denote finite field elements if not explicitly stated otherwise.
 
 \begin{definition}[cyclic group]
-Let $\mathcal{G}$ be a group of prime order p. We call a group cyclic iff: $\exists g \in \mathcal{G}. \ \forall e \in \mathcal{G}. \ \exists n \in \mathbb{N}. \ e = g^n$, which is equivalent to $\mathcal{G} = \{1,g,g^2,...,g^{p-1}\}$ \parencite{algebra}. If such a $g$ exists, we call it a generator.
+Let $\mathbb{G}$ be a group of prime order p. We call a group cyclic iff: $\exists g \in \mathbb{G}. \ \forall e \in \mathbb{G}. \ \exists n \in \mathbb{N}. \ e = g^n$, which is equivalent to $\mathbb{G} = \{1,g,g^2,...,g^{p-1}\}$ \parencite{algebra}. If such a $g$ exists, we call it a generator.
 
 From now on we write \textbf{g} for a randomly chosen but fixed generator of a respective cyclic group. 
 \end{definition}
 
 \begin{definition}[pairings]
     \label{pairings_def}
-    Let $\mathcal{G}$ and $\mathcal{H}$ be two groups of prime order p. A pairing is a function: $\mathcal{G} \times \mathcal{G} \rightarrow \mathcal{H}$, with the following two properties:
+    Let $\mathbb{G}$ and $\mathbb{H}$ be two groups of prime order p. A pairing is a function: $\mathbb{G} \times \mathbb{G} \rightarrow \mathbb{H}$, with the following two properties:
     \begin{itemize}
-        \item \textbf{Bilineraity:} $\forall g,h \in \mathcal{G}. \ \forall a,b \in \mathbb{F}_p. \ e(g^a,h^b) = e(g,h)^{ab}$
-        \item \textbf{Non-degeneracy:} $\neg (\forall g,h \in \mathcal{G}. \ e(g,h)=1)$
+        \item \textbf{Bilineraity:} $\forall g,h \in \mathbb{G}. \ \forall a,b \in \mathbb{F}_p. \ e(g^a,h^b) = e(g,h)^{ab}$
+        \item \textbf{Non-degeneracy:} $\neg (\forall g,h \in \mathbb{G}. \ e(g,h)=1)$
     \end{itemize}
     \parencite{KZG}
 \end{definition}
@@ -64,35 +64,35 @@ From now on let $\epsilon$ denote a negligible function if not explicitly stated
 
 Note, we will define (probabilistic) algorithms for some security parameter $\kappa$ and bound their performance using the notion of negligibility and poly-boundedness with respect to $\kappa$.
 
-We capture the security of our cryptographic system in games against an (efficient) adversary. Typically, the adversary has to break a security property in those games (e.g. decrypt a cyphertext). However, before we formally define games, we define what an Adversary is.
+We capture the security of our cryptographic system in games against an (efficient) adversary. Typically, the adversary has to break a security property in those games (e.g. decrypt a cyphertext). However, before we formally define games, we define what an adversary is.
 
-\begin{definition}[efficient Adversary]
+\begin{definition}[Efficient Adversary]
     \label{Adversary}
-An Adversary is a probabilistic algorithm, that takes a security parameter $\kappa$ as its first argument and returns some probabilistic result. 
-We call an Adversary efficient if its running time is poly-bounded in $\kappa$ except for negligible probability (with respect to $\kappa$)
+An adversary is a probabilistic algorithm, that takes a security parameter $\kappa$ as its first argument and returns some probabilistic result. 
+We call an adversary efficient if its running time is poly-bounded in $\kappa$ except for negligible probability (with respect to $\kappa$)
 \parencite{boneh_shoup}.
 \end{definition}
 
-Besides this definition, we will use a stronger definition of Adversaries, namely that of the Adversary in the Algebraic Group Model (AGM) \parencite{AGM}.
+Besides this definition, we will use a stronger definition of adversaries, namely that of the adversary in the Algebraic Group Model (AGM) \parencite{AGM}.
 
 \begin{definition}[AGM Adversary]
-    Let $\mathbb{F}_p$ be a finite field of prime order p and $\mathbb{G}$ a cyclic group of prime order p. An adversary in the AGM is an adversary as in definition \ref{Adversary}, that furthermore outputs a vector $\vec{v}_e \in \mathbb{F}_p^t$ for every element $e$ from $\mathbb{G}$ in its output, such that $e = \prod_{1}^{t} g_i^{v_{e_i}}$, where $g\in \mathbb{G}^t$ is the vector of all elements of $\mathbb{G}$ that the Adversary has seen so far
+    Let $\mathbb{F}_p$ be a finite field of prime order p and $\mathbb{G}$ a cyclic group of prime order p. An adversary in the AGM is an adversary as in \ref{Adversary}, that furthermore outputs a vector $\vec{v}_e \in \mathbb{F}_p^t$ for every element $e$ from $\mathbb{G}$ in its output, such that $e = \prod_{1}^{t} g_i^{v_{e_i}}$, where $g\in \mathbb{G}^t$ is the vector of all elements of $\mathbb{G}$ that the adversary has seen so far
     \parencite{AGM}. 
 
-    The efficiency definition is analogue to definition \ref*{Adversary}
+    The efficiency definition is analogue to \ref*{Adversary}
 \end{definition}
 
 Now that we have defined adversary models, we define games. 
 
 \begin{definition}[games]
-Games are probabilistic algorithms with access to an Adversary and output a boolean value \parencite{boneh_shoup}. Formally we write games as a sequence of functions and Adversary calls \parencite{boneh_shoup}.
+Games are probabilistic algorithms with access to an adversary \parencite*{boneh_shoup}. They output a boolean value that represents either that the game has been won by the adversary or that it has been lost \parencite{boneh_shoup}. Formally we write games as a sequence of functions and adversary calls \parencite{boneh_shoup}.
 \end{definition}
 
-Notatioinwise we write $`\leftarrow`$ followed by a set for uniform sampling from that set, $`\leftarrow`$ followed by a probability mass function (e.g. an Adversary result) to sample from that function space, and $`=`$ for an assignment of a deterministic value. Moreover, we write $`:`$ followed by a condition to assure that the condition has to hold at this point. To give an example, think of the following game as "sampling a uniformly random $a$ from $\mathbb{F}_p$, get the probabilistic result from $\mathcal{A}$ as $b$, computing $c$ as $F$ applied to $a$ and $b$, and assert that $P$ holds for $c$":
+Notatioinwise, we write $`\overset{{\scriptscriptstyle\$}}{\leftarrow}`$ followed by a set for uniform sampling from that set, $`\leftarrow`$ followed by a probability mass function (e.g. an adversary result) to sample from that function space, and $`=`$ for an assignment of a deterministic value. Moreover, we write $`:`$ followed by a condition to assure that the condition has to hold at this point. To give an example, think of the following game as "sampling a uniformly random $a$ from $\mathbb{F}_p$, get the probabilistic result from $\mathcal{A}$ as $b$, computing $c$ as $F$ applied to $a$ and $b$, and assert that $P$ holds for $c$":
 \begin{equation*}
     \left(
     \begin{aligned}
-        a & \leftarrow \mathbb{F}_p, \\
+        a & \overset{{\scriptscriptstyle\$}}{\leftarrow} \mathbb{F}_p, \\
         b & \leftarrow \mathcal{A}, \\
         c & = F(a,b) \\
         & : \ P(c)
@@ -129,20 +129,20 @@ Typically we will define a game for a certain security definition applied to our
 Hardness assumptions are computational problems that are generally believed to be hard \parencite{boneh_shoup,ac_handbook}.
 \end{definition}
 
-Within cryptography, there exist several hardness assumptions, we will cover the ones used in this paper (conveniently the KZG paper \parencite{KZG} already defines them) and formally define according games. 
+Within cryptography, there exist several hardness assumptions, we will cover the ones used in this paper and formally define according games. 
 
-From now on let `$\in_{\mathcal{R}}$` denote uniform sampling from the respective set. 
+From now on let `$\overset{{\scriptscriptstyle\$}}{\leftarrow}$` denote uniform sampling from the respective set. 
 
 \begin{definition}[discrete logarithm (DL)]
     \label{DL_def}
-    Let $\mathcal{G}$ be a cyclic group with generator \textbf{g}.
-    For $a \in_{\mathcal{R}} \mathbb{F}_p$, holds for every Adversary $\mathcal{A}: \text{Pr}[a = \mathcal{A}(\textbf{g}^a)] = \epsilon$ \parencite{KZG}.
+    Let $\mathbb{G}$ be a cyclic group with generator \textbf{g}.
+    Let $a \overset{{\scriptscriptstyle\$}}{\leftarrow} \mathbb{F}_p$. Then for every adversary $\mathcal{A}: \text{Pr}[a = \mathcal{A}(\textbf{g}^a)] = \epsilon$  holds \parencite{KZG}.
 
-    Formally we define the DL game as: 
+    Formally we define the DL game: 
     \begin{equation*}
         \left(
             \begin{aligned}
-                a & \leftarrow \mathbb{F}_p \\
+                a & \overset{{\scriptscriptstyle\$}}{\leftarrow} \mathbb{F}_p \\
                 a' & \leftarrow \mathcal{A}(\textbf{g}^a) \\
                 & : a = a'
             \end{aligned}
@@ -152,20 +152,20 @@ From now on let `$\in_{\mathcal{R}}$` denote uniform sampling from the respectiv
 
 \begin{definition}[t-Strong Diffie Hellmann (t-SDH)]
     \label{tSDH_def}
-    Let $\mathcal{G}$ be a cyclic group with generator \textbf{g}.
-    Let $t \in \mathbb{N}$ be fixed.  For $a \in_{\mathcal{R}} \mathbb{F}_p$, holds for every Adversary $\mathcal{A}:$
+    Let $\mathbb{G}$ be a cyclic group with generator \textbf{g}.
+    Let $t \in \mathbb{N}$ be fixed.  Let $a \overset{{\scriptscriptstyle\$}}{\leftarrow} \mathbb{F}_p$. For every adversary $\mathcal{A}:$
     \begin{equation*}
         \text{Pr}\big[
             (c,\textbf{g}^{\frac{1}{a+c}}) = \mathcal{A}([\textbf{g},\textbf{g}^a,\textbf{g}^{a^2},\dots, \textbf{g}^{a^{t-1}}])
         \big] = \epsilon
     \end{equation*}
-    for all $c \in \mathbb{F}_p\backslash \{a\}$ \parencite{KZG}.
+    holds for all $c \in \mathbb{F}_p\backslash \{a\}$ \parencite{KZG}.
     
-    Formally we define the t-SDH game as: 
+    Formally we define the t-SDH game: 
     \begin{equation*}
         \left(
             \begin{aligned}
-                a & \leftarrow \mathbb{F}_p \\
+                a & \overset{{\scriptscriptstyle\$}}{\leftarrow} \mathbb{F}_p \\
                 (c,g') & \leftarrow \mathcal{A}([\textbf{g},\textbf{g}^a,\textbf{g}^{a^2},\dots, \textbf{g}^{a^{t-1}}]) \\
                 & : \textbf{g}^{\frac{1}{a+c}} = g'
             \end{aligned}
@@ -177,20 +177,20 @@ The following definition is analogous to the previous one, except that the resul
 
 \begin{definition}[t-Bilinear Strong Diffie Hellmann (t-BSDH)]
     \label{tBSDH_def}
-    Let $\mathcal{G}$ and $\mathcal{H}$ be cyclic groups with generators \textbf{g} and \textbf{h}.
-    Let $t \in \mathbb{N}$ be fixed and $e: \mathcal{G} \times \mathcal{G} \rightarrow \mathcal{H}$ be a pairing function.  For $a \in_{\mathcal{R}} \mathbb{F}_p$, holds for every Adversary $\mathcal{A}:$
+    Let $\mathbb{G}$ and $\mathbb{H}$ be cyclic groups with generators \textbf{g} and \textbf{h}.
+    Let $t \in \mathbb{N}$ be fixed and $e: \mathbb{G} \times \mathbb{G} \rightarrow \mathbb{H}$ be a pairing function.  Let $a \overset{{\scriptscriptstyle\$}}{\leftarrow} \mathbb{F}_p$. For every adversary $\mathcal{A}:$
     \begin{equation*}
         \text{Pr}\big[
             (c,e(\textbf{g}, \textbf{g} )^{\frac{1}{a+c}}) = \mathcal{A}([\textbf{g},\textbf{g}^a,\textbf{g}^{a^2},\dots, \textbf{g}^{a^{t-1}}])
         \big] = \epsilon
     \end{equation*}
-    for all $c \in \mathbb{F}_p\backslash \{a\}$ \parencite{KZG}.
+    holds for all $c \in \mathbb{F}_p\backslash \{a\}$ \parencite{KZG}.
     
-    Formally we define the t-SDH game as: 
+    Formally we define the t-BSDH game: 
     \begin{equation*}
         \left(
             \begin{aligned}
-                a & \leftarrow \mathbb{F}_p \\
+                a & \overset{{\scriptscriptstyle\$}}{\leftarrow} \mathbb{F}_p \\
                 (c,g') & \leftarrow \mathcal{A}([\textbf{g},\textbf{g}^a,\textbf{g}^{a^2},\dots, \textbf{g}^{a^{t-1}}]) \\
                 & : e(\textbf{g}, \textbf{g})^{\frac{1}{a+c}} = g'
             \end{aligned}
@@ -216,9 +216,9 @@ Now that we have introduced the necessary preliminaries, notions, and definition
 
     Once the keys are correctly distributed, the protocol follows three steps: 
     \begin{enumerate}
-        \item the commiter uses their keys $ck$ to commit to a arbitrary message $m$, invoking Commit$(ck,m)$ from which they obtain a commitment $C$ to $m$ and an opening value $ov$ for the commitment. The commiter stores $ov$ and sends $C$ to the verifier.
-        \item at a later point in time, the committer might decide to open the commitment $C$ they sent to the verifier. To open the commitment the committer sends the opening value $ov$ and the message $m$ to the verifier. 
-        \item the verifier invokes Verify on the values it received from the committer ($C,m$ and $ov$) to decide whether $m$ is the message the commitment $C$ was computed for. 
+        \item The commiter uses their keys $ck$ to commit to a arbitrary message $m$, invoking Commit$(ck,m)$ from which they obtain a commitment $C$ to $m$ and an opening value $ov$ for the commitment. The commiter stores $ov$ and sends $C$ to the verifier.
+        \item At a later point in time, the committer might decide to open the commitment $C$ they sent to the verifier. To open the commitment the committer sends the opening value $ov$ and the message $m$ to the verifier. 
+        \item The verifier invokes Verify on the values it received from the committer ($C,m$ and $ov$) to decide whether $m$ is the message the commitment $C$ was computed for. 
     \end{enumerate}
     Once the keys are set up, the protocol may run arbitrary times and in parallel (i.e. the committer can commit to arbitrary many messages and reveal them independently).
     % TODO Grafik für CS hier
@@ -239,7 +239,7 @@ In our formalization, we work with a specific type of commitment scheme, namely 
     \end{itemize}
 \end{definition}
 
-Note that we omit the verifier keys in the following four definitions for readability, but generally assume the Adversaries to have access to the verifier keys. 
+Note that we omit the verifier keys in the following four definitions for readability, but generally assume the adversaries to have access to the verifier keys. 
 
 We formally define four security properties for a PCS:
 
@@ -267,7 +267,7 @@ We formally define four security properties for a PCS:
 
 \begin{definition}[Knowledge Soundness (AGM)]
     \label{knowledgesound_def}
-    We say a PCS is knowledge sound in the AGM if and only if there exists an efficient extractor algorithm $E$ such that for every efficient Adversary $\mathcal{A}=(\mathcal{A}_1, \mathcal{A}_2)$ in the AGM the probability of winning the following game is negligible: 
+    We say a PCS is knowledge sound in the AGM if and only if there exists an efficient extractor algorithm $E$ such that for every efficient adversary $\mathcal{A}=(\mathcal{A}_1, \mathcal{A}_2)$ in the AGM the probability of winning the following game is negligible: 
     \begin{equation*}
         \left(
             \begin{aligned}
@@ -285,16 +285,16 @@ We formally define four security properties for a PCS:
 
 \begin{definition}[hiding]
     \label{hiding_def}
-    We say a PCS is hiding if and only if the probability of any efficient adversary finding an, to them, unknown point of the polynomial $\phi$ from the commitment $C:=\text{Commit}(ck,\phi)$ and deg$(\phi)-1$ points with witness  $(i,\phi(i),\text{CreateWitness}(ck, \phi, i))$ is negligible.
+    We say a PCS is hiding if and only if the probability of any efficient adversary finding an unknown point of the polynomial $\phi$ from the commitment $C:=\text{Commit}(ck,\phi)$ and deg$(\phi)-1$ points with witness  $(i,\phi(i),\text{CreateWitness}(ck, \phi, i))$ is negligible.
     \parencite{KZG}
 \end{definition}
 
 \section{Isabelle/HOL}
-Now that we have covered the theoretical preliminaries, we introduce Isabelle/HOL\footnote{https://isabelle.in.tum.de/}, the interactive theorem prover we use to formalize our proofs. 
+Now that we have covered the theoretical preliminaries, we introduce Isabelle/HOL\parencite{Isabelle}, the interactive theorem prover we use to formalize our proofs. 
 Note that we will use the abbreviation \textit{Isabelle} to refer to \textit{Isabelle/HOL} from now on. 
 
-Isabelle is an interactive theorem prover for higher-order logic (HOL) that supports a minimal functional programming language \parencite{isabelle_manual}, as well as a large set of formalizations of mathematical areas such as Algebra and Analysis. The most essential formalizations are shipped with Isabelle in the \textit{HOL-library}, besides that there exists a large database of formalizations, the \textit{Archive of Formal Proofs (AFP)}\footnote{https://www.isa-afp.org}. We will use the finite field definition as well as the factorization algorithm for polynomials over finite fields from the Berlekamp-Zassenhaus\parencite{Berlekamp_Zassenhaus-AFP} AFP entry. Furthermore, we use the Lagrange Polynomial Interpolation algorithm from the AFP entry \textit{Polynomial Interpolation}\parencite{Polynomial_Interpolation-AFP}.
-Apart from that, we use another AFP entry that is central to our proofs, the CryptHOL framework\parencite{CryptHOL-AFP}:
+Isabelle is an interactive theorem prover for higher-order logic (HOL) that supports a minimal functional programming language \parencite{isabelle_manual}, as well as a large set of formalizations of mathematical areas such as algebra and analysis. The most essential formalizations are shipped with Isabelle in the \textit{HOL-library}, besides that there exists a large database of formalizations, the \textit{Archive of Formal Proofs (AFP)}\parencite{AFP_online}. We will use the finite field definition as well as the factorization algorithm for polynomials over finite fields from the Berlekamp-Zassenhaus\parencite{Berlekamp_Zassenhaus-AFP} AFP entry. Furthermore, we use the Lagrange Polynomial Interpolation algorithm from the AFP entry \textit{Polynomial Interpolation}\parencite{Polynomial_Interpolation-AFP}.
+Apart from that, we use another AFP entry that is central to our proofs, the CryptHOL framework\parencite{CryptHOL-AFP}.
 
 \subsection*{CryptHOL}
 CryptHOL is a framework for game-based proofs in Isabelle \parencite{CryptHOL_game_based}. It captures games in a sub-probability mass function (spmf) monad. That is essentially a \textit{Option} type wrapped in a probability mass function (pmf). The unassigned probability mass, represented as the pmf of \textit{None} is propagated through the monad.
@@ -315,9 +315,9 @@ The notation for games in CryptHOL is drawn from Haskell's do-notation.
     We use \textit{return\_spmf} to return the pmf, that x represents, wrapped in a spmf, which is \textit{sample\_uniform} of S in this example. Hence, the result in this example is, in fact, equivalent to the spmf '\textit{sample\_uniform} S'.
 \end{example}
 
-More complex games can be created by composing more functions, including functions that fail, i.e. return the unassigned probability mass, on purpose to perform checks. One specific example of such a function is the \textit{assert\_spmf} function, which is commonly used to check that messages from the Adversary are well-formed. We illustrate the correct usage in example \ref{assert_spmf_exmpl}. 
+More complex games can be created by composing more functions, including functions that fail, i.e. return the unassigned probability mass, on purpose to perform checks. One specific example of such a function is the \textit{assert\_spmf} function, which is commonly used to check that messages from the adversary are well-formed. We illustrate the correct usage in example \ref{assert_spmf_exmpl}. 
 
-CryptHOL furthermore provides syntactic sugar to handle failure (i.e. an unassigned probability mass), namely the \textit{TRY ELSE} block. \textit{TRY A ELSE B}, captures semantically 'try to return $A$ if $A$ is a failure, return $B$'. We will commonly use this pattern to abstract whether an adversary has won a game. Specifically, we define $A$, such that the result is a wrapped spmf of \textit{True} if and only if the adversary has won and otherwise let the game fail, i.e. result in the unassigned probability mass. We define then $B$ to be the wrapped spmf of \textit{False}, so the game \textit{TRY A ELSE B} captures cleanly whether the Adversary has won the game.
+CryptHOL furthermore provides syntactic sugar to handle failure (i.e. an unassigned probability mass), namely the \textit{TRY ELSE} block. \textit{TRY A ELSE B}, captures semantically 'try to return $A$ if $A$ is a failure, return $B$'. We will commonly use this pattern to abstract whether an adversary has won a game. Specifically, we define $A$, such that the result is a wrapped spmf of \textit{True} if and only if the adversary has won and otherwise let the game fail, i.e. result in the unassigned probability mass. We define then $B$ to be the wrapped spmf of \textit{False}, so the game \textit{TRY A ELSE B} captures cleanly whether the adversary has won the game.
 
 \begin{example}
     \label{assert_spmf_exmpl}
@@ -333,7 +333,7 @@ CryptHOL furthermore provides syntactic sugar to handle failure (i.e. an unassig
 
     This example game captures the discrete log problem.
 
-    As in the first game, an elementary event of S, which is a natural number, is bound to x. The Adversary is applied to the group element $\mathbf{g}^x$ and returns an spmf over the natural numbers, which we bind to x'.
+    As in the first game, an elementary event of S, which is a natural number, is bound to x. The adversary is applied to the group element $\mathbf{g}^x$ and returns an spmf over the natural numbers, which we bind to x'.
     Next, we use \textit{assert\_spmf} to check whether x and x' are equal i.e. the adversary guessed the right number. We bind the result only symbolically to \textit{unit}, such that if the check does not hold, the failure can be propagated as the unassigned probability mass. If the assert check holds, the result is the wrapped spmf of \textit{True}, otherwise a failure has been propagated and the \textit{ELSE} branch is triggered. 
     If the \textit{ELSE} branch is triggered the result is the wrapped spmf of \textit{False}.
 
