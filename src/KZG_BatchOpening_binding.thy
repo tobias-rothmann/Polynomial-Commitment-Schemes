@@ -6,13 +6,6 @@ begin
 locale bind_game_def = KZG_BatchOpening_correct
 begin
 
-text \<open>Expose just the public key from the Setup\<close>
-definition key_gen:: "'a pk spmf" where
-  "key_gen = do {
-    (_::'e sk, PK::'a pk) \<leftarrow> Setup;
-    return_spmf PK
-  }"
-
 definition valid_msg :: "'e eval_value \<Rightarrow> 'a eval_witness \<Rightarrow> bool" where 
   "valid_msg \<phi>_i w_i = (w_i \<in> carrier G\<^sub>p)"
 
@@ -28,7 +21,7 @@ type_synonym ('a', 'e')  adversary =
 
 definition bind_game :: "('a, 'e) adversary \<Rightarrow> bool spmf"
   where "bind_game \<A> = TRY do {
-  PK \<leftarrow> key_gen;
+  PK \<leftarrow> KeyGen;
   (C, i, \<phi>_i, w_i, B, w_B, r_x) \<leftarrow> \<A> PK;
   _ :: unit \<leftarrow> assert_spmf (i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B); 
   let b = VerifyEval PK C i \<phi>_i w_i;
@@ -63,7 +56,7 @@ event that the Adversary wins in the assert_spmf statement.
 It's a closely adapted proof from Sigma_Commit_Crypto.Commitment_Schemes bind_game_alt_def\<close>
 lemma bind_game_alt_def:
   "bind_game \<A> = TRY do {
-  PK \<leftarrow> key_gen;
+  PK \<leftarrow> KeyGen;
   (C, i, \<phi>_i, w_i, B, w_B, r_x) \<leftarrow> \<A> PK;
   _ :: unit \<leftarrow> assert_spmf (i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B); 
   let b = VerifyEval PK C i \<phi>_i w_i;
@@ -73,7 +66,7 @@ lemma bind_game_alt_def:
   (is "?lhs = ?rhs")
 proof -
   have "?lhs = TRY do {
-    PK \<leftarrow> key_gen;
+    PK \<leftarrow> KeyGen;
     TRY do {
     (C, i, \<phi>_i, w_i, B, w_B, r_x) \<leftarrow> \<A> PK;
     TRY do {
@@ -89,7 +82,7 @@ proof -
     unfolding split_def bind_game_def
     by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
   also have "\<dots> = TRY do {
-    PK \<leftarrow> key_gen;
+    PK \<leftarrow> KeyGen;
     TRY do {
     (C, i, \<phi>_i, w_i, B, w_B, r_x) \<leftarrow> \<A> PK;
     TRY do {
@@ -369,7 +362,7 @@ proof -
   unfolding split_def Let_def
   by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
   also have "\<dots>= bind_game \<A>"
-    using bind_game_alt_def unfolding key_gen_def Setup_def by simp
+    using bind_game_alt_def unfolding KeyGen_def Setup_def by simp
   finally show ?thesis ..
 qed
 

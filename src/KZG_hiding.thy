@@ -21,13 +21,6 @@ not really fit as we are not trying to come up with two different plain texts bu
 \<close>
 text \<open>The evaluation commitment scheme functions.\<close>
 
-text \<open>Expose just the public key from the Setup\<close>
-definition key_gen:: "'a pk spmf" where
-  "key_gen = do {
-    (_::'e sk, PK::'a pk) \<leftarrow> Setup;
-    return_spmf PK
-  }"
-
 definition valid_msg :: "'e eval_value \<Rightarrow> 'a eval_witness \<Rightarrow> bool" where 
   "valid_msg \<phi>_i w_i = (w_i \<in> carrier G\<^sub>p)"
 
@@ -40,7 +33,7 @@ type_synonym ('a', 'e')  adversary =
 definition hiding_game :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Rightarrow> bool spmf"
   where "hiding_game I \<A> = TRY do {
   \<phi> \<leftarrow> sample_uniform_poly max_deg;
-  PK \<leftarrow> key_gen;
+  PK \<leftarrow> KeyGen;
   let C = Commit PK \<phi>;
   let witn_tupel = map (\<lambda>i. CreateWitness PK \<phi> i) I;
   \<phi>' \<leftarrow> \<A> C witn_tupel;                             
@@ -400,7 +393,7 @@ proof -
   \<phi> \<leftarrow> do {
       evals::'e mod_ring list \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring)) (sample_uniform_list (max_deg+1) (CARD ('e)));
       return_spmf (lagrange_interpolation_poly (zip (i#I) evals))};
-  PK \<leftarrow> key_gen;
+  PK \<leftarrow> KeyGen;
   let C = Commit PK \<phi>;
   let witn_tupel = map (\<lambda>i. CreateWitness PK \<phi> i) I;
   \<phi>' \<leftarrow> \<A> C witn_tupel;                             
@@ -419,7 +412,7 @@ qed
   let i = PickDistinct I;
   evals::'e mod_ring list \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
-  PK \<leftarrow> key_gen;
+  PK \<leftarrow> KeyGen;
   let C = Commit PK \<phi>;
   let witn_tupel = map (\<lambda>i. CreateWitness PK \<phi> i) I;
   \<phi>' \<leftarrow> \<A> C witn_tupel;                             
@@ -440,7 +433,7 @@ qed
   let witn_tupel = map (\<lambda>i. (i, poly \<phi> i, createWitness PK \<phi> i)) I;
   \<phi>' \<leftarrow> \<A> C witn_tupel;                             
   return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
-    unfolding key_gen_def split_def CreateWitness_def Let_def by fastforce
+    unfolding KeyGen_def split_def CreateWitness_def Let_def by fastforce
   also have "\<dots> = TRY do {
   evals::'e mod_ring list \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   \<alpha>::'e mod_ring \<leftarrow>  map_spmf (\<lambda>x. of_int_mod_ring (int x)) (sample_uniform (order G\<^sub>p));

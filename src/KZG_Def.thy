@@ -354,6 +354,14 @@ lemma Setup_alt_def: "Setup = do {
   unfolding Setup_def Let_def split_def 
   by (simp add: bind_map_spmf o_def)
 
+text \<open>a wrapper around Setup that only outputs the public key PK\<close>
+definition KeyGen :: "'a pk spmf"
+where 
+  "KeyGen = do {
+    (\<alpha>, PK) \<leftarrow> Setup;
+    return_spmf PK 
+  }"
+
 
 subsection\<open>Commit\<close>
 

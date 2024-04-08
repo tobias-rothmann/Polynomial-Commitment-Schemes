@@ -23,13 +23,6 @@ not really fit as we are not trying to come up with two different plain texts bu
 \<close>
 text \<open>The evaluation commitment scheme functions.\<close>
 
-text \<open>Expose just the public key from the Setup\<close>
-definition key_gen:: "'a pk spmf" where
-  "key_gen = do {
-    (_::'e sk, PK::'a pk) \<leftarrow> Setup;
-    return_spmf PK
-  }"
-
 definition valid_msg :: "'e eval_value \<Rightarrow> 'a eval_witness \<Rightarrow> bool" where 
   "valid_msg \<phi>_i w_i = (w_i \<in> carrier G\<^sub>p)"
                     
@@ -41,7 +34,7 @@ type_synonym ('a', 'e')  adversary =
 
 definition bind_game :: "('a, 'e) adversary \<Rightarrow> bool spmf"
   where "bind_game \<A> = TRY do {
-  PK \<leftarrow> key_gen;
+  PK \<leftarrow> KeyGen;
   (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
   _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i); 
   let b = VerifyEval PK C i \<phi>_i w_i;
@@ -102,7 +95,7 @@ event that the Adversary wins in the assert_spmf statement.
 It's a closely adapted proof from Sigma_Commit_Crypto.Commitment_Schemes bind_game_alt_def\<close>
 lemma bind_game_alt_def:
   "bind_game \<A> = TRY do {
-  PK \<leftarrow> key_gen;
+  PK \<leftarrow> KeyGen;
   (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
   _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
   let b = VerifyEval PK C i \<phi>_i w_i;
@@ -112,7 +105,7 @@ lemma bind_game_alt_def:
   (is "?lhs = ?rhs")
 proof -
   have "?lhs = TRY do {
-      PK \<leftarrow> key_gen;
+      PK \<leftarrow> KeyGen;
       TRY do {
         (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
         TRY do {
@@ -124,7 +117,7 @@ proof -
     unfolding split_def bind_game_def
     by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
   also have "\<dots> = TRY do {
-      PK \<leftarrow> key_gen;
+      PK \<leftarrow> KeyGen;
       TRY do {
         (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
         TRY do {
@@ -396,7 +389,7 @@ proof -
   } ELSE return_spmf False"  
    using add_witness_neq_if_eval_neq by algebra
   also have "\<dots> = TRY do { 
-    PK \<leftarrow> key_gen;
+    PK \<leftarrow> KeyGen;
     (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> PK;
   _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i 
                             \<and> valid_msg \<phi>_of_i w_i
@@ -405,9 +398,9 @@ proof -
                             \<and> VerifyEval PK C i \<phi>'_of_i w'_i);
     return_spmf True 
   } ELSE return_spmf False"
-    unfolding key_gen_def Setup_def by simp
+    unfolding KeyGen_def Setup_def by simp
   also have "\<dots> = TRY do {
-  PK \<leftarrow> key_gen;
+  PK \<leftarrow> KeyGen;
   TRY do {
     (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
       TRY do {
@@ -423,7 +416,7 @@ proof -
   unfolding split_def Let_def
    by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
   also  have "\<dots> = TRY do {
-  PK \<leftarrow> key_gen;
+  PK \<leftarrow> KeyGen;
     TRY do {
     (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
       TRY do {
@@ -435,7 +428,7 @@ proof -
   } ELSE return_spmf False"  
     using assert_anding by presburger
   also  have "\<dots> = TRY do {
-  PK \<leftarrow> key_gen;
+  PK \<leftarrow> KeyGen;
   (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
   _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> \<phi>'_i \<and> valid_msg \<phi>_i w_i \<and> valid_msg \<phi>'_i w'_i);
   _ :: unit \<leftarrow> assert_spmf (VerifyEval PK C i \<phi>_i w_i \<and> VerifyEval PK C i \<phi>'_i w'_i);  
