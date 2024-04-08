@@ -132,10 +132,10 @@ and proved for the KZG in \ref{security:knowledgesound} to the batched KZG versi
     \left(
         \begin{aligned}
             PK &\leftarrow \text{key\_gen}, \\
-            (C,calc\_vec) &\leftarrow \mathcal{A'}, \\
+            (C,calc\_vec, \sigma) &\leftarrow \mathcal{A'}, \\
             \_::\text{unit} &\leftarrow \text{assert\_spmf}\biggl(\text{len}(PK)=\text{len}(calc\_vec) \land C = \prod_{1}^{len(calc\_vec)}PK_i^{calc\_vec_i}\biggr), \\
             \phi &= E(C, calc\_vec),\\
-            (i, B, r(x), \omega_B) &\leftarrow \mathcal{A''}(PK, C, calc\_vec), \\
+            (i, B, r(x), \omega_B) &\leftarrow \mathcal{A''}(\sigma, PK, C, calc\_vec), \\
             & : \ \phi(i) \ne r(i) \land \text{VerifyEvalBatch}(PK,C,B,r(x),\omega_B)
         \end{aligned}
         \right)
@@ -172,9 +172,9 @@ Based on the idea from \ref{batch:security:knowledge:paper}, we formally define 
 \begin{equation*}
     \left(
         \begin{aligned}
-            (C,calc\_vec) &\leftarrow \mathcal{A'}(PK), \\
+            (C,calc\_vec, \sigma) &\leftarrow \mathcal{A'}(PK), \\
             \phi &= E(C, calc\_vec),\\
-            (i, B, r(x), \omega_B) &\leftarrow \mathcal{A''}(PK, C, calc\_vec), \\
+            (i, B, r(x), \omega_B) &\leftarrow \mathcal{A''}(\sigma, PK, C, calc\_vec), \\
             \phi_i &= \phi(i), \\
             \omega_i &= \text{CreateWitness}(PK,\phi, i), \\
             &  (C, i, \phi_i, \omega_i, B, r(x), \omega_B)

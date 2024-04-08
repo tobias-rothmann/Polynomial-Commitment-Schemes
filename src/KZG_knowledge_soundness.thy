@@ -15,47 +15,49 @@ begin
 
 subsection \<open>Game definition\<close>
 
+type_synonym '\<sigma>' state = '\<sigma>'
+
 type_synonym 'e' calc_vector = "'e' mod_ring list"
 
-type_synonym ('a', 'e')  adversary_1 = 
+type_synonym ('a', 'e', '\<sigma>')  adversary_1 = 
   "'a' pk \<Rightarrow> 
- ('a' commit \<times> 'e' calc_vector) spmf"
+ ('a' commit \<times> 'e' calc_vector \<times> '\<sigma>' state) spmf"
 
-type_synonym ('a', 'e')  adversary_2 = 
-  "'a' pk \<Rightarrow> 'a' commit \<Rightarrow> 'e' calc_vector \<Rightarrow> 
+type_synonym ('a', 'e', '\<sigma>')  adversary_2 = 
+  "'\<sigma>' state \<Rightarrow> 'a' pk \<Rightarrow> 'a' commit \<Rightarrow> 'e' calc_vector \<Rightarrow> 
    ('e' eval_position \<times> 'e' eval_value \<times> 'a' eval_witness) spmf"
 
 type_synonym ('a', 'e') extractor = 
   "'a' commit \<Rightarrow> 'e' calc_vector \<Rightarrow> 
     'e' mod_ring poly"
 
-definition knowledge_soundness_game :: "('a, 'e) extractor \<Rightarrow> ('a, 'e) adversary_1 \<Rightarrow> ('a, 'e) adversary_2 
+definition knowledge_soundness_game :: "('a, 'e) extractor \<Rightarrow> ('a, 'e, '\<sigma>) adversary_1 \<Rightarrow> ('a, 'e, '\<sigma>) adversary_2 
   \<Rightarrow> bool spmf"
   where "knowledge_soundness_game E \<A> \<A>' = TRY do {
   PK \<leftarrow> KeyGen;
-  (C,calc_vec) \<leftarrow> \<A> PK;
+  (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
   _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
                           \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);  
   let \<phi> = E C calc_vec;
-  (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+  (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
   _ ::unit \<leftarrow> assert_spmf (valid_msg \<phi>_i w_i);
   return_spmf (VerifyEval PK C i \<phi>_i w_i \<and> \<phi>_i \<noteq> poly \<phi> i)} ELSE return_spmf False"
 
-definition knowledge_soundness_game_advantage :: "('a, 'e) extractor \<Rightarrow> ('a, 'e) adversary_1 \<Rightarrow> ('a, 'e) adversary_2 
+definition knowledge_soundness_game_advantage :: "('a, 'e) extractor \<Rightarrow> ('a, 'e, '\<sigma>) adversary_1 \<Rightarrow> ('a, 'e, '\<sigma>) adversary_2 
    \<Rightarrow> real"
   where "knowledge_soundness_game_advantage E \<A> \<A>' \<equiv> spmf (knowledge_soundness_game E \<A> \<A>') True"
 
 subsubsection \<open>reduction definition\<close>
 
 definition knowledge_soundness_reduction
-  :: "('a, 'e) extractor \<Rightarrow> ('a, 'e) adversary_1 \<Rightarrow> ('a, 'e) adversary_2 \<Rightarrow> ('a, 'e) adversary"                     
+  :: "('a, 'e) extractor \<Rightarrow> ('a, 'e, '\<sigma>) adversary_1 \<Rightarrow> ('a, 'e, '\<sigma>) adversary_2 \<Rightarrow> ('a, 'e) adversary"                     
 where
   "knowledge_soundness_reduction E \<A> \<A>' PK = do {
-  (C,calc_vec) \<leftarrow> \<A> PK;
+  (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
   _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
                           \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);  
   let \<phi> = E C calc_vec;
-  (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+  (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
   _ :: unit \<leftarrow> assert_spmf (valid_msg \<phi>_i w_i);
   let \<phi>'_i = poly \<phi> i;
   let w'_i = createWitness PK \<phi> i;
@@ -140,9 +142,9 @@ lemma knowledge_soundness_game_alt_def:
     x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
     let \<alpha> = of_int_mod_ring (int x);
     let PK = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     let \<phi> = E C calc_vec;
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
             \<and> valid_msg \<phi>_i w_i 
@@ -153,17 +155,17 @@ proof -
   note [simp] = Let_def split_def
   have "do {
   PK \<leftarrow> KeyGen;
-  (C,calc_vec) \<leftarrow> \<A> PK;
+  (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
   _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
                           \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);  
-  (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+  (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     _ :: unit \<leftarrow> assert_spmf (valid_msg \<phi>_i w_i);
   return_spmf (VerifyEval PK C i \<phi>_i w_i \<and> \<phi>_i \<noteq> poly (E C calc_vec) i)} 
   = 
   do {
   PK \<leftarrow> KeyGen;
-  (C,calc_vec) \<leftarrow> \<A> PK;
-  (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+  (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
+  (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
   _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
                           \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);  
   _ :: unit \<leftarrow> assert_spmf (valid_msg \<phi>_i w_i);  
@@ -172,9 +174,9 @@ proof -
   then have "knowledge_soundness_game E \<A> \<A>' = 
   TRY do {
     PK \<leftarrow> KeyGen;
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     let \<phi> = E C calc_vec;
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
                             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);  
     _ :: unit \<leftarrow> assert_spmf (valid_msg \<phi>_i w_i);
@@ -184,11 +186,11 @@ proof -
   also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     TRY do {
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     TRY do {
     let \<phi> = E C calc_vec;
     TRY do {
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     TRY do {
      _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
                             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);  
@@ -206,11 +208,11 @@ proof -
   also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     TRY do {
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     TRY do {
     let \<phi> = E C calc_vec;
     TRY do {
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     TRY do {
      _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
                             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);  
@@ -228,11 +230,11 @@ proof -
   also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     TRY do {
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     TRY do {
     let \<phi> = E C calc_vec;
     TRY do {
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     TRY do {
      _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);  
@@ -250,11 +252,11 @@ proof -
    also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     TRY do {
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     TRY do {
     let \<phi> = E C calc_vec;
     TRY do {
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     TRY do {
      _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);
@@ -271,11 +273,11 @@ proof -
    also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     TRY do {
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     TRY do {
     let \<phi> = E C calc_vec;
     TRY do {
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     TRY do {
      _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
@@ -294,11 +296,11 @@ proof -
     let \<alpha> = of_int_mod_ring (int x);
     PK \<leftarrow> return_spmf (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]);
     TRY do {
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     TRY do {
     let \<phi> = E C calc_vec;
     TRY do {
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     TRY do {
      _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
@@ -317,11 +319,11 @@ proof -
     let \<alpha> = of_int_mod_ring (int x);
     let PK = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
     TRY do {
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     TRY do {
     let \<phi> = E C calc_vec;
     TRY do {
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     TRY do {
      _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
@@ -338,9 +340,9 @@ proof -
     x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
     let \<alpha> = of_int_mod_ring (int x);
     let PK = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     let \<phi> = E C calc_vec;
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
             \<and> valid_msg \<phi>_i w_i 
@@ -358,9 +360,9 @@ lemma bind_game_knowledge_soundness_reduction_alt_def:
     x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
     let \<alpha> = of_int_mod_ring (int x);
     let PK = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     let \<phi> = E C calc_vec;
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
             \<and> \<phi>_i \<noteq> (poly \<phi> i) 
@@ -383,11 +385,11 @@ proof -
     by (fact bind_game_alt_def)
   also have "\<dots> = TRY do {
   PK \<leftarrow> KeyGen;
-  (C,calc_vec) \<leftarrow> \<A> PK;
+  (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
   _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
                           \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);  
   let \<phi> = E C calc_vec;
-  (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+  (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
   _ :: unit \<leftarrow> assert_spmf (valid_msg \<phi>_i w_i);
   let \<phi>'_i = poly \<phi> i;
   let w'_i = createWitness PK \<phi> i;
@@ -400,13 +402,13 @@ proof -
   also have "\<dots> =  TRY do {
     PK \<leftarrow> KeyGen;
     TRY do {
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     TRY do {
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);  
     let \<phi> = E C calc_vec;
     TRY do {
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     TRY do {
     _ :: unit \<leftarrow> assert_spmf (valid_msg \<phi>_i w_i);
     let \<phi>'_i = poly \<phi> i;
@@ -428,13 +430,13 @@ proof -
   also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     TRY do {
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     TRY do {
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);  
     let \<phi> = E C calc_vec;
     TRY do {
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     TRY do {
     _ :: unit \<leftarrow> assert_spmf (valid_msg \<phi>_i w_i);
     let \<phi>'_i = poly \<phi> i;
@@ -456,13 +458,13 @@ proof -
   also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     TRY do {
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     TRY do {
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);  
     let \<phi> = E C calc_vec;
     TRY do {
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     let \<phi>'_i = poly \<phi> i;
     let w'_i = createWitness PK \<phi> i;
     TRY do {
@@ -483,13 +485,13 @@ proof -
   also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     TRY do {
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     TRY do {
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);  
     let \<phi> = E C calc_vec;
     TRY do {
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     let \<phi>'_i = poly \<phi> i;
     let w'_i = createWitness PK \<phi> i;
     TRY do {
@@ -522,10 +524,10 @@ proof -
   qed
   also have "\<dots> =  TRY do {
     PK \<leftarrow> KeyGen;
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);  
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> (poly (E C calc_vec) i) 
                             \<and> valid_msg \<phi>_i w_i 
                             \<and> valid_msg (poly (E C calc_vec) i) (createWitness PK (E C calc_vec) i) 
@@ -537,8 +539,8 @@ proof -
     by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
   also have "\<dots> =  TRY do {
     PK \<leftarrow> KeyGen;
-    (C,calc_vec) \<leftarrow> \<A> PK;
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);
     _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> (poly (E C calc_vec) i) 
@@ -551,10 +553,10 @@ proof -
   proof -
     have "do {
     PK \<leftarrow> KeyGen;
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);  
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> (poly (E C calc_vec) i)  
                             \<and> valid_msg \<phi>_i w_i 
                             \<and> valid_msg (poly (E C calc_vec) i) (createWitness PK  (E C calc_vec) i) 
@@ -563,8 +565,8 @@ proof -
     return_spmf True
     } = do {
     PK \<leftarrow> KeyGen;
-    (C,calc_vec) \<leftarrow> \<A> PK;
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);
     _ :: unit \<leftarrow> assert_spmf (\<phi>_i \<noteq> (poly (E C calc_vec) i) 
@@ -581,9 +583,9 @@ proof -
   also have "\<dots> =  TRY do {
     PK \<leftarrow> KeyGen;
     TRY do {
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     TRY do {
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     TRY do {
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);
@@ -602,9 +604,9 @@ proof -
   also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     TRY do {
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     TRY do {
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     TRY do {
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
@@ -621,9 +623,9 @@ proof -
     using assert_anding by presburger
   also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     let \<phi> = E C calc_vec;
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
             \<and> \<phi>_i \<noteq> (poly \<phi> i) 
@@ -640,9 +642,9 @@ proof -
     x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
     let \<alpha> = of_int_mod_ring (int x);
     PK \<leftarrow> return_spmf (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]);
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     let \<phi> = E C calc_vec;
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
             \<and> \<phi>_i \<noteq> (poly \<phi> i)  
@@ -658,9 +660,9 @@ proof -
     x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
     let \<alpha> = of_int_mod_ring (int x);
     let PK = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     let \<phi> = E C calc_vec;
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
             \<and> \<phi>_i \<noteq> (poly \<phi> i) 
@@ -675,9 +677,9 @@ proof -
     x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
     let \<alpha> = of_int_mod_ring (int x);
     let PK = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
-    (C,calc_vec) \<leftarrow> \<A> PK;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
     let \<phi> = E C calc_vec;
-    (i, \<phi>_i, w_i) \<leftarrow> \<A>' PK C calc_vec;
+    (i, \<phi>_i, w_i) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
     _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
             \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>
             \<and> \<phi>_i \<noteq> (poly \<phi> i) 
@@ -964,7 +966,7 @@ theorem evaluation_knowledge_soundness:
   using knowledge_soundness_game_eq_bind_game_knowledge_soundness_reduction 
         evaluation_binding
   unfolding bind_advantage_def knowledge_soundness_game_advantage_def
-  by algebra
+  by metis
 
 end
 

@@ -27,7 +27,7 @@ definition valid_msg :: "'e eval_value \<Rightarrow> 'a eval_witness \<Rightarro
 subsection \<open>Game definition\<close>
 
 type_synonym ('a', 'e')  adversary = 
-  "'a' commit \<Rightarrow> ('e' eval_position \<times> 'e' eval_value \<times> 'a' eval_witness) list \<Rightarrow> 
+  "'a' pk \<Rightarrow> 'a' commit \<Rightarrow> ('e' eval_position \<times> 'e' eval_value \<times> 'a' eval_witness) list \<Rightarrow> 
  'e' polynomial spmf"
 
 definition hiding_game :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Rightarrow> bool spmf"
@@ -36,7 +36,7 @@ definition hiding_game :: "'e eval_position list \<Rightarrow> ('a, 'e) adversar
   PK \<leftarrow> KeyGen;
   let C = Commit PK \<phi>;
   let witn_tupel = map (\<lambda>i. CreateWitness PK \<phi> i) I;
-  \<phi>' \<leftarrow> \<A> C witn_tupel;                             
+  \<phi>' \<leftarrow> \<A> PK C witn_tupel;                             
   return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
 
 definition hiding_advantage :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Rightarrow> real"
@@ -121,7 +121,7 @@ where
   (\<alpha>, PK) \<leftarrow> Setup;
   let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) evals) \<alpha>;
   let wtn_ts = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I plain_evals);
-  \<phi>' \<leftarrow> \<A> C wtn_ts;
+  \<phi>' \<leftarrow> \<A> PK C wtn_ts;
   return_spmf (poly \<phi>' i)
   }"
 
@@ -319,7 +319,7 @@ definition game1 :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Ri
   (\<alpha>, PK) \<leftarrow> Setup;
   let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
   let witn_tupel = map (\<lambda>j. (j, poly \<phi> j, createWitness PK \<phi> j)) I;
-  \<phi>' \<leftarrow> \<A> C witn_tupel;                             
+  \<phi>' \<leftarrow> \<A> PK C witn_tupel;                             
   return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
 
 definition game2 :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Rightarrow> bool spmf" where 
@@ -331,7 +331,7 @@ definition game2 :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Ri
   (\<alpha>, PK) \<leftarrow> Setup;
   let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
   let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
-  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  \<phi>' \<leftarrow> \<A> PK C witn_tupel;
   return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
 
 definition game2_w_assert :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Rightarrow> bool spmf" where 
@@ -342,7 +342,7 @@ definition game2_w_assert :: "'e eval_position list \<Rightarrow> ('a, 'e) adver
   (\<alpha>, PK) \<leftarrow> Setup;
   let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) (map (\<lambda>i. \<^bold>g ^ i) evals)) \<alpha>;
   let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
-  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  \<phi>' \<leftarrow> \<A> PK C witn_tupel;
   _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>');
   return_spmf (hd evals = poly \<phi>' i)} ELSE return_spmf False"
 
@@ -354,7 +354,7 @@ definition game2_wo_assert :: "'e eval_position list \<Rightarrow> ('a, 'e) adve
   (\<alpha>, PK) \<leftarrow> Setup;
   let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) (map (\<lambda>i. \<^bold>g ^ i) evals)) \<alpha>;
   let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
-  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  \<phi>' \<leftarrow> \<A> PK C witn_tupel;
   return_spmf (hd evals = poly \<phi>' i)} ELSE return_spmf False"
 
 
@@ -366,15 +366,17 @@ lemma literal_exchange_lemma:
   assumes "\<And>x y. x \<in> set_spmf X \<Longrightarrow> U x y = V x y"
   shows"TRY do {x \<leftarrow> X::'x spmf;
            y \<leftarrow> Y :: 'y spmf;
+           let q = (Q::'y \<Rightarrow> 'q) y;
            let r = (U::'x \<Rightarrow> 'y \<Rightarrow> 'r) x y;
            let s = (S::'x \<Rightarrow> 'y \<Rightarrow> 'r \<Rightarrow> 's) x y r;
-           w \<leftarrow> (W::'r \<Rightarrow>'s \<Rightarrow> 'w spmf) r s;
+           w \<leftarrow> (W::'q \<Rightarrow> 'r \<Rightarrow>'s \<Rightarrow> 'w spmf) q r s;
            return_spmf ((Z::'x \<Rightarrow> 'y \<Rightarrow> 'w \<Rightarrow> 'z) x y w)} ELSE return_spmf (Z'::'z) = 
         TRY do {x \<leftarrow> X::'x spmf;
            y \<leftarrow> Y :: 'y spmf;
+           let q = (Q::'y \<Rightarrow> 'q) y;
            let r = (V::'x \<Rightarrow> 'y \<Rightarrow> 'r) x y;
            let s = (S::'x \<Rightarrow> 'y \<Rightarrow> 'r \<Rightarrow> 's) x y r;
-           w \<leftarrow> (W::'r \<Rightarrow>'s \<Rightarrow> 'w spmf) r s;
+           w \<leftarrow> (W::'q \<Rightarrow> 'r \<Rightarrow>'s \<Rightarrow> 'w spmf) q r s;
            return_spmf ((Z::'x \<Rightarrow> 'y \<Rightarrow> 'w \<Rightarrow> 'z) x y w)} ELSE return_spmf (Z'::'z)"
   using assms
   by (metis (mono_tags, lifting) bind_spmf_cong)
@@ -396,7 +398,7 @@ proof -
   PK \<leftarrow> KeyGen;
   let C = Commit PK \<phi>;
   let witn_tupel = map (\<lambda>i. CreateWitness PK \<phi> i) I;
-  \<phi>' \<leftarrow> \<A> C witn_tupel;                             
+  \<phi>' \<leftarrow> \<A> PK C witn_tupel;                             
   return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
   proof -
     have distnct: "distinct (PickDistinct I# I)"
@@ -415,7 +417,7 @@ qed
   PK \<leftarrow> KeyGen;
   let C = Commit PK \<phi>;
   let witn_tupel = map (\<lambda>i. CreateWitness PK \<phi> i) I;
-  \<phi>' \<leftarrow> \<A> C witn_tupel;                             
+  \<phi>' \<leftarrow> \<A> PK C witn_tupel;                             
   return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
   proof -
     have exchange: "CARD ('e) = order G\<^sub>p"
@@ -431,24 +433,26 @@ qed
   (\<alpha>, PK) \<leftarrow> Setup;
   let C = Commit PK \<phi>;
   let witn_tupel = map (\<lambda>i. (i, poly \<phi> i, createWitness PK \<phi> i)) I;
-  \<phi>' \<leftarrow> \<A> C witn_tupel;                             
+  \<phi>' \<leftarrow> \<A> PK C witn_tupel;                             
   return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
     unfolding KeyGen_def split_def CreateWitness_def Let_def by fastforce
   also have "\<dots> = TRY do {
   evals::'e mod_ring list \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   \<alpha>::'e mod_ring \<leftarrow>  map_spmf (\<lambda>x. of_int_mod_ring (int x)) (sample_uniform (order G\<^sub>p));
+  let PK = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
   let C = Commit (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (lagrange_interpolation_poly (zip (PickDistinct I#I) evals));
   let witn_tupel = map (\<lambda>j. (j, poly (lagrange_interpolation_poly (zip (PickDistinct I#I) evals)) j, createWitness (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (lagrange_interpolation_poly (zip (PickDistinct I#I) evals)) j)) I;
-  \<phi>' \<leftarrow> \<A> C witn_tupel;                     
+  \<phi>' \<leftarrow> \<A> PK C witn_tupel;                     
   return_spmf (lagrange_interpolation_poly (zip (PickDistinct I#I) evals) = \<phi>')} ELSE return_spmf False"
     unfolding Setup_def split_def Let_def 
     by (simp add: bind_map_spmf o_def del: createWitness.simps PickDistinct.simps)
   also have "\<dots> = TRY do {
   evals:: 'e mod_ring list \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   \<alpha>::'e mod_ring \<leftarrow>  map_spmf (\<lambda>x. of_int_mod_ring (int x)) (sample_uniform (order G\<^sub>p));
+  let PK = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
   let C = compute_g_pow_\<phi>_of_\<alpha> (zip (PickDistinct I#I) (map (\<lambda>i. \<^bold>g ^ i) evals)) \<alpha>;
   let witn_tupel = map (\<lambda>j. (j, poly (lagrange_interpolation_poly (zip (PickDistinct I#I) evals)) j, createWitness (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) (lagrange_interpolation_poly (zip (PickDistinct I#I) evals)) j)) I;
-  \<phi>' \<leftarrow> \<A> C witn_tupel;                             
+  \<phi>' \<leftarrow> \<A> PK C witn_tupel;                             
   return_spmf (lagrange_interpolation_poly (zip (PickDistinct I#I) evals) = \<phi>')} ELSE return_spmf False"
    proof(rule literal_exchange_lemma)
      fix evals :: "'e mod_ring list"
@@ -486,7 +490,7 @@ proof -
     TRY do {
       let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
       let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
-      \<phi>' \<leftarrow> \<A> C witn_tupel;
+      \<phi>' \<leftarrow> \<A> PK C witn_tupel;
       TRY do {
         return_spmf (\<phi> = \<phi>')
       } ELSE return_spmf False
@@ -505,7 +509,7 @@ proof -
     TRY do {
       let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
       let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
-      \<phi>' \<leftarrow> \<A> C witn_tupel;
+      \<phi>' \<leftarrow> \<A> PK C witn_tupel;
       TRY do {
         _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>');
         return_spmf True
@@ -523,7 +527,7 @@ proof -
     (\<alpha>, PK) \<leftarrow> Setup;
     let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
     let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
-    \<phi>' \<leftarrow> \<A> C witn_tupel;
+    \<phi>' \<leftarrow> \<A> PK C witn_tupel;
     _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>');
     return_spmf True
   } ELSE return_spmf False"
@@ -537,7 +541,7 @@ proof -
     (\<alpha>, PK) \<leftarrow> Setup;
     let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
     let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
-    \<phi>' \<leftarrow> \<A> C witn_tupel;
+    \<phi>' \<leftarrow> \<A> PK C witn_tupel;
   _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>' \<and> hd evals = poly \<phi>' (PickDistinct I));
   return_spmf True}
   ELSE return_spmf False"
@@ -585,7 +589,7 @@ proof -
     TRY do {
       let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
       let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
-      \<phi>' \<leftarrow> \<A> C witn_tupel;
+      \<phi>' \<leftarrow> \<A> PK C witn_tupel;
       TRY do {
         _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>' \<and> hd evals = poly \<phi>' (PickDistinct I));
         return_spmf True
@@ -605,7 +609,7 @@ proof -
     TRY do {
       let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
       let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
-      \<phi>' \<leftarrow> \<A> C witn_tupel;
+      \<phi>' \<leftarrow> \<A> PK C witn_tupel;
       TRY do {
         _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>'); 
         _::unit \<leftarrow> assert_spmf (hd evals = poly \<phi>' (PickDistinct I));
@@ -625,7 +629,7 @@ proof -
     TRY do {
       let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
       let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
-      \<phi>' \<leftarrow> \<A> C witn_tupel;
+      \<phi>' \<leftarrow> \<A> PK C witn_tupel;
       TRY do {
       _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>');
         TRY do {
@@ -648,7 +652,7 @@ proof -
     TRY do {
       let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
       let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
-      \<phi>' \<leftarrow> \<A> C witn_tupel;
+      \<phi>' \<leftarrow> \<A> PK C witn_tupel;
       TRY do {
       _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>');
         TRY do {
@@ -668,7 +672,7 @@ proof -
   (\<alpha>, PK) \<leftarrow> Setup;
   let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
   let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
-  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  \<phi>' \<leftarrow> \<A> PK C witn_tupel;
   _::unit \<leftarrow> assert_spmf (\<phi> = \<phi>');
   return_spmf (hd evals = poly \<phi>' i)}
   ELSE return_spmf False"
@@ -689,7 +693,7 @@ proof -
   (\<alpha>, PK) \<leftarrow> Setup;
   let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) (map (\<lambda>i. \<^bold>g ^ i) evals)) \<alpha>;
   let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
-  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  \<phi>' \<leftarrow> \<A> PK C witn_tupel;
   return_spmf (hd evals = poly \<phi>' i)} ELSE return_spmf False"
     (* throw out \<phi> it is no longer needed since the assert is gone*)
     unfolding game2_wo_assert_def Let_def by(simp add: bind_map_spmf o_def)
@@ -702,7 +706,7 @@ proof -
   (\<alpha>, PK) \<leftarrow> Setup;
   let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) (map (\<lambda>i. \<^bold>g ^ i) evals)) \<alpha>;
   let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
-  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  \<phi>' \<leftarrow> \<A> PK C witn_tupel;
   return_spmf (hd evals = poly \<phi>' i)} ELSE return_spmf False" 
     (* split random list up in a random point concatenated with a one element shorter random list*)
     using pretty_Cons_random_list_split p_gr_two CARD_G\<^sub>p by force
@@ -715,7 +719,7 @@ proof -
   (\<alpha>, PK) \<leftarrow> Setup;
   let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) (map (\<lambda>i. \<^bold>g ^ i) evals)) \<alpha>;
   let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
-  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  \<phi>' \<leftarrow> \<A> PK C witn_tupel;
   return_spmf (hd evals = poly \<phi>' i)} ELSE return_spmf False"
     by force
   also have "\<dots> = TRY do {
@@ -726,7 +730,7 @@ proof -
   (\<alpha>, PK) \<leftarrow> Setup;
   let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) (map (\<lambda>i. \<^bold>g ^ i) evals)) \<alpha>;
   let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
-  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  \<phi>' \<leftarrow> \<A> PK C witn_tupel;
   return_spmf (hd evals = poly \<phi>' i)} ELSE return_spmf False"
     unfolding Let_def ..
   also have "\<dots> = TRY do {
@@ -737,7 +741,7 @@ proof -
   (\<alpha>, PK) \<leftarrow> Setup;
   let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) (map (\<lambda>i. \<^bold>g ^ i) evals)) \<alpha>;
   let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I plain_evals);
-  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  \<phi>' \<leftarrow> \<A> PK C witn_tupel;
   return_spmf (a = poly \<phi>' i)} ELSE return_spmf False"
     by (force simp add: bind_map_spmf o_def)
   also have "\<dots> = TRY do {
@@ -748,7 +752,7 @@ proof -
   (\<alpha>, PK) \<leftarrow> Setup;
   let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) evals) \<alpha>;
   let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I plain_evals);
-  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  \<phi>' \<leftarrow> \<A> PK C witn_tupel;
   return_spmf (a = poly \<phi>' i)} ELSE return_spmf False"
     by auto
   also have "\<dots> = TRY do {
@@ -759,7 +763,7 @@ proof -
   (\<alpha>, PK) \<leftarrow> Setup;
   let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) evals) \<alpha>;
   let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I plain_evals);
-  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  \<phi>' \<leftarrow> \<A> PK C witn_tupel;
   return_spmf (a = poly \<phi>' i)} ELSE return_spmf False"
     by metis
   also have "\<dots> = TRY do {
@@ -771,7 +775,7 @@ proof -
     (\<alpha>, PK) \<leftarrow> Setup;
     let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) evals) \<alpha>;
     let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I plain_evals);
-    \<phi>' \<leftarrow> \<A> C witn_tupel;
+    \<phi>' \<leftarrow> \<A> PK C witn_tupel;
     return_spmf (poly \<phi>' i)};
   return_spmf (a = a')} ELSE return_spmf False"
     by (simp add: Let_def split_def o_def del: PickDistinct.simps)
@@ -813,7 +817,7 @@ proof -
 qed
 
 lemma fundamental_lemma_game1_game2: 
-  assumes lossless_\<A>: "\<And>C W . lossless_spmf (\<A> C W)"
+  assumes lossless_\<A>: "\<And>Q C W . lossless_spmf (\<A> Q C W)"
   and dist_I: "distinct I"
   and len_I: "length I = max_deg"
   shows "spmf (game2 I \<A>) True + (max_deg+1)/p \<ge> spmf (game1 I \<A>) True"
@@ -837,7 +841,7 @@ proof -
   let PK =  map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
   let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
   let witn_tupel = map (\<lambda>j. (j, poly \<phi> j, createWitness PK \<phi> j)) I;
-  \<phi>' \<leftarrow> \<A> C witn_tupel;                             
+  \<phi>' \<leftarrow> \<A> PK C witn_tupel;                             
   return_spmf (\<phi> = \<phi>', \<alpha> \<in> set (PickDistinct I#I))} ELSE return_spmf (False, \<alpha> \<in> set (PickDistinct I#I))" for I \<A> \<alpha>
 
   have game1b: "game1 I \<A> = map_spmf fst (?sample (game1b I \<A>))"
@@ -851,7 +855,7 @@ proof -
       let PK =  map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
       let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
       let witn_tupel = map (\<lambda>j. (j, poly \<phi> j, createWitness PK \<phi> j)) I;
-      \<phi>' \<leftarrow> \<A> C witn_tupel;
+      \<phi>' \<leftarrow> \<A> PK C witn_tupel;
     return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
       unfolding game1_def Setup_alt_def Let_def by auto
     also have "\<dots> = TRY do {
@@ -863,7 +867,7 @@ proof -
       let PK =  map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
       let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
       let witn_tupel = map (\<lambda>j. (j, poly \<phi> j, createWitness PK \<phi> j)) I;
-      \<phi>' \<leftarrow> \<A> C witn_tupel;
+      \<phi>' \<leftarrow> \<A> PK C witn_tupel;
     return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
       unfolding Let_def split_def 
       by (rule literal_swap_lemma)
@@ -877,7 +881,7 @@ proof -
       let PK =  map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
       let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
       let witn_tupel = map (\<lambda>j. (j, poly \<phi> j, createWitness PK \<phi> j)) I;
-      \<phi>' \<leftarrow> \<A> C witn_tupel;
+      \<phi>' \<leftarrow> \<A> PK C witn_tupel;
     return_spmf (\<phi> = \<phi>')} ELSE return_spmf False}"
       unfolding game1b_def 
       by (rule try_spmf_bind_spmf_lossless)(simp add: local.G\<^sub>p.order_gt_0)
@@ -896,7 +900,7 @@ proof -
   let PK =  map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
   let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
   let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
-  \<phi>' \<leftarrow> \<A> C witn_tupel;
+  \<phi>' \<leftarrow> \<A> PK C witn_tupel;
   return_spmf (\<phi> = \<phi>', \<alpha> \<in> set (PickDistinct I#I))} ELSE return_spmf (False, \<alpha> \<in> set (PickDistinct I#I))" for I \<A> \<alpha>
 
   have game2b: "game2 I \<A> = map_spmf fst (?sample (game2b I \<A>))"
@@ -910,7 +914,7 @@ proof -
       let PK =  map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
       let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
       let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
-      \<phi>' \<leftarrow> \<A> C witn_tupel;
+      \<phi>' \<leftarrow> \<A> PK C witn_tupel;
     return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
       unfolding game2_def Setup_alt_def Let_def by auto
     also have "\<dots> = TRY do {
@@ -922,7 +926,7 @@ proof -
       let PK =  map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
       let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
       let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
-      \<phi>' \<leftarrow> \<A> C witn_tupel;
+      \<phi>' \<leftarrow> \<A> PK C witn_tupel;
     return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
       unfolding Let_def split_def 
       by (rule literal_swap_lemma)
@@ -936,7 +940,7 @@ proof -
       let PK =  map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
       let C = compute_g_pow_\<phi>_of_\<alpha> (zip (i#I) exp_evals) \<alpha>;
       let witn_tupel = map (\<lambda>(x,y). (x,y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
-      \<phi>' \<leftarrow> \<A> C witn_tupel;
+      \<phi>' \<leftarrow> \<A> PK C witn_tupel;
     return_spmf (\<phi> = \<phi>')} ELSE return_spmf False}"
       unfolding game1b_def 
       by (rule try_spmf_bind_spmf_lossless)(simp add: local.G\<^sub>p.order_gt_0)
@@ -1096,7 +1100,7 @@ qed
 
 
 theorem hiding: 
-  assumes lossless_\<A>: "\<And>C W . lossless_spmf (\<A> C W)"
+  assumes lossless_\<A>: "\<And>Q C W . lossless_spmf (\<A> Q C W)"
   and "distinct I"
   and "length I = max_deg"
   and "length I < CARD('e)"

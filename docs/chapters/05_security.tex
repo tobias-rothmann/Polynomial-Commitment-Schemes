@@ -332,10 +332,10 @@ We formalize the property \textit{knowledge soundness} according to \ref{PCS_def
     \left(
         \begin{aligned}
             PK &\leftarrow \text{key\_gen}, \\
-            (C,calc\_vec) &\leftarrow \mathcal{A'}, \\
+            (C,calc\_vec, \sigma) &\leftarrow \mathcal{A'}, \\
             \_::\text{unit} &\leftarrow \text{assert\_spmf}\biggl(\text{len}(PK)=\text{len}(calc\_vec) \land C = \prod_{1}^{len(calc\_vec)}PK_i^{calc\_vec_i}\biggr), \\
             \phi &= E(C, calc\_vec),\\
-            (i, \phi_i, \omega_i) &\leftarrow \mathcal{A''}(PK, C, calc\_vec), \\
+            (i, \phi_i, \omega_i) &\leftarrow \mathcal{A''}(\sigma, PK, C, calc\_vec), \\
             & : \ \phi(i) \ne \phi_i \land \text{VerifyEval}(PK,C,i,\phi_i,\omega_i)
         \end{aligned}
         \right)
@@ -367,9 +367,9 @@ Based on the idea from \ref{security:knowledge:paper}, we formally define the fo
 \begin{equation*}
     \left(
         \begin{aligned}
-            (C,calc\_vec) &\leftarrow \mathcal{A'}(PK), \\
+            (C,calc\_vec, \sigma) &\leftarrow \mathcal{A'}(PK), \\
             \phi &= E(C, calc\_vec),\\
-            (i, \phi_i, \omega_i) &\leftarrow \mathcal{A''}(PK, C, calc\_vec), \\
+            (i, \phi_i, \omega_i) &\leftarrow \mathcal{A''}(\sigma, PK, C, calc\_vec), \\
             \phi_i' &= \phi(i), \\
             \omega_i' &= \text{CreateWitness}(PK,\phi, i), \\
             &  (C, i, \phi_i, \omega_i, \phi_i', \omega_i')
