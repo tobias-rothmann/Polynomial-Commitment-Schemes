@@ -81,7 +81,7 @@ Hence we give the following idea (which is analog to \ref{security:binding:gameb
     \item erase every check in the conjuncture by over-estimation, to be only left with the result that the t-BSDH is broken.
 \end{enumerate}
 The resulting game is the t-BSDH game with the reduction Adversary. 
-See Appendix A for the fully outlined game-based proof or the Isabelle theory \textit{KZG\_BatchOpening\_bind} for the formal proof.
+See the Isabelle theory \textit{KZG\_BatchOpening\_bind} for the full formal proof.
 
 
 
@@ -120,11 +120,89 @@ The term \textit{[:poly r\_x i:]} is Isabelle's notation for a constant polynomi
 \section{Hiding}
 \label{batch:security:hiding}
 
+We discuss our thoughts on extending the hiding property shown for the KZG in \ref*{security:hiding} to the batched version. We present two possible approaches to proving this property and outline why we think neither of them will work. 
+
+Note, that the definition of hiding for the batched version does not unconditionally fulfill the \textit{hiding} property as defined in \ref{hiding_def} but requires additionally the polynomial to be uniformly randomly chosen to hold.
+
+Formally we define \textit{hiding} as the following game against an efficient adversary $\mathcal{A}$, where $B \subset \mathbb{Z}_p$ is an arbitrary set of size t:
+\begin{equation*}
+    \left(
+        \begin{aligned}
+            \phi & \overset{{\scriptscriptstyle\$}}{\leftarrow} \{\phi. \text{ degree}(\phi)\le t\},\\
+            PK & \leftarrow \text{key\_gen}, \\
+            C & = \text{Commit}(PK,\phi), \\
+            wtns\_tpl &= \text{CreateWitnessBatch}(PK,\phi,B),\\
+            \phi' & \leftarrow \mathcal{A}(PK,C,wtns\_tpl), \\
+            & : \ \phi = \phi'
+        \end{aligned}
+    \right)
+\end{equation*}
+
 \subsection*{Original Paper Proof}
+The original paper \parencite{KZG} does not provide a proof for his property. 
+The authors argue that the function \textit{CreateWitnessBatch} does not reveal any more information than \textit{CreateWitness} and thus the property is already shown by the hiding proof for the standard KZG \parencite{KZG}. 
+However, this argument is not formally satisfying, which is why we discuss some approaches to proving this property in the following section.
 
 \subsection*{Game-based Proof}
+The goal of the hiding proof is to show the following theorem, which states that the probability of any adversary breaking hiding is less than or equal to winning the DL game (using the reduction adversary) in a game-based proof:
+\begin{lstlisting}[language=isabelle]
+    theorem batch_hiding: "batch_hiding_advantage $\mathcal{A}$ 
+        $\le$ t_SDH.advantage (reduction $\mathcal{A}$)"
+\end{lstlisting}
 
-\subsection*{Formalization}
+We focus on two approaches to proving the hiding property for the batch version: 
+\begin{enumerate}
+    \item reducing the batched hiding game to the normal hiding game 
+    \item adapting the normal hiding proof to the batched version
+\end{enumerate}
+Firstly, we argue why we do not think that the hiding game for the batched version can be reduced to the hiding game of the normal KZG. We outline specifically the difficulties in transitioning from \textit{CreateWitness} to \textit{CreateWitnessBatch}.
+Secondly, we argue why the hiding proof for the standard KZG cannot be trivially adapted to the batched version.
+
+\subsubsection*{Reducing Batched Hiding to Normal Hiding}
+For this approach, we aim to show the following theorem: 
+\begin{lstlisting}[language=isabelle]
+    theorem batch_hiding_reduction: "batch_hiding_advantage $\mathcal{A}$ 
+        $\le$ hiding_advantage (hiding_reduction $\mathcal{A}$)"
+\end{lstlisting}
+
+Essentially, this boils down to creating a reduction adversary \textit{hiding\_reduction} that wins the batch hiding game using the adversary for the normal hiding game. Hence emulating the normal hiding game in the reduction adversary.
+
+Note, that the majority of the inputs for the adversaries are equal, they take firstly the public key $PK$ and secondly a commitment $C$. The only value they differ in is the witness tuples. Specifically in the normal hiding game, the witnesses for the adversary are computed as 
+'$\text{map } (\text{CreateWitness}(PK,\phi,i))\ I$', while the batched version computes them as '$\text{CreateWitnessBatch}(PK,\phi,B)$' for its respective adversary.
+
+Hence, $\text{CreateWitness}(PK,\phi,i)$ would need to be emulated using only the reduction adversary's inputs to emulate the normal hiding game in the reduction adversary for the batched version. 
+One would need to emulate $\text{CreateWitness}(PK,\phi,i)$ for all $i \in I$ using only $PK$, $C$, and the result from $\text{CreateWitnessBatch}(PK,\phi,B)$.
+
+As little reminder, the result from \textit{CreateWitness} is a tuple $(i, \phi(i), \omega_i)$, where $\omega_i$ is the wintess for the point $(i,\phi(i))$. The result from \textit{CreateWitnessBatch} is a tuple $(B, r(x), \omega_B)$, where B is a set of points, $r(i)=\phi(i)$ for all $i\in B$, and is the wintess $\omega_B$ is a witness for all points $(i,r(i))$ for $i\in B$.
+Furthemore, note $\omega_i = \mathbf{g}^{\psi_i(\alpha)}$ where $\psi_i(x)=\frac{\phi(x)-\phi(i)}{(x-i)}$ and $\omega_B = \mathbf{g}^{\psi_B(\alpha)}$ where $\psi_B(x)=\frac{\phi(x)-r(x)}{\prod_{i \in B}^{}(x-i)}$ and $r(x)=\phi(x) \text{ mod } \prod_{i \in B}^{}(x-i)$.
+
+Converting $(B,r(x))$ in $|B|$ many points $(i,\phi(i))$ for $i \in B$ is trivial.
+The challenge is to compute $\mathbf{g}^{\psi_i(\alpha)}$ from $PK,C,B,r(x),$ and $\mathbf{g}^{\psi_B(\alpha)}$.
+
+To naively compute $\mathbf{g}^{\psi_i(\alpha)}=\mathbf{g}^{\frac{\phi(\alpha)-\phi(i)}{(\alpha-i)}}$ one would need to know the value of $(\alpha-i)$ and the group values for $\phi(\alpha)$ and $\phi(i)$. Note, that we can compose group values for addition and subtraction in the exponents, but no multiplication or division. While we do know the group values of $\phi(\alpha)$ and $\phi(i)$ from $C=\mathbf{g}^{\phi(\alpha)}$ and $r(i)=\phi(i)$, we do not know the value of $(\alpha-i)$. The scheme reveals only group values dependent on $\alpha$ (the commitment $C$, the witness $\omega_B$ and the public key $PK$), but no field values, thus $\alpha$ is secure by the DL assumption. Hence, constructing a field value dependent on $\alpha$, like $\alpha-i$, from group values is also impossibly hard by DL assumption.
+
+One could ideate to somehow carve $\psi_i$ out of $\psi_B$, as $\psi_B=\mathbf{g}^{\frac{\phi(\alpha)-r(\alpha)}{\prod_{i \in B}^{}(\alpha-i)}}$ already includes the divions by $\alpha-i$. However, this would require knowledge of $\frac{\phi(x)-r(x)}{\prod_{i \in B\backslash\{i\}}^{}(\alpha-i)}$, which again is a field element that dependents on $\alpha$. Hence this approach is also impossible by DL assumption.
+
+Thus we do not think that the batched hiding game can be reduced to the normal hiding game.
+
+\subsubsection*{Adapting the Normal Hiding Proof}
+For this theorem, we aim to show the theorem following theorem, which is the one firstly outlined in this section: 
+\begin{lstlisting}[language=isabelle]
+    theorem batch_hiding: "batch_hiding_advantage $\mathcal{A}$ 
+        $\le$ t_SDH.advantage (reduction $\mathcal{A}$)"
+\end{lstlisting}
+
+Note, that the batched hiding game is equal to the normal hiding game except for the computation of the witnesses. While the normal hiding game computes them as 
+'$\text{map } (\text{CreateWitness}(PK,\phi,i))\ I$', the batched version computes them as \\
+'$\text{CreateWitnessBatch}(PK,\phi,B)$'. 
+
+The normal reduction proof, outlined in \ref*{security:hiding:game_based_transf}, emulates $CreateWitness$ without knowing the full polynomial. Only $t$ points of the polynomial and one additional group point (i.e. $(i,\mathbf{g}^{\phi(i)})$) are known. Still $t$ correct points $(i,\phi(i))$ can be outputted as part of the result of $CreateWitness$, even though the full polynomial is unknown.
+
+However, $CreateWitnessBatch$ does not output $t$ points for the evaluations, but the remainder $r(x)=\phi(x) \text{ mod } \prod_{i \in B}^{}(x-i)$. Since the $t+1$th group point is hidden by DL assumption, the full polynomial $\phi(x)$ cannot be known and thus the remainder is not trivially computable. Hence, the result of $CreateWitnessBatch$ cannot be trivially emulated. Thus the hiding proof from \ref*{security:hiding:game_based_transf} is not trivially adaptable to the batched hiding game.
+Furthermore, note that all information about $\phi(x)$, like evaluations, except for the $t$ known points, are provided in a grouped manner i.e. as $\mathbf{g}^{\phi(\alpha)}$. Thus intuitively we do not think it is possible to derive a field element-based value, like the remainder $r(x)$, that depends on more information about $\phi$ than the $t$ known points due to the DL assumption.
+
+For now, it remains an open question whether this property can be proven or not.
+
 
 \section{Knowledge Soundness}
 We extend the knowledge soundness property as defined in \ref{knowledgesound_def}
@@ -156,7 +234,7 @@ and VerifyEvalBatch$(PK, C, B, r(x), \omega_B)$ hold, the evaluation binding pro
 The game-based transformation is analog to \ref{security:knowledge:gamebased}:
 
 The goal of this proof is to show the following theorem, which states that the probability of any efficient AGM adversary breaking  knowledge soundness is less than or equal to breaking the evaluation binding property (using a reduction adversary) in a game-based proof:
-%TODO ab hier
+
 \begin{lstlisting}[language=isabelle]
     theorem knowledge_soundness_game_eq_bind_game_knowledge_soundness_reduction: 
         "knowledge_soundness_game E $\mathcal{A'}$ $\mathcal{A''}$ 
@@ -187,8 +265,7 @@ Note, if the knowledge soundness adversary is correct, then $\phi_i=\phi(i)\ne r
 
 For the game-based proof note that the knowledge soundness game and the evaluation binding game with the reduction adversary are equivalent except for the asserts: while the knowledge soundness game asserts 
 $$\phi(i) \ne r(i) \land \text{VerifyEvalBatch}(PK, C, B,r(x),\omega_B)$$ the evaluation binding game asserts 
-$$\phi_i \ne r(i) \land \text{VerifyEval}(PK, C, i, \phi_i, \omega_i) \land \text{VerifyEvalBatch}(PK, C, B, r(x), \omega_B)$$ where $\phi(i)=\phi_i$. Furthermore, note that the two statements are equivalent since VerifyEval for $\phi(i)$ is trivially true. Hence, the game-based proof is effectively equational reasoning over the asserts. The complete game-based proof is to be found in Appendix B.
-%TODO Appendix B + proof
+$$\phi_i \ne r(i) \land \text{VerifyEval}(PK, C, i, \phi_i, \omega_i) \land \text{VerifyEvalBatch}(PK, C, B, r(x), \omega_B)$$ where $\phi(i)=\phi_i$. Furthermore, note that the two statements are equivalent since VerifyEval for $\phi(i)$ is trivially true. Hence, the game-based proof is effectively equational reasoning over the asserts. The complete game-based proof is to be found in the Isabelle theory $KZG\_BatchOpening\_knowledge\_soundness$.
 
 \subsection*{Formalization}
 We formalize the knowledge soundness game in CryptHOL as follows: 

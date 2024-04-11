@@ -73,7 +73,7 @@ Hence we give the following idea for the proof:
     \item erase every check in the conjuncture by over-estimation, to be only left with the result that the t-SDH is broken.
 \end{enumerate}
 The resulting game is the t-SDH game with the reduction Adversary. 
-See Appendix A for the fully outlined game-based proof or the Isabelle theory \textit{KZG\_eval\_bind} for the formal proof.
+See the Isabelle theory \textit{KZG\_eval\_bind} for the full formal proof.
 
 \subsection*{Formalization}
 \label{security:binding:formalization}
@@ -105,6 +105,7 @@ That is a higher-order function, that takes the evaluation binding adversary $\m
 That is, the function that calls the adversary $\mathcal{A}$ on some public key PK and returns $(\frac{\omega_i}{\omega_i'})^{\frac{1}{\phi(i)'-\phi(i)}}$. 
 
 \section{Hiding}
+\label{security:hiding}
 We formalize the \textit{hiding} property as given in the original paper \parencite{KZG} that slightly differs from the standard definition as given in \ref{hiding_def}. 
 The \textit{hiding} property of the KZG does not unconditionally fulfill the \textit{hiding} property as defined in \ref{hiding_def} but requires additionally the polynomial to be uniformly randomly chosen to hold \parencite{KZG}. Formally we define \textit{hiding} as the following game against an efficient adversary $\mathcal{A}$, where $I\in\mathbb{Z}_p^t$ is an arbitrary distinct list of length t:
 \begin{equation*}
@@ -152,7 +153,7 @@ However, introducing an arbitrary $I$ for the positions creates a new problem. N
 
 Choosing zero for the position on that the polynomial should evaluate to the DL-value was okay in the reduction proof as the probability of t uniformly random points containing zero is negligible in $\mathbb{Z}_p$, however the probability of zero being contained in an arbitrary list is not negligible (in fact, note, we cannot express any probability for this event, as we cannot know the probability distribution for the arbitrary list).
 
-We could solve this problem by choosing a random position $i$, which again would make the probability of $i$ being contained in an arbitrary list of length t negligible. However, we decided to solve this problem algorithmically, by picking an $i$ that is deterministically distinct from $I$ (see \ref{appendix:security:hiding:picki} for the concrete algorithm to pick i). This decision eases the proof as we do not have to explicitly expose the probability of $i$ being contained in $I$, which would be necessary to make a negligibility argument in CryptHOL, but can use the fact that $i$ is distinct from $I$ directly in Isabelle.
+We could solve this problem by choosing a random position $i$, which again would make the probability of $i$ being contained in an arbitrary list of length t negligible. However, we decided to solve this problem algorithmically, by picking an $i$ that is deterministically distinct from $I$ (see the \textit{PickDistinct} algorithm in the \textit{KZG\_hiding} Isabelle theory for the concrete algorithm to pick i). This decision eases the proof as we do not have to explicitly expose the probability of $i$ being contained in $I$, which would be necessary to make a negligibility argument in CryptHOL, but can use the fact that $i$ is distinct from $I$ directly in Isabelle.
 
 We obtain the following new reduction algorithm: 
 \begin{equation*}
@@ -161,8 +162,8 @@ We obtain the following new reduction algorithm:
             i &= PickDistinct(I), \\
             (\alpha,PK) & \leftarrow \text{Setup}, \\
             pts & \overset{{\scriptscriptstyle\$}}{\leftarrow} \mathbb{Z}_p^t\\
-            grp\_pts &= (i,\mathbf{g}^a)\#\text{map} (\lambda (x,y).\ (x,\mathbf{g}^y))\ pts,\\
-            C &= \text{interpolate} (\text{zip}(I,grp\_pts)),\\ 
+            grp\_pts &= (i,\mathbf{g}^a)\#\text{map} (\lambda (x,y).\ (x,\mathbf{g}^y))\ (\text{zip}(I,pts)),\\
+            C &= \text{interpolate}(grp\_pts),\\ 
             wtnss &= \text{map} (\lambda (x,y).\ (x,y, ((C/\mathbf{g}^y)^{\frac{1}{\alpha-x}})))\ pts,\\
             \phi(x) & \leftarrow \mathcal{A}\ PK \ C\ wtnss, \\
             & \ \phi(i)
@@ -170,7 +171,7 @@ We obtain the following new reduction algorithm:
     \right)
 \end{equation*}
 
-Now that we have discussed the changes to the reduction algorithm as outlined in \ref{security:hiding:formalization}, we tend to the proof. We outline the main ideas behind the proof and refer the reader to appendix \ref{appendix:security:hiding} for a detailed proof and the Isabelle theory $KZG\_hiding$ for the formalized proof.
+Now that we have discussed the changes to the reduction algorithm as outlined in \ref{security:hiding:formalization}, we tend to the proof. We outline the main ideas behind the proof and refer the reader to the Isabelle theory $KZG\_hiding$ for the full formalized proof.
 
 We start with the hiding game and use a bridging step to restate uniformly random sampling of a polynomial as the interpolation of a zipped list of arbitrary $I$ (in the formalized game $i\#I$) and uniformly random sampled evaluations: 
 
@@ -242,12 +243,12 @@ The hiding game computes the witnesses using the standard KZG function \textit{C
         \right)
     \end{aligned}
 \end{equation*}
-The reduction adversary emulates the witness computed by \textit{CreateWitness} with the term $(C/\mathbf{g}^{\phi(i)})^{\frac{1}{\alpha-i}}$ and returns the emulated value together with each point $(i\phi(i))\in pts$. Note, $pts$ is $I$ zipped with some randomly chosen evaluations. We state the full emulation here:
+The reduction adversary emulates the witness computed by \textit{CreateWitness} with the term $(C/\mathbf{g}^{\phi(i)})^{\frac{1}{\alpha-i}}$ and returns the emulated value together with each point $(i\phi(i))\in \text{zip}(I,pts)$. Note, $pts$ is a list of randomly chosen evaluations (for the values in I). We state the full emulation here:
 \begin{equation*}
     \begin{aligned}
         &\left(
             \begin{aligned}
-                &\text{map } (\lambda (i,\phi(i)).\ (i,\phi(i), ((C/\mathbf{g}^{\phi(i)})^{\frac{1}{\alpha-i}})))\ pts,\\
+                &\text{map } (\lambda (i,\phi(i)).\ (i,\phi(i), ((C/\mathbf{g}^{\phi(i)})^{\frac{1}{\alpha-i}})))\ (\text{zip}(I,pts)),\\
             \end{aligned}
         \right)
     \end{aligned}
@@ -380,7 +381,7 @@ The reduction creates a tuple $(C, i, \phi_i, \omega_i, \phi_i', \omega_i')$ to 
 
 For the game-based proof note that the knowledge soundness game and the evaluation binding game with the reduction adversary are equivalent except for the asserts: while the knowledge soundness game asserts 
 $$\phi(i) \ne \phi_i \land \text{VerifyEval}(PK, C, i,\phi_i,\omega_i)$$ the evaluation binding game asserts 
-$$\phi_i \ne \phi_i' \land \text{VerifyEval } PK\ C\ i\ \phi_i\ \omega_i \land \text{VerifyEval } PK\ C\ i\ \phi_i\ \omega_i$$ where $\phi(i)=\phi_i$. Furthermore, note that the two statements are equivalent since VerifyEval for $\phi(i)$ is trivially true. Hence, the game-based proof is effectively equational reasoning over the asserts. The complete game-based proof is to be found in appendix \ref{appendix:security:knowledgesound}.
+$$\phi_i \ne \phi_i' \land \text{VerifyEval } PK\ C\ i\ \phi_i\ \omega_i \land \text{VerifyEval } PK\ C\ i\ \phi_i\ \omega_i$$ where $\phi(i)=\phi_i$. Furthermore, note that the two statements are equivalent since VerifyEval for $\phi(i)$ is trivially true. Hence, the game-based proof is effectively equational reasoning over the asserts. The complete game-based proof is to be found in the Isabelle theory $KZG\_knowledge\_soundness$.
 
 \subsection*{Formalization}
 We formalize the knowledge soundness game in CryptHOL as follows: 
