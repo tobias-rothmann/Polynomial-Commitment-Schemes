@@ -315,10 +315,10 @@ Formally, we define the reduction adversary as follows:
     fun reduction $\mathcal{A}$ PK = do {
         let i = PickDistinct I;
         eval_values $\leftarrow$ sample_uniform_list t;
-        let eval_group = g # map ($\lambda$i. $\mathbf{g}^i$) eval_values;
+        let eval_group = g # map ($\lambda$i. $\mathbf{g}$^$i$) eval_values;
         ($\alpha$, PK) $\leftarrow$ Setup;
         let C = interpolate_on (zip (i#I) eval_group) $\alpha$;
-        let wtns_tpls = map ($\lambda$(x,y). (x,y, (($\text{C} \div \mathbf{g}^y)^{\frac{1}{\alpha-x}}$))) (zip (i#I) 
+        let wtns_tpls = map ($\lambda$(x,y). (x,y, (($\text{C} \div (\mathbf{g}$^$y))$^$1/(\alpha-x)$))) (zip (i#I) 
             eval_values);
         $\phi$' $\leftarrow \mathcal{A}$ PK C wtns_tpls;
         return_spmf (poly $\phi$' i);

@@ -325,7 +325,7 @@ CryptHOL furthermore provides syntactic sugar to handle failure (i.e. an unassig
     \begin{lstlisting}[language=isabelle]
         TRY do {
             x::nat $\leftarrow$ sample_uniform S;
-            x'::nat $\leftarrow \mathcal{A}$ $\mathbf{g}^x$;
+            x'::nat $\leftarrow \mathcal{A}$ ($\mathbf{g}$^$x$);
             _::unit $\leftarrow$ assert_spmf(x=x');
             return_spmf True
         } ELSE (return_spmf False)

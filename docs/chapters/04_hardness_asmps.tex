@@ -8,7 +8,7 @@ We formalize the DL game according to \ref{DL_def} as follows:
 \begin{lstlisting}[language=isabelle]
     TRY do {
         a  $\leftarrow$ sample_uniform p;
-        a' $\leftarrow \mathcal{A}$ $\mathbf{g}^a$;
+        a' $\leftarrow \mathcal{A}$ ($\mathbf{g}$^$a$);
         return_spmf ($a=a'$)
     } ELSE return_spmf False
 \end{lstlisting}
@@ -19,7 +19,7 @@ We formalize the t-SDH game according to \ref{tSDH_def} as follows:
 \begin{lstlisting}[language=isabelle]
     TRY do {
         $\alpha$  $\leftarrow$ sample_uniform p;
-        let instc = map $\bigl(\lambda i. \mathbf{g}^{(\alpha^i)}\bigr)$ [0..<t+1];
+        let instc = map $\bigl(\lambda i. \mathbf{g}$^$(\alpha$^$i)\bigr)$ [0..<t+1];
         (c,g) $\leftarrow \mathcal{A}$ instc;
         return_spmf ($\text{g}=\mathbf{g}^{\frac{1}{\alpha+c}}$)
     } ELSE return_spmf False
@@ -33,9 +33,9 @@ We formalize the t-BSDH game according to \ref{tBSDH_def} as follows:
 \begin{lstlisting}[language=isabelle]
     TRY do {
         $\alpha$  $\leftarrow$ sample_uniform p;
-        let instc = map $\bigl(\lambda i. \mathbf{g}^{(\alpha^i)}\bigr)$ [0..<t+1];
+        let instc = map $\bigl(\lambda i. \mathbf{g}$^$(\alpha$^$i)\bigr)$ [0..<t+1];
         (c,g) $\leftarrow \mathcal{A}$ instc;
-        return_spmf ($\text{g}=(\text{e } \mathbf{g}\ \mathbf{g})^{\frac{1}{\alpha+c}}$)
+        return_spmf ($\text{g}=(\text{e } \mathbf{g}\ \mathbf{g})$^$(1/(\alpha+c))$)
     } ELSE return_spmf False
 \end{lstlisting}
 The game is equivalent to the t-SDH game except for the equality check and the adversary's return types. 
