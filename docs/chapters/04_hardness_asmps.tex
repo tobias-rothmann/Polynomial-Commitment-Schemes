@@ -1,7 +1,7 @@
 % !TeX root = ../main.tex
 % Add the above to each chapter to make compiling the PDF easier in some editors.
 \chapter{Formalized Hardness Assumptions}\label{chapter:hardness_asmps_frml}
-Before we continue with the formalization of the KZG's security in the next chapter, we formalize the hardness assumptions defined following \ref{hardness_asmp_defs} instantiated for the KZG in this chapter. We define them as games, such that we can target them in game-based proofs against an adversary.
+Before we continue with the formalization of the KZG's security in the next chapter, we formalize the hardness assumptions according to \ref{hardness_asmp_defs} in this chapter. We define them as games, such that we can target them in game-based proofs against an adversary.
 
 \section*{Discrete Logarithm}
 We formalize the DL game according to \ref{DL_def} as follows: 
@@ -25,6 +25,8 @@ We formalize the t-SDH game according to \ref{tSDH_def} as follows:
     } ELSE return_spmf False
 \end{lstlisting}
 We sample $\alpha\in\mathbb{Z}_p$ uniformly random using \textit{sample\_uniform} and compute the t-SDH instance $(\mathbf{g}, \mathbf{g}^{\alpha}, \mathbf{g}^{\alpha^2}, \dots, \mathbf{g}^{\alpha^t})$ as instc. The adversary $\mathcal{A}$ receives the t-SDH instance and returns a field element $\text{c}\in\mathbb{Z}_p$ and a group element $\text{g}\in\mathbb{G}_p$. The adversary wins if and only if the group element g is equal to $\mathbf{g}^{\frac{1}{\alpha+c}}$.
+
+Note, that the t-SDH assumption was formalized in the practical course and thus is not part of this thesis. Nevertheless, we outlined it for completeness. 
 
 \section*{t-Strong Bilinear Diffie Hellmann}
 We formalize the t-BSDH game according to \ref{tBSDH_def} as follows: 
