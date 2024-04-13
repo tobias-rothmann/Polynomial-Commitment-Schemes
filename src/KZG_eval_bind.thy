@@ -54,10 +54,28 @@ adversary for the t-SDH game. Specifically, the reduction uses the evaluation bi
 construct a winning strategy for the t-SDH game (i.e. to win it every time).
 Essentially, it uses the fact that the values supplied by the adversary already break the t-SDH 
 assumption.\<close>
-fun bind_reduction
+fun eval_bind_reduction
   :: "('a, 'e) adversary \<Rightarrow> ('a,'e) t_SDH.adversary"                     
 where
-  "bind_reduction \<A> PK = do {
+  "eval_bind_reduction \<A> PK = do {
+  (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> PK;
+  return_spmf (-i::'e mod_ring, (w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i)) )}"
+end
+
+text \<open>This locale captures the proof for the definitions provided earlier\<close>
+locale bind_game_proof = bind_game_def
+begin
+
+subsection \<open>helping definitions\<close>
+
+text \<open>The eval_bind reduction adversary extended for asserts that 
+are present in the hiding game. We use this definition to show equivalence to 
+the hiding game. Later on we can then easily over-estimate the probability from this extended 
+version to the normal reduction.\<close>
+fun ext_eval_bind_reduction
+  :: "('a, 'e) adversary \<Rightarrow> ('a,'e) t_SDH.adversary"                     
+where
+  "ext_eval_bind_reduction \<A> PK = do {
   (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> PK;
   _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i 
                             \<and> valid_msg \<phi>_of_i w_i
@@ -66,11 +84,6 @@ where
                             \<and> VerifyEval PK C i \<phi>'_of_i w'_i
                             ); 
   return_spmf (-i::'e mod_ring, (w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i)) )}"
-end
-
-text \<open>This locale captures the proof for the definitions provided earlier\<close>
-locale bind_game_proof = bind_game_def
-begin
 
 subsubsection \<open>helping lemmas\<close>
 
@@ -274,8 +287,8 @@ subsection \<open>KZG eval bind game to reduction game - equivalence theorem\<cl
 text \<open>We show that the binding game is equivalent to the t-SDH game with the reduction adversary
 (with added asserts)\<close>
 
-theorem eval_bind_game_eq_t_SDH_strong_red:
-  shows "bind_game \<A> = t_SDH_G\<^sub>p.game (bind_reduction \<A>)"
+theorem eval_bind_game_eq_t_SDH_strong_ext_red:
+  shows "bind_game \<A> = t_SDH_G\<^sub>p.game (ext_eval_bind_reduction \<A>)"
 proof -
   note [simp] = Let_def split_def
 
@@ -284,7 +297,7 @@ proof -
   let ?\<alpha> = "\<lambda>\<alpha>. (of_int_mod_ring (int \<alpha>)::'e mod_ring)"
   let ?PK = "\<lambda>\<alpha>. (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>)^t)) [0..<max_deg+1])"
 
-  have "t_SDH_G\<^sub>p.game (bind_reduction \<A>) = TRY do { 
+  have "t_SDH_G\<^sub>p.game (ext_eval_bind_reduction \<A>) = TRY do { 
      \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> (?PK \<alpha>);
   _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i 
@@ -295,7 +308,7 @@ proof -
     _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(?\<alpha> \<alpha> + (-i))) = (w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i)));
     return_spmf True 
   } ELSE return_spmf False"
-    by (force simp add: t_SDH_G\<^sub>p.game_alt_def[of "(bind_reduction \<A>)"])
+    by (force simp add: t_SDH_G\<^sub>p.game_alt_def[of "(ext_eval_bind_reduction \<A>)"])
   text \<open>Add the fact that witnesses have to be unequal if evaluations are unequal for a easier 
         proof.\<close>
   also have "\<dots> =  TRY do { 
@@ -441,11 +454,67 @@ proof -
   finally show ?thesis unfolding bind_game_def t_SDH_G\<^sub>p.game_def ..
 qed
 
-text \<open>Finally conclude that for every efficient adversary the advantage of winning the 
-evaluation binding game is less than or equal to breaking the t-SDH assumption.\<close>
-theorem evaluation_binding: "bind_advantage \<A> = t_SDH_G\<^sub>p.advantage (bind_reduction \<A>)"
+text \<open>From the above lemma we conclude that for every efficient adversary the advantage of winning the 
+evaluation binding game is less equal to breaking the t-SDH assumption for the extended 
+reduction.\<close>
+lemma evaluation_binding_ext_red: "bind_advantage \<A> = t_SDH_G\<^sub>p.advantage (ext_eval_bind_reduction \<A>)"
   unfolding bind_advantage_def t_SDH_G\<^sub>p.advantage_def
-  using eval_bind_game_eq_t_SDH_strong_red by presburger
+  using eval_bind_game_eq_t_SDH_strong_ext_red by presburger
+
+lemma overestimate_reductions: "spmf (t_SDH_G\<^sub>p.game (ext_eval_bind_reduction \<A>)) True 
+  \<le> spmf (t_SDH_G\<^sub>p.game (eval_bind_reduction \<A>)) True"
+  (is "spmf ?lhgame True \<le> spmf ?rhgame True")
+proof -
+  note [simp] = Let_def split_def
+
+  text \<open>abbreviations for the mod_ring version of sample uniform nat 
+  and the public key\<close>
+  let ?\<alpha> = "\<lambda>\<alpha>. (of_int_mod_ring (int \<alpha>)::'e mod_ring)"
+  let ?PK = "\<lambda>\<alpha>. (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>)^t)) [0..<max_deg+1])"
+
+  text \<open>We extend the DL_game with reduction adversary to a complete game.\<close>
+  have bind_red_ext: "t_SDH_G\<^sub>p.game (ext_eval_bind_reduction \<A>) = TRY do { 
+     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> (?PK \<alpha>);
+  _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i 
+                            \<and> valid_msg \<phi>_of_i w_i 
+                            \<and> valid_msg \<phi>'_of_i w'_i
+                            \<and> VerifyEval (?PK \<alpha>) C i \<phi>_of_i w_i 
+                            \<and> VerifyEval (?PK \<alpha>) C i \<phi>'_of_i w'_i);
+    _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(?\<alpha> \<alpha> + (-i))) = (w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i)));
+    return_spmf True 
+  } ELSE return_spmf False"
+    by (force simp add: t_SDH_G\<^sub>p.game_alt_def[of "(ext_eval_bind_reduction \<A>)"])
+
+  text \<open>We extend the DL_game with reduction adversary to a complete game.\<close>
+  have eval_bind_red_ext: "t_SDH_G\<^sub>p.game (eval_bind_reduction \<A>) = TRY do { 
+     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
+    (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> (?PK \<alpha>);
+    _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(?\<alpha> \<alpha> + (-i))) = (w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i)));
+    return_spmf True 
+  } ELSE return_spmf False"
+    by (force simp add: t_SDH_G\<^sub>p.game_alt_def[of "(eval_bind_reduction \<A>)"])
+
+  text \<open>We show the thesis in ennreal, which implies the plain thesis\<close>
+  have "ennreal (spmf (t_SDH_G\<^sub>p.game (ext_eval_bind_reduction \<A>)) True) 
+    \<le> ennreal (spmf (t_SDH_G\<^sub>p.game (eval_bind_reduction \<A>)) True)"
+    unfolding bind_red_ext eval_bind_red_ext
+    apply (simp add: spmf_try_spmf ennreal_spmf_bind)
+    apply (rule nn_integral_mono)+
+    apply (simp add: assert_spmf_def)
+    apply (simp add: measure_spmf.emeasure_eq_measure)
+    done
+
+  then show ?thesis by simp
+qed
+
+text \<open>Finally we put everything together: 
+we conclude that for every efficient adversary the advantage of winning the 
+evaluation binding game is less equal to breaking the t-SDH assumption.\<close>
+theorem evaluation_binding: "bind_advantage \<A> \<le> t_SDH_G\<^sub>p.advantage (eval_bind_reduction \<A>)"
+  using evaluation_binding_ext_red overestimate_reductions
+  unfolding t_SDH_G\<^sub>p.advantage_def
+  by algebra
   
 end
 
