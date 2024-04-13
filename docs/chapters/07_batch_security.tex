@@ -26,7 +26,7 @@ Intuitively this game expresses that no adversary can find an $r(x)$ (with a wit
 \subsection*{Original Paper Proof}
 The paper proof is similar to the evaluation binding proof outlined in \ref{security:binding:paper}. Essentially, the values provided by the adversary, if they are correct i.e. accepted by VerifyEval and respectively VerifyEvalBatch, can be rearranged to obtain the result (the secret key) for the t-BSDH instance, which is the public key. Nevertheless, we outline the paper proof concretely for completeness:
 
-The paper proof argues that given an Adversary $\mathcal{A}$, that can break the evaluation binding property, an algorithm $\mathcal{B}$ can be constructed, that can break the t-BSDH assumption \parencite{KZG}. The concrete construction for $\mathcal{B}$ is: given the t-BSDH instance $tsdh\_inst =(\mathbf{g}, \mathbf{g}^{\alpha}, \mathbf{g}^{\alpha^2},\dots, \mathbf{g}^{\alpha^t})$, call $\mathcal{A}$ with $tsdh\_inst$ as $PK$ for $(C,B, r(x), \omega_B, i \in B,\phi(i),\omega_i)$ and return: 
+The paper proof argues that given an adversary $\mathcal{A}$, that can break the evaluation binding property, an algorithm $\mathcal{B}$ can be constructed, that can break the t-BSDH assumption \parencite{KZG}. The concrete construction for $\mathcal{B}$ is: given the t-BSDH instance $tsdh\_inst =(\mathbf{g}, \mathbf{g}^{\alpha}, \mathbf{g}^{\alpha^2},\dots, \mathbf{g}^{\alpha^t})$, call $\mathcal{A}$ with $tsdh\_inst$ as $PK$ for $(C,B, r(x), \omega_B, i \in B,\phi(i),\omega_i)$ and return: 
 $$ \biggl(e\biggl(\mathbf{g}^{p'(\alpha)}, \omega_B\biggr) \oplus e\biggl(\frac{\mathbf{g}^{r'(\alpha)}}{\omega_i}, \mathbf{g}\biggr)\biggr)^{\frac{1}{\phi(i)-r(i)}}$$
 where $p'(x)$ is the product polynomial $\prod_{j\in B\backslash\{i\}}^{}(x-j) = \frac{\prod_{j\in B}^{}(x-j)}{(x-i)}$ and $r'(x)=\frac{r(x)-r(i)}{(x-i)}$ \parencite{KZG}.
 The reason to why $\mathcal{B}$ is a correct construction is the following: 
@@ -80,7 +80,7 @@ Hence we give the following idea (which is analog to \ref{security:binding:gameb
     \item derive that this conjuncture of statements already implies that the t-BSDH is broken and add that fact to the conjuncture.
     \item erase every check in the conjuncture by over-estimation, to be only left with the result that the t-BSDH is broken.
 \end{enumerate}
-The resulting game is the t-BSDH game with the reduction Adversary. 
+The resulting game is the t-BSDH game with the reduction adversary. 
 See the Isabelle theory \textit{KZG\_BatchOpening\_bind} for the full formal proof.
 
 
@@ -98,9 +98,9 @@ We formally define the evaluation binding game in CryptHOL as follows:
         return_spmf (b $\land$ b')
     } ELSE return_spmf False
 \end{lstlisting}
-The game captures the spmf over True and False, which represent the events that the Adversary has broken evaluation binding or not.
-The public key $PK$ is generated using the formalized \textit{KeyGen} function of the KZG. The Adversary $\mathcal{A}$, given PK, outputs values to break the evaluation binding game, namely a commitment value $C$, a set of positions $B$, that are to be opened, a polynomial $r\_x$ which evaluates to the claimed evaluations of $\phi$ (the polynomial, $C$ is the commitment to) at the positions in B, a witness $w\_B$ that validates that the points $(i,r\_x(i))$ for all $i \in B$ are valid for $C$, a point $i \in B$, a claimed value $\phi\_i$ that should be different from $r\_x(i)$ and a witness, w\_i for the point $(i,\phi\_i)$. 
-Note that we use \textit{assert\_spmf} to ensure that the Adversary's messages are wellformed and correct, where correct means that $i \in B$ and $\phi$\_i and the evaluation of $r\_x$ at $i$ are indeed two different values. Should the assert not hold, the game is counted as lost for the Adversary.
+The game captures the spmf over True and False, which represent the events that the adversary has broken evaluation binding or not.
+The public key $PK$ is generated using the formalized \textit{KeyGen} function of the KZG. The adversary $\mathcal{A}$, given PK, outputs values to break the evaluation binding game, namely a commitment value $C$, a set of positions $B$, that are to be opened, a polynomial $r\_x$ which evaluates to the claimed evaluations of $\phi$ (the polynomial, $C$ is the commitment to) at the positions in B, a witness $w\_B$ that validates that the points $(i,r\_x(i))$ for all $i \in B$ are valid for $C$, a point $i \in B$, a claimed value $\phi\_i$ that should be different from $r\_x(i)$ and a witness, w\_i for the point $(i,\phi\_i)$. 
+Note that we use \textit{assert\_spmf} to ensure that the adversary's messages are wellformed and correct, where correct means that $i \in B$ and $\phi$\_i and the evaluation of $r\_x$ at $i$ are indeed two different values. Should the assert not hold, the game is counted as lost for the adversary.
 We assign to b and b' the result of the formalized \textit{VerifyEvalBatch} and respectively \textit{VerifyEval} algorithm of the KZG. Evaluation binding is broken if and only if b and b' hold i.e. both witnesses and verifying checks pass and thus the same commitment can efficiently be resolved to two different values at some point.
 
 We formally define the reduction adversary as follows:

@@ -39,10 +39,10 @@ Now that we have introduced the mathematical preliminaries we will tend to the c
 \section{Cryptographic Prelimiaries}
 In this section, we will introduce the security notions that we use in this paper and the concepts behind them.
 
-We start with the definition of a negligable and a poly-bounded function from which we will define our adversarial model, against which we will prove security in this paper.
+We start with the definition of a negligible and a poly-bounded function from which we will define our adversarial model, against which we will prove security in this paper.
 
 \begin{definition}
-    Let $f: \mathbb{Z}_{\ge 0} \rightarrow \mathbb{R}$ be a function. We call $f$ negligable iff:
+    Let $f: \mathbb{Z}_{\ge 0} \rightarrow \mathbb{R}$ be a function. We call $f$ negligible iff:
     \begin{equation*}
         \forall c \in \mathbb{R}_{> 0}. \ \exists n_0. \ \forall n \ge n_0. \ \vert f(n)\vert < 1/n^c
     \end{equation*}
@@ -88,7 +88,7 @@ Now that we have defined adversary models, we define games.
 Games are probabilistic algorithms with access to an adversary \parencite*{boneh_shoup}. They output a boolean value that represents either that the game has been won by the adversary or that it has been lost \parencite{boneh_shoup}. Formally we write games as a sequence of functions and adversary calls \parencite{boneh_shoup}.
 \end{definition}
 
-Notatioinwise, we write $`\overset{{\scriptscriptstyle\$}}{\leftarrow}`$ followed by a set for uniform sampling from that set, $`\leftarrow`$ followed by a probability mass function (e.g. an adversary result) to sample from that function space, and $`=`$ for an assignment of a deterministic value. Moreover, we write $`:`$ followed by a condition to assure that the condition has to hold at this point. To give an example, think of the following game as "sampling a uniformly random $a$ from $\mathbb{F}_p$, get the probabilistic result from $\mathcal{A}$ as $b$, computing $c$ as $F$ applied to $a$ and $b$, and assert that $P$ holds for $c$":
+Notationwise, we write $`\overset{{\scriptscriptstyle\$}}{\leftarrow}`$ followed by a set for uniform sampling from that set, $`\leftarrow`$ followed by a probability mass function (e.g. an adversary result) to sample from that function space, and $`=`$ for an assignment of a deterministic value. Moreover, we write $`:`$ followed by a condition to assure that the condition has to hold at this point. To give an example, think of the following game as "sampling a uniformly random $a$ from $\mathbb{F}_p$, get the probabilistic result from $\mathcal{A}$ as $b$, computing $c$ as $F$ applied to $a$ and $b$, and assert that $P$ holds for $c$":
 \begin{equation*}
     \left(
     \begin{aligned}
@@ -204,9 +204,9 @@ Now that we have introduced the necessary preliminaries, notions, and definition
     \label{CS}
     A Commitment Scheme is a cryptographic protocol between two parties, we call the committer and the verifier, and consists of three functions:
     \begin{itemize}
-        \item \textbf{KeyGen} generates a key $ck$ for the commiter and a key $vk$ for the verifier.
+        \item \textbf{KeyGen} generates a key $ck$ for the committer and a key $vk$ for the verifier.
         \item \textbf{Commit}
-        takes the commiter key $ck$, a message $m$ and computes a commitment $C$ for $m$ and a opening value $ov$. 
+        takes the committer key $ck$, a message $m$ and computes a commitment $C$ for $m$ and a opening value $ov$. 
         \item \textbf{Verify} 
         takes the verifier key $vk$, a commitment $C$, an opening value $ov$, a message $m$ and decides whether $C$ is a valid commitment to $m$ using $vk$ and $ov$.
     \end{itemize}
@@ -216,7 +216,7 @@ Now that we have introduced the necessary preliminaries, notions, and definition
 
     Once the keys are correctly distributed, the protocol follows three steps: 
     \begin{enumerate}
-        \item The commiter uses their keys $ck$ to commit to a arbitrary message $m$, invoking Commit$(ck,m)$ from which they obtain a commitment $C$ to $m$ and an opening value $ov$ for the commitment. The commiter stores $ov$ and sends $C$ to the verifier.
+        \item The committer uses their keys $ck$ to commit to a arbitrary message $m$, invoking Commit$(ck,m)$ from which they obtain a commitment $C$ to $m$ and an opening value $ov$ for the commitment. The committer stores $ov$ and sends $C$ to the verifier.
         \item At a later point in time, the committer might decide to open the commitment $C$ they sent to the verifier. To open the commitment the committer sends the opening value $ov$ and the message $m$ to the verifier. 
         \item The verifier invokes Verify on the values it received from the committer ($C,m$ and $ov$) to decide whether $m$ is the message the commitment $C$ was computed for. 
     \end{enumerate}
@@ -233,7 +233,7 @@ In our formalization, we work with a specific type of commitment scheme, namely 
     Furthermore, a PCS supports two more functions to allow point-wise (i.e. partly) opening a commitment to a polynomial: 
     \begin{itemize}
         \item \textbf{CreateWitness}
-        takes the commiter key $ck$, a polynomial $\phi$, a value $i$ and computes a witness $w$ for the point $(i, \phi(i))$. 
+        takes the committer key $ck$, a polynomial $\phi$, a value $i$ and computes a witness $w$ for the point $(i, \phi(i))$. 
         \item \textbf{VerifyEval:} 
         takes the verifier keys $vk$, a commitment $C$, a point $(i, \phi(i))$, a witness $w$ and checks that the point is consistent with the commitment (i.e. the point is part of the polynomial that $C$ is a commitment to) using $w$ and $vk$.
     \end{itemize}
