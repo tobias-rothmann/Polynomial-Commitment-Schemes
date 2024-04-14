@@ -3,8 +3,8 @@ theory KZG_BatchOpening_knowledge_soundness
 imports KZG_BatchOpening_binding
 begin
 
-(*TODO change discrp*)
-text \<open>We show knowledge soundness oriented at the definition in the PLONK paper (see section 3.1
+text \<open>We extend the knowledge soundness definiton from the KZG to the batched version.
+We show knowledge soundness oriented at the definition in the PLONK paper (see section 3.1
 in the PLONK paper: https://eprint.iacr.org/2019/953.pdf). However, we show the property only for 
 a commitment to one polynomial to stay consistent with the other proofs in this work. Due to the 
 layout of the property though, this proof should be easily extendable to multiple polynomials 
@@ -12,6 +12,25 @@ and thus serve as a strong basis for a proof for the full PLONK version.\<close>
 
 locale knowledge_sound_game_def = bind_game_proof
 begin
+
+section \<open>Definitions for the knowledge soundness game\<close>
+
+text \<open>We define the knowledge soundness game, the reduction to the evaluation binding game and thus 
+transitively to the t-BSDH assumption as well as any functions needed to construct them in this 
+locale. This file contains another locale below which contains the proof. The proof is analog to the 
+normal KZG knowledge soundness proof.\<close>
+
+subsection \<open>Game definition\<close>
+
+text \<open>Note, the adversary for the knowledge soundness is in the Algebraic Group Model (AGM) and 
+thus has to provide a vector we typed `calc_vector` for every group element it outputs. Furthermore, 
+the group elements must be a linear combination of the group elements the adversary has seen so far.
+the vector indicates the parameters of the linear combination. Intuitively, for e.g.
+seen group elements (3,2,1), the adversary could create the value 5 with the vector (0,2,1) as 
+5 = 3*0+2*2+1*1.\<close>
+
+text \<open>Furthermore, the adversary for knowledge soundness is split up into two parts A=(A',A'') 
+that share a state, which we type \<sigma>.\<close>
 
 type_synonym '\<sigma>' state = '\<sigma>'
 
@@ -25,10 +44,15 @@ type_synonym ('a', 'e', '\<sigma>')  adversary_2 =
   "'\<sigma>' state \<Rightarrow>'a' pk \<Rightarrow> 'a' commit \<Rightarrow> 'e' calc_vector \<Rightarrow> 
    ('e' eval_position \<times> 'e' eval_position set\<times> 'e' polynomial \<times> 'a' eval_witness) spmf"
 
+text \<open>The extractor is an algorithm that plays against the adversary. It is granted access to the 
+adversaries messages and state (which we neglect in this case as we do not need it because the 
+calculation vector is enough to create sensible values) and has to come up with a polynomial such 
+that the adversary cannot create valid opening points that are not part of the polynomial.\<close>
 type_synonym ('a', 'e') extractor = 
   "'a' commit \<Rightarrow> 'e' calc_vector \<Rightarrow> 
     'e' mod_ring poly"
 
+text \<open>This is the formalized knowledge soundness game\<close>
 definition knowledge_soundness_game :: "('a, 'e) extractor \<Rightarrow> ('a, 'e, '\<sigma>) adversary_1 \<Rightarrow> ('a, 'e, '\<sigma>) adversary_2 
   \<Rightarrow> bool spmf"
   where "knowledge_soundness_game E \<A> \<A>' = TRY do {
@@ -41,16 +65,47 @@ definition knowledge_soundness_game :: "('a, 'e) extractor \<Rightarrow> ('a, 'e
   _ ::unit \<leftarrow> assert_spmf (i \<in> B  \<and> valid_batch_msg r_x w_B B);
   return_spmf (VerifyEvalBatch PK C B r_x w_B \<and> poly r_x i \<noteq> poly \<phi> i)} ELSE return_spmf False"
 
+text \<open>The advantage of the adversary over the knowledge soundness game is the probabillity that it 
+wins.\<close>
 definition knowledge_soundness_game_advantage :: "('a, 'e) extractor \<Rightarrow> ('a, 'e, '\<sigma>) adversary_1 \<Rightarrow> ('a, 'e, '\<sigma>) adversary_2 
    \<Rightarrow> real"
   where "knowledge_soundness_game_advantage E \<A> \<A>' \<equiv> spmf (knowledge_soundness_game E \<A> \<A>') True"
 
-subsubsection \<open>reduction definition\<close>
+subsection \<open>reduction definition\<close>
 
+text \<open>The reduction function takes a adversary for the knowledge soundness game and returns an 
+adversary for the evaluation binding game. Specifically, the reduction uses the knowledge soundness 
+adversary to construct a winning strategy for the evaluation binding game (i.e. to win it every 
+time).
+Essentially, it uses the fact that the values supplied by the adversary already break the binding 
+game.\<close>
 definition knowledge_soundness_reduction
   :: "('a, 'e) extractor \<Rightarrow> ('a, 'e, '\<sigma>) adversary_1 \<Rightarrow> ('a, 'e, '\<sigma>) adversary_2 \<Rightarrow> ('a, 'e) adversary"                     
 where
   "knowledge_soundness_reduction E \<A> \<A>' PK = do {
+  (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK; 
+  let \<phi> = E C calc_vec;
+  (i, B, r_x, w_B) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
+  let \<phi>_i = poly \<phi> i;
+  let w_i = createWitness PK \<phi> i;
+  return_spmf (C, i, \<phi>_i, w_i, B, w_B, r_x)}"
+
+end
+
+text \<open>This locale captures the proof for the definitions provided earlier\<close>
+locale knowledge_sound_game_proof = knowledge_sound_game_def
+begin
+
+subsection \<open>helping definitions\<close>
+
+text \<open>The knowledge soundness reduction adversary extended for asserts that 
+are present in the evaluation binding game. We use this definition to show equivalence to 
+the evaluation binding game. Later on we can then easily over-estimate the probability from 
+this extended version to the normal reduction.\<close>
+definition knowledge_soundness_reduction_ext
+  :: "('a, 'e) extractor \<Rightarrow> ('a, 'e, '\<sigma>) adversary_1 \<Rightarrow> ('a, 'e, '\<sigma>) adversary_2 \<Rightarrow> ('a, 'e) adversary"                     
+where
+  "knowledge_soundness_reduction_ext E \<A> \<A>' PK = do {
   (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
   _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
                           \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);  
@@ -60,11 +115,18 @@ where
   let w_i = createWitness PK \<phi> i;
   return_spmf (C, i, \<phi>_i, w_i, B, w_B, r_x)}"
 
-subsubsection \<open>Extractor definition\<close>
+text \<open>Extractor definition\<close>
 fun E :: "('a, 'e) extractor" where 
   "E C calc_vec = Poly calc_vec"
 
-subsubsection \<open>alternative definitions for easier proving + their equivalence proofs\<close>
+lemma key_gen_alt_def: "KeyGen = do {
+    x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
+    let \<alpha>::'e mod_ring = of_int_mod_ring (int x) in
+    return_spmf (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1])
+  }"
+  unfolding KeyGen_def Setup_def Let_def split_def by simp
+
+subsection \<open>literal helping lemmas\<close>
 
 lemma pull_down_assert_spmf_with_return:
 "do {
@@ -126,13 +188,33 @@ proof -
   then show ?thesis by presburger
 qed
 
-lemma key_gen_alt_def: "KeyGen = do {
-    x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
-    let \<alpha>::'e mod_ring = of_int_mod_ring (int x) in
-    return_spmf (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1])
-  }"
-  unfolding KeyGen_def Setup_def Let_def split_def by simp
 
+subsection \<open>Reduction proof\<close>
+
+text \<open>We structure the proof in 5 parts:
+
+1. We restate the knowledge soundness game such that all assert statements are combined in one.
+
+2. We restate the evaluation binding game with the extended reduction adversary such that all 
+assert statements are combined in one.
+
+3. We show that the accumulated assert statements in the last two steps are equivalent. Furthermore, 
+we can conclude that the games are in fact equivalent.
+
+4. We conclude from step 1 to 3 that the knowledge soundness game is the same game as the evalutaion 
+binding game for the extended adversary
+
+5. We overestimate the extended reduction with the normal reduction.
+
+6. We conclude from step 4 that the probability of winning the knowledge soundness game is less 
+than or equal to winning the evaluation binding game with the normal reduction adversary. 
+Furthermore, we can conclude transitively through the evaluation binding game, that the probability 
+of the adversary winning the knowledge soundness game is less than or equal to breaking the 
+t-BSDH assumption.
+\<close>
+
+
+text \<open>Proof Step 1:\<close>
 lemma knowledge_soundness_game_alt_def: 
   "knowledge_soundness_game E \<A> \<A>' = 
    TRY do {
@@ -152,6 +234,9 @@ lemma knowledge_soundness_game_alt_def:
   } ELSE return_spmf False"
 proof -
   note [simp] = Let_def split_def
+
+  text \<open>we rearrange the asserts together in the knowledge soundness game so that we can combine 
+  them later on.\<close>
   have "do {
   PK \<leftarrow> KeyGen;
   (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
@@ -182,6 +267,7 @@ proof -
     return_spmf (VerifyEvalBatch PK C B r_x w_B \<and> poly r_x i \<noteq> poly (E C calc_vec) i)
   } ELSE return_spmf False"
     unfolding knowledge_soundness_game_def by algebra
+  text \<open>Now we unfold the knowledge soundness game to merge multiple asserts together.\<close>
   also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     TRY do {
@@ -204,6 +290,7 @@ proof -
   } ELSE return_spmf False"
    unfolding split_def Let_def
    by (fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
+  text \<open>However, before merging we turn the return statement into another assert\<close>
   also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     TRY do {
@@ -225,7 +312,8 @@ proof -
     } ELSE return_spmf False
     } ELSE return_spmf False
   } ELSE return_spmf False"
-   by(auto simp add: try_bind_assert_spmf try_spmf_return_spmf1 intro!: try_spmf_cong bind_spmf_cong)
+    by(auto simp add: try_bind_assert_spmf try_spmf_return_spmf1 intro!: try_spmf_cong bind_spmf_cong)
+  text \<open>Now we add the first two asserts together\<close>
   also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     TRY do {
@@ -248,6 +336,7 @@ proof -
     } ELSE return_spmf False
   } ELSE return_spmf False"
     using assert_anding by presburger
+  text \<open>we fold again to merge the remaining asserts\<close>
    also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     TRY do {
@@ -269,6 +358,7 @@ proof -
   } ELSE return_spmf False"
     unfolding split_def Let_def
     by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
+  text \<open>Now we can merge the remaining two asserts\<close>
    also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     TRY do {
@@ -289,7 +379,7 @@ proof -
     } ELSE return_spmf False
   } ELSE return_spmf False"
      using assert_anding by presburger
-   text \<open>next step, add assert PK construction\<close>
+  text \<open>next we fold the game together to obtain a clean game with all asserts accumulated.\<close>
   also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
@@ -303,6 +393,9 @@ proof -
   } ELSE return_spmf False"
     unfolding split_def Let_def
     by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
+  text \<open>Lastly we want to make the construction of PK accessible in the assert. 
+    For that we have to take two steps. Firstly we have unfold KeyGen to obtain access to the 
+    computation of PK.\<close>
   also have "\<dots> = TRY do {
     x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
     let \<alpha> = of_int_mod_ring (int x);
@@ -318,6 +411,9 @@ proof -
   } ELSE return_spmf False"
      using key_gen_alt_def
      by (smt (verit, ccfv_SIG) bind_spmf_assoc bind_spmf_cong)
+  text \<open>Secondly, we have to unwrap the definition of PK from the spmf into a constant one. 
+   If PK is constant, we can drag its definition into the assert, instead of the variable 
+   PK.\<close>
     also have "\<dots> = TRY do {
     x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
     let \<alpha> = of_int_mod_ring (int x);
@@ -335,8 +431,9 @@ proof -
   finally show ?thesis .
 qed
 
+text \<open>Proof Step 2:\<close>
 lemma bind_game_knowledge_soundness_reduction_alt_def: 
-  "bind_game (knowledge_soundness_reduction E \<A> \<A>') = 
+  "bind_game (knowledge_soundness_reduction_ext E \<A> \<A>') = 
   TRY do {
     x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
     let \<alpha> = of_int_mod_ring (int x);
@@ -355,15 +452,18 @@ lemma bind_game_knowledge_soundness_reduction_alt_def:
        return_spmf True
     } ELSE return_spmf False"
 proof -
-  have "bind_game (knowledge_soundness_reduction E \<A> \<A>') = TRY do {
+  text \<open>Firstly we extract the return value from the evaluation binding game into a assert statement.\<close>
+  have "bind_game (knowledge_soundness_reduction_ext E \<A> \<A>') = TRY do {
   PK \<leftarrow> KeyGen;
-  (C, i, \<phi>_i, w_i, B, w_B, r_x) \<leftarrow> (knowledge_soundness_reduction E \<A> \<A>') PK;
+  (C, i, \<phi>_i, w_i, B, w_B, r_x) \<leftarrow> (knowledge_soundness_reduction_ext E \<A> \<A>') PK;
   _ :: unit \<leftarrow> assert_spmf (i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B); 
   let b = VerifyEval PK C i \<phi>_i w_i;
   let b' = VerifyEvalBatch PK C B r_x w_B;
   _::unit \<leftarrow> assert_spmf (b \<and> b');
   return_spmf True} ELSE return_spmf False" 
     by (fact bind_game_alt_def)
+  text \<open>Secondly, we inline the extended knowledge soundness adversary, so we can accumulate
+  the asserts from the reduction and the game together.\<close>
   also have "\<dots> = TRY do {
   PK \<leftarrow> KeyGen;
   (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
@@ -378,7 +478,8 @@ proof -
   let b' = VerifyEvalBatch PK C B r_x w_B;
   _::unit \<leftarrow> assert_spmf (b \<and> b');
   return_spmf True} ELSE return_spmf False"
-  unfolding knowledge_soundness_reduction_def by (simp add: split_def Let_def)
+    unfolding knowledge_soundness_reduction_ext_def by (simp add: split_def Let_def)
+  text \<open>We fold the game into smaller sub games, such that we can combine the individual asserts.\<close>
   also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     TRY do{
@@ -404,6 +505,7 @@ proof -
   } ELSE return_spmf False"
    unfolding split_def Let_def 
    by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
+  text \<open>We combine the first two asserts\<close>
   also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     TRY do{
@@ -427,6 +529,8 @@ proof -
     } ELSE return_spmf False 
   } ELSE return_spmf False"
     using assert_anding by presburger
+  text \<open>We fold the game into one coherent game again to rearrange asserts.
+  We aim to bring the asserts closer together so we can merge them.\<close> 
   also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
@@ -443,6 +547,7 @@ proof -
   } ELSE return_spmf False"
    unfolding split_def Let_def 
    by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
+ text \<open>We rearrange the asserts\<close>
   also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
@@ -491,6 +596,8 @@ proof -
       by (simp add: Let_def split_def)
     then show ?thesis by argo
   qed
+  text \<open>We unfold the game again into smaller sub games, so we can accumulate the rearranged assert 
+  as well.\<close>
   also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     TRY do {
@@ -513,6 +620,7 @@ proof -
   } ELSE return_spmf False"
   unfolding split_def Let_def 
   by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
+  text \<open>We accumulate the last assert\<close>
   also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     TRY do {
@@ -535,6 +643,7 @@ proof -
   } ELSE return_spmf False"
     unfolding Let_def
     using assert_anding by presburger
+  text \<open>We fold the sub games together to one clean coherent game.\<close>
   also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
@@ -551,7 +660,8 @@ proof -
   } ELSE return_spmf False"
    unfolding split_def Let_def 
    by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
- text \<open>make PK definition extractable\<close>
+ text \<open>Similarly to the prior lemma, we lastly want to make PK accessible in the assert statement and thus
+  we firstly unfold KeyGen to reveal the computation of PK.\<close>
   also have "\<dots> = TRY do {
     x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
     let \<alpha> = of_int_mod_ring (int x);
@@ -570,6 +680,7 @@ proof -
     } ELSE return_spmf False"
     using key_gen_alt_def
     by (smt (verit, ccfv_SIG) bind_spmf_assoc bind_spmf_cong)
+  text \<open>Secondly, we extract the definition of PK out of the spmf into a constant one.\<close>
   also have "\<dots> = TRY do {
     x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
     let \<alpha> = of_int_mod_ring (int x);
@@ -590,6 +701,12 @@ proof -
   finally show ?thesis unfolding Let_def .
 qed
 
+text \<open>Proof Step 3:
+
+We show the equivalence of the content of the assert statements in the alt games i.e.
+assert content of knowledge_soundness_game_alt_def
+is equivalent to the 
+assert content of bind_game_knowledge_soundness_reduction_alt_def\<close>
 lemma asserts_are_equal: 
   "length (map (\<lambda>t::nat. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0::nat..<max_deg + (1::nat)]) = length calc_vec \<and>
                       C =
@@ -635,7 +752,6 @@ proof
       using asm by blast
     show "poly (E C calc_vec) i \<noteq> poly r_x i"
       using asm by argo
-    (*TODO remove this duplicate prove (with normal knowledge soundness)*)
     show "valid_msg (poly (E C calc_vec) i) 
      (createWitness (map (\<lambda>t::nat. \<^bold>g ^ \<alpha> ^ t) [0::nat..<max_deg + (1::nat)]) (E C calc_vec) i)"
       proof -
@@ -658,7 +774,6 @@ proof
     qed
     show "valid_batch_msg r_x w_B B"
       using asm by fast
-    (*TODO remove this duplicate prove (with normal knowledge soundness)*)
     show "VerifyEval (map (\<lambda>t::nat. \<^bold>g ^ \<alpha> ^ t) [0::nat..<max_deg + (1::nat)]) C i (poly (E C calc_vec) i)
      (createWitness (map (\<lambda>t::nat. \<^bold>g ^ \<alpha> ^ t) [0::nat..<max_deg + (1::nat)]) (E C calc_vec) i)"
      proof -
@@ -811,20 +926,89 @@ proof
   qed 
 qed argo
 
-theorem knowledge_soundness_game_eq_bind_game_knowledge_soundness_reduction: 
-  "knowledge_soundness_game E \<A> \<A>' = bind_game (knowledge_soundness_reduction E \<A> \<A>')"
+text \<open>Proof step 4:\<close>
+
+text \<open>From the last three steps, we conclude that the know,ledge_soundness_game is the same game as 
+the evaluation binding game for the extended reduction adversary.\<close>
+theorem knowledge_soundness_game_eq_bind_game_knowledge_soundness_reduction_ext: 
+  "knowledge_soundness_game E \<A> \<A>' = bind_game (knowledge_soundness_reduction_ext E \<A> \<A>')"
   unfolding knowledge_soundness_game_alt_def 
             bind_game_knowledge_soundness_reduction_alt_def
             Let_def
   using asserts_are_equal by simp
 
-theorem evaluation_knowledge_soundness: 
-  "knowledge_soundness_game_advantage E \<A> \<A>' 
-  = t_BSDH.advantage (bind_reduction (knowledge_soundness_reduction E \<A> \<A>'))"
-  using knowledge_soundness_game_eq_bind_game_knowledge_soundness_reduction 
-        batchOpening_binding
-  unfolding bind_advantage_def knowledge_soundness_game_advantage_def
-  by metis
+text \<open>Proof Step 5:
+
+We overestimate the probability of winning the evaluation binding game with the extended adversary 
+by winning it with the normal adversary.\<close>
+lemma overestimate_reductions: "spmf (bind_game (knowledge_soundness_reduction_ext E \<A> \<A>')) True 
+  \<le> spmf (bind_game (knowledge_soundness_reduction E \<A> \<A>')) True"
+proof -
+   note [simp] = Let_def split_def
+
+   text \<open>We extend the evaluation binding game with the extended reduction adversary to a complete 
+   game.\<close>
+   have w_assert_ext: "bind_game (knowledge_soundness_reduction_ext E \<A> \<A>') = TRY do {
+    PK \<leftarrow> KeyGen;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
+    _ :: unit \<leftarrow> assert_spmf (length PK = length calc_vec 
+                            \<and> C = fold (\<lambda> i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (calc_vec!i)) [0..<length PK] \<one>\<^bsub>G\<^sub>p\<^esub>);  
+    let \<phi> = E C calc_vec;
+    (i, B, r_x, w_B) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
+    let \<phi>_i = poly \<phi> i;
+    let w_i = createWitness PK \<phi> i;
+    _ :: unit \<leftarrow> assert_spmf (i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B); 
+    let b = VerifyEval PK C i \<phi>_i w_i;
+    let b' = VerifyEvalBatch PK C B r_x w_B;
+    _::unit \<leftarrow> assert_spmf (b \<and> b');
+    return_spmf True} ELSE return_spmf False"
+     unfolding bind_game_alt_def knowledge_soundness_reduction_ext_def 
+     by (simp add: split_def Let_def)
+
+   text \<open>We extend the evaluation binding game with the normal reduction adversary to a complete 
+   game.\<close>
+   have wo_assert_ext: "bind_game (knowledge_soundness_reduction E \<A> \<A>') = TRY do {
+    PK \<leftarrow> KeyGen;
+    (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
+    let \<phi> = E C calc_vec;
+    (i, B, r_x, w_B) \<leftarrow> \<A>' \<sigma> PK C calc_vec;
+    let \<phi>_i = poly \<phi> i;
+    let w_i = createWitness PK \<phi> i;
+    _ :: unit \<leftarrow> assert_spmf (i \<in> B \<and> \<phi>_i \<noteq> poly r_x i \<and> valid_msg \<phi>_i w_i \<and> valid_batch_msg r_x w_B B); 
+    let b = VerifyEval PK C i \<phi>_i w_i;
+    let b' = VerifyEvalBatch PK C B r_x w_B;
+    _::unit \<leftarrow> assert_spmf (b \<and> b');
+    return_spmf True} ELSE return_spmf False"
+     unfolding bind_game_alt_def knowledge_soundness_reduction_def 
+     by (simp add: split_def Let_def)
+
+  text \<open>We show the thesis in ennreal, which implies the plain thesis\<close>
+  have "ennreal (spmf (bind_game (knowledge_soundness_reduction_ext E \<A> \<A>')) True) 
+    \<le> ennreal (spmf (bind_game (knowledge_soundness_reduction E \<A> \<A>')) True)"
+    unfolding w_assert_ext wo_assert_ext
+    apply (simp add: spmf_try_spmf ennreal_spmf_bind)
+    apply (rule nn_integral_mono)+
+    apply (simp add: assert_spmf_def)
+    apply (simp add: measure_spmf.emeasure_eq_measure)
+    done
+    
+  then show ?thesis by simp
+qed
   
+text \<open>Proof Step 6:
+
+Finally we put everything together:
+we conclude that for every efficient adversary in the AGM the advantage of winning the 
+knowledge soundness game is less equal to breaking the t-BSDH assumption.\<close>
+theorem knowledge_soundness: 
+  "knowledge_soundness_game_advantage E \<A> \<A>' 
+  \<le> t_BSDH.advantage (reduction (knowledge_soundness_reduction E \<A> \<A>'))"
+  using evaluation_binding[of "knowledge_soundness_reduction E \<A> \<A>'"]
+    overestimate_reductions[of \<A> \<A>']
+  unfolding bind_advantage_def knowledge_soundness_game_advantage_def 
+  unfolding knowledge_soundness_game_eq_bind_game_knowledge_soundness_reduction_ext
+  by linarith
+
+end
 
 end

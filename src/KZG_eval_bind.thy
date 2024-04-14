@@ -1,6 +1,6 @@
 theory KZG_eval_bind
 
-imports KZG_correct "tSDH_assumption"
+imports KZG_correct "tSDH_assumption" SPMF_ext
 
 begin
 
@@ -69,9 +69,9 @@ begin
 subsection \<open>helping definitions\<close>
 
 text \<open>The eval_bind reduction adversary extended for asserts that 
-are present in the hiding game. We use this definition to show equivalence to 
-the hiding game. Later on we can then easily over-estimate the probability from this extended 
-version to the normal reduction.\<close>
+are present in the evaluation binding game. We use this definition to show equivalence to 
+the evaluation binding  game. Later on we can then easily over-estimate the probability 
+from this extended version to the normal reduction.\<close>
 fun ext_eval_bind_reduction
   :: "('a, 'e) adversary \<Rightarrow> ('a,'e) t_SDH.adversary"                     
 where
@@ -133,18 +133,6 @@ proof -
     by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
   finally show ?thesis .
 qed
-
-text \<open>merging assert statements together\<close>
-lemma assert_anding: "TRY do {
-          _ :: unit \<leftarrow> assert_spmf (a);
-            _ :: unit \<leftarrow> assert_spmf (b);
-            return_spmf True
-        } ELSE return_spmf False 
-    = TRY do {
-          _ :: unit \<leftarrow> assert_spmf (a \<and> b);
-          return_spmf True
-      } ELSE return_spmf False"
-  by (simp add: try_bind_assert_spmf) 
 
 text \<open>show that VerifyEval on two evaluations, \<phi>_of_i and \<phi>'_of_i, for the same point i, implies 
 that the t-SDH is broken.
@@ -284,8 +272,8 @@ lemma helping_1: "\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i
 
 subsection \<open>KZG eval bind game to reduction game - equivalence theorem\<close>
 
-text \<open>We show that the binding game is equivalent to the t-SDH game with the reduction adversary
-(with added asserts)\<close>
+text \<open>We show that the binding game is equivalent to the t-SDH game with the extended reduction 
+adversary.\<close>
 
 theorem eval_bind_game_eq_t_SDH_strong_ext_red:
   shows "bind_game \<A> = t_SDH_G\<^sub>p.game (ext_eval_bind_reduction \<A>)"
@@ -472,7 +460,7 @@ proof -
   let ?\<alpha> = "\<lambda>\<alpha>. (of_int_mod_ring (int \<alpha>)::'e mod_ring)"
   let ?PK = "\<lambda>\<alpha>. (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((?\<alpha> \<alpha>)^t)) [0..<max_deg+1])"
 
-  text \<open>We extend the DL_game with reduction adversary to a complete game.\<close>
+  text \<open>We extend the t-SDH game with reduction adversary to a complete game.\<close>
   have bind_red_ext: "t_SDH_G\<^sub>p.game (ext_eval_bind_reduction \<A>) = TRY do { 
      \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> (?PK \<alpha>);
@@ -486,7 +474,7 @@ proof -
   } ELSE return_spmf False"
     by (force simp add: t_SDH_G\<^sub>p.game_alt_def[of "(ext_eval_bind_reduction \<A>)"])
 
-  text \<open>We extend the DL_game with reduction adversary to a complete game.\<close>
+  text \<open>We extend the t-SDH game with reduction adversary to a complete game.\<close>
   have eval_bind_red_ext: "t_SDH_G\<^sub>p.game (eval_bind_reduction \<A>) = TRY do { 
      \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> (?PK \<alpha>);

@@ -5,7 +5,7 @@ imports CryptHOL.Cyclic_Group_SPMF "HOL-Computational_Algebra.Polynomial"
 
 begin
 
-lemma assert_anding[symmetric]: "TRY do {
+lemma assert_anding: "TRY do {
           _ :: unit \<leftarrow> assert_spmf (a);
             _ :: unit \<leftarrow> assert_spmf (b);
             return_spmf True
