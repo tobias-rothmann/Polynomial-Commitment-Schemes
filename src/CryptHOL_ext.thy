@@ -1,9 +1,11 @@
-theory SPMF_ext
+theory CryptHOL_ext
 
 imports CryptHOL.Cyclic_Group_SPMF "HOL-Computational_Algebra.Polynomial" 
   Berlekamp_Zassenhaus.Finite_Field
 
 begin
+
+text \<open>Here we collect a handful of lemmas about CryptHOL games, that we use in our proofs.\<close>
 
 lemma assert_anding: "TRY do {
           _ :: unit \<leftarrow> assert_spmf (a);

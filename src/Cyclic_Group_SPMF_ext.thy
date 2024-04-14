@@ -8,10 +8,11 @@ begin
 
 hide_const order
 
-subsection \<open>sample_uniform mod ring\<close>
-
-definition sample_uniform_modr :: "'a mod_ring spmf" where
-  "sample_uniform_modr = spmf_of_set UNIV"
+text \<open>We extend CryptHOL.Cyclic_Group_SPMF to sets and lists. 
+We provide sampling of uniform random sets and lists. 
+Additionally, we provide uniform sampling of polynomials over finite fields and show them equivalent 
+to interpolating on a zipped list of coordinates where the evaluations are a uniformly random 
+chosen list.\<close>
 
 subsection \<open>sample uniform set\<close>
 
@@ -109,6 +110,9 @@ lemma set_spmf_lhs_imp_length_gr_0: "xs \<in> set_spmf (map_spmf ((#) x) (sample
   \<Longrightarrow> length xs > 0"
   unfolding set_spmf_lhs by force
 
+text \<open>sampling a uniform random list can be split up into prepending a uniform random element
+to a one element short uniform random list. 
+Intuitively: sample_uniform_list (k+1) = Cons (sample_uniform) (sample_uniform_list k)\<close>
 lemma Cons_random_list_split: 
   assumes "p>1"
   shows "do {x \<leftarrow> sample_uniform p;
@@ -227,6 +231,8 @@ proof -
     using spmf_eqI by blast
 qed
 
+text \<open>This corollary puts the last lemma in a more readable and thus workable definition.
+Intuitively: sample_uniform_list (k+1) = Cons (sample_uniform) (sample_uniform_list k)\<close>
 corollary pretty_Cons_random_list_split: 
   assumes "p>1"
   shows "sample_uniform_list (k+1) p =
@@ -260,6 +266,8 @@ proof
     by (metis comp_apply lessThan_iff nat_int of_nat_0_le_iff of_nat_less_iff to_int_mod_ring_of_int_mod_ring)
 qed
 
+text \<open>sampling a uniform random polynomial is equivalent to interpolating a polynomial from a list 
+of uniform random chosen evaluations\<close>
 lemma sample_uniform_evals_is_sample_poly:
   assumes "distinct I"
   and "length I = t+1"
@@ -408,6 +416,7 @@ proof -
     unfolding sample_uniform_poly_def by argo
 qed
 
+(*
 subsection \<open>sample distinct uniform list\<close>  
 
 definition sample_distinct_uniform_list :: "nat \<Rightarrow> nat \<Rightarrow> nat list spmf"
@@ -464,7 +473,7 @@ lemma set_spmf_sample_distinct_uniform_list [simp]: "set_spmf (sample_distinct_u
   = {xs. length xs = k \<and> distinct xs \<and> set xs \<subseteq> {..<n}}"
   by (simp add: finite_lists_distinct_length_eq sample_distinct_uniform_list_def)
 
-subsection \<open>sample distinct cooridinates\<close>
+subsection \<open>sample distinct coordinates\<close>
 
 fun pair_lists :: "(nat list \<times> nat list) \<Rightarrow> (nat * nat) list" where 
   "pair_lists ([],[]) = []" |
@@ -598,5 +607,5 @@ lemma set_spmf_sample_distinct_coordinates_uniform_list [simp]:
     ({xs. length xs = k \<and> distinct xs \<and> set xs \<subseteq> {..<n}} \<times>
      {xs. set xs \<subseteq> {..<n} \<and> length xs = k})"
   by (simp add: sample_distinct_coordinates_uniform_def)
-
+*)
 end

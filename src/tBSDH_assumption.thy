@@ -9,9 +9,9 @@ text\<open>The t-BSDH game and advantage as in the section 2.4 of the original p
 You can find the paper here: https://cacr.uwaterloo.ca/techreports/2010/cacr2010-10.pdf\<close>
 
 text \<open>The t-BSDH assumption is a extension of the t-SDH assumption (of sectiomn 2.3. in the paper). 
-Similar to the t-SDH assumpotion it requires the adversary to put out some c and some group element 
-g' such that a certain group elment g exponentiated with 1/(a+c) is equal to g'. While the group 
-element g was simply the generator of G in the t-SDH assumotion, it is now the result of the 
+Similar to the t-SDH assumption it requires the adversary to put out some c and some group element 
+g' such that a certain group element g exponentiated with 1/(a+c) is equal to g'. While the group 
+element g was simply the generator of G in the t-SDH assumption, it is now the result of the 
 bilinear function e of the same generator of G.\<close>
 locale t_BSDH = G : cyclic_group G + G\<^sub>T : cyclic_group G\<^sub>T 
   for G:: "('a, 'b) cyclic_group_scheme" (structure) and G\<^sub>T :: "('c, 'd) cyclic_group_scheme" (structure)

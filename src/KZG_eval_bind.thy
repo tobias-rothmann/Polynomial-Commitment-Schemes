@@ -1,6 +1,6 @@
 theory KZG_eval_bind
 
-imports KZG_correct "tSDH_assumption" SPMF_ext
+imports KZG_correct "tSDH_assumption" CryptHOL_ext
 
 begin
 

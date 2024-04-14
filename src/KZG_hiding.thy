@@ -1,7 +1,7 @@
 theory KZG_hiding
 
 imports KZG_correct DL_assumption Cyclic_Group_SPMF_ext Polynomial_Interpolation.Lagrange_Interpolation 
-HOL.Finite_Set SPMF_ext
+HOL.Finite_Set CryptHOL_ext
 begin
 
 locale hiding_game_def = KZG_correct

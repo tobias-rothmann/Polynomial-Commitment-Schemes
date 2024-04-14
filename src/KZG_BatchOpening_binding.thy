@@ -1,6 +1,6 @@
 theory KZG_BatchOpening_binding
 
-imports KZG_eval_bind KZG_BatchOpening_correct tBSDH_assumption SPMF_ext
+imports KZG_eval_bind KZG_BatchOpening_correct tBSDH_assumption CryptHOL_ext
 begin
 
 locale bind_game_def = KZG_BatchOpening_correct
