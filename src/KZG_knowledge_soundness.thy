@@ -72,7 +72,7 @@ definition knowledge_soundness_game_advantage :: "('a, 'e) extractor \<Rightarro
 
 subsection \<open>reduction definition\<close>
 
-text \<open>The reduction function takes a adversary for the knowledge soundess game and returns an 
+text \<open>The reduction function takes a adversary for the knowledge soundness game and returns an 
 adversary for the evaluation binding game. Specifically, the reduction uses the knowledge soundness 
 adversary to construct a winning strategy for the evaluation binding game (i.e. to win it every 
 time).
@@ -377,7 +377,7 @@ proof -
     } ELSE return_spmf False
   } ELSE return_spmf False"
      using assert_anding by presburger
-   text \<open>next we want to make the construction of PK accessible in the assert. 
+  text \<open>next we want to make the construction of PK accessible in the assert. 
     For that we have to take two steps. Firstly we have unfold KeyGen to obtain access to the 
     computation of PK.\<close>
   also have "\<dots> = TRY do {
@@ -554,7 +554,7 @@ proof -
     } ELSE return_spmf False
     } ELSE return_spmf False"
     using assert_anding by presburger
-  text \<open>WE fold again to accumulate the next two asserts\<close>  
+  text \<open>We fold again to accumulate the next two asserts\<close>  
   also have "\<dots> = TRY do {
     PK \<leftarrow> KeyGen;
     TRY do {
@@ -745,7 +745,7 @@ proof -
    unfolding split_def Let_def 
    by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
  text \<open>Similarly to the prior lemma, we want to make PK accessible in the assert statement and thus
-  we unfold KeyGen to reveal the computation of PK.\<close>
+  we firstly unfold KeyGen to reveal the computation of PK.\<close>
   also have "\<dots> = TRY do {
     x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
     let \<alpha> = of_int_mod_ring (int x);
@@ -1086,6 +1086,8 @@ lemma overestimate_reductions: "spmf (bind_game (knowledge_soundness_reduction_e
 proof -
    note [simp] = Let_def split_def
 
+   text \<open>We extend the evaluation binding game with the extended reduction adversary to a complete 
+   game.\<close>
    have w_assert_ext: "bind_game (knowledge_soundness_reduction_ext E \<A> \<A>') = TRY do {
     PK \<leftarrow> KeyGen;
     (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
@@ -1104,6 +1106,8 @@ proof -
      unfolding bind_game_alt_def knowledge_soundness_reduction_ext_def 
      by (simp add: split_def Let_def)
 
+   text \<open>We extend the evaluation binding game with the normal reduction adversary to a complete 
+   game.\<close>
    have wo_assert_ext: "bind_game (knowledge_soundness_reduction E \<A> \<A>') = TRY do {
     PK \<leftarrow> KeyGen;
     (C,calc_vec, \<sigma>) \<leftarrow> \<A> PK;
