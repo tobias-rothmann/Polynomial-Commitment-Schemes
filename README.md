@@ -1,4 +1,4 @@
-# Formalizing Polynomial Commitment Schemes in Isabelle/HOL
+# Polynomial Commitment Schemes in Isabelle/HOL
 
 
 ## Abstract 
