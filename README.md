@@ -30,10 +30,10 @@ We define five abstract games against an adversary, covering correctness, the st
       The result is a PMF capturing the event that the verifier accepts the adversary's outputs, but the adversary's evaluation does not match the extractor's evaluation (i.e. Eval applied to $i$ and the extractors polynomial $p$ and trapdoor $td$).
 
 ## Formal Verification of the KZG
-The non-hiding DL-version of the KZG described in [KZG10]. We formally verify correctness, polynomial binding, evaluation binding, knowledge soundness, and a weaker version of hiding that is only hiding for uniform random polynomials. 
+The non-hiding DL-version of the KZG described in [KZG10]. We formally verify __correctness__, __polynomial binding__, __evaluation binding__, __knowledge soundness__, and a weaker version of hiding, __weak hiding__, that is only hiding for uniform random polynomials. 
 
 ## Formal Verifrication of a batched KZG
-The batched version is an extension of the KZG for two more functions, which allow to evaluate a degree $d$ polynomial at up to $d$ points with one witness and one pairing check. We formally verify correctness, polynomial binding, evaluation binding, and knowledge soundness.
+The batched version is an extension of the KZG for two more functions, which allow to evaluate a degree $d$ polynomial at up to $d$ points with one witness and one pairing check. We formally verify __correctness__, __polynomial binding__, __evaluation binding__, and __knowledge soundness__.
 
 
 
