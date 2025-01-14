@@ -2,7 +2,6 @@ theory KZG_Def
 
 imports "CRYSTALS-Kyber.Kyber_spec" "CryptHOL.CryptHOL" "CryptHOL.Cyclic_Group" Berlekamp_Zassenhaus.Finite_Field
   "Sigma_Commit_Crypto.Cyclic_Group_Ext"
-
 begin
 
 locale crypto_primitives = 

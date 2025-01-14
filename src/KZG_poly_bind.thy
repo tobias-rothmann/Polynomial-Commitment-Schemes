@@ -2,7 +2,6 @@ theory KZG_poly_bind
 
 imports KZG_correct "Sigma_Commit_Crypto.Commitment_Schemes" "tSDH_assumption"
  "Berlekamp_Zassenhaus.Finite_Field_Factorization" "Elimination_Of_Repeated_Factors.ERF_Algorithm"
-  SPMF_ext
 
 begin
 

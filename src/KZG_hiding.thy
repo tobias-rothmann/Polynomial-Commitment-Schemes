@@ -41,7 +41,6 @@ text \<open>The advantage of the adversary over the hiding game is the probabill
 wins.\<close>
 definition hiding_advantage :: "'e eval_position list \<Rightarrow> ('a, 'e) adversary \<Rightarrow> real"
   where "hiding_advantage I \<A> \<equiv> spmf (hiding_game I \<A>) True"
-
 subsection \<open>DL game\<close>
 
 text \<open>We instantiate the DL game for the group Gp\<close>
