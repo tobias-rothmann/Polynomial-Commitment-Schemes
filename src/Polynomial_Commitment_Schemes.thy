@@ -16,7 +16,13 @@ locale abstract_polynomial_commitment_scheme =
     and valid_msg :: "'r poly \<Rightarrow> bool" \<comment> \<open>checks whether a message is valid\<close>
 begin
 
-sublocale com: abstract_commitment key_gen commit verify_poly valid_msg .
+sublocale cs: abstract_commitment key_gen commit verify_poly valid_msg .
+
+definition correct_cs_game :: "'r poly \<Rightarrow> bool spmf"
+  where "correct_cs_game \<equiv> cs.correct_game"
+
+definition correct_cs 
+  where "correct_cs \<equiv> cs.correct"
 
 definition correct_eval_game :: "'r poly \<Rightarrow> 'argument \<Rightarrow> bool spmf"
   where "correct_eval_game p i = do {
@@ -34,6 +40,12 @@ lemma lossless_correct_eval_game: "\<lbrakk> lossless_spmf key_gen; lossless_spm
 definition correct_eval
   where "correct_eval \<equiv> (\<forall>p i. valid_msg p \<longrightarrow> spmf (correct_eval_game p i) True = 1)"
 
+definition poly_bind_game
+  where "poly_bind_game \<equiv> cs.bind_game"
+
+definition poly_bind_advantage
+  where "poly_bind_advantage \<equiv> cs.bind_advantage"
+
 type_synonym ('ck', 'commit', 'argument', 'evaluation', 'witness')  eval_bind_adversary = 
   "'ck' \<Rightarrow> ('commit' \<times> 'argument'  \<times> 'evaluation' \<times> 'witness'  \<times> 'evaluation' \<times> 'witness') spmf"
 
@@ -43,7 +55,7 @@ definition eval_bind_game :: "('ck, 'commit, 'argument, 'evaluation, 'witness) e
   (c, i, v, w, v', w') \<leftarrow> \<A> ck;                         
   let b = verify_eval vk c i (v,w);
   let b' = verify_eval vk c i (v',w');
-  return_spmf (b \<and> b')} ELSE return_spmf False"  
+  return_spmf (b \<and> b' \<and> v \<noteq> v')} ELSE return_spmf False"  
 
 definition eval_bind_advantage :: "('ck, 'commit, 'argument, 'evaluation, 'witness) eval_bind_adversary \<Rightarrow> real"
   where "eval_bind_advantage \<A> \<equiv> spmf (eval_bind_game \<A>) True"
