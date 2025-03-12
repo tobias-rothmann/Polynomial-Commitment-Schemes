@@ -4,6 +4,8 @@ imports KZG_correct DL_assumption Cyclic_Group_SPMF_ext Polynomial_Interpolation
 HOL.Finite_Set CryptHOL_ext
 begin
 
+hide_const order
+
 locale hiding_game_def = KZG_correct
 begin
 

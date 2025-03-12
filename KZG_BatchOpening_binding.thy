@@ -3,6 +3,8 @@ theory KZG_BatchOpening_binding
 imports KZG_eval_bind KZG_BatchOpening_correct tBSDH_assumption CryptHOL_ext
 begin
 
+hide_const order
+
 locale bind_game_def = KZG_BatchOpening_correct
 begin
 
@@ -212,10 +214,10 @@ proof -
     by (metis (no_types, lifting) add_diff_cancel_left' add_diff_cancel_right' add_diff_eq mult.commute)
   then have "(poly (\<Prod>i\<in>B. [:- i, 1:]) \<alpha>)*b - (\<alpha>-i)*y = \<phi>_i - (poly r'_x \<alpha>)*(\<alpha>-i) - poly [:poly r_x i:] \<alpha>"
     using r'_x_r_x poly_mult poly_add 
-    by (metis (no_types, lifting) diff_diff_eq mult.right_neutral poly_const_conv poly_pCons uminus_add_conv_diff)
+    by (smt (z3) ab_group_add_class.ab_diff_conv_add_uminus add_cancel_left_right group_cancel.add2 more_arith_simps(6) more_arith_simps(9) mult_cancel_right1 poly_0 poly_pCons uminus_add_conv_diff)
   then have "(\<alpha>-i)*(poly p'_x \<alpha>)*b - (\<alpha>-i)*y = \<phi>_i - (poly r'_x \<alpha>)*(\<alpha>-i) - poly [:poly r_x i:] \<alpha>"
     using p'_x_p_x
-    by (metis (no_types, lifting) more_arith_simps(6) mpoly_base_conv(2) mult.commute poly_mult poly_pCons uminus_add_conv_diff)
+    by (smt (verit) Groups.add_ac(2) add_uminus_conv_diff more_arith_simps(6) mult.commute one_pCons poly_1 poly_mult poly_pCons)
   then have "(\<alpha>-i)*((poly p'_x \<alpha>)*b - y + poly r'_x \<alpha>) = \<phi>_i - poly [:poly r_x i:] \<alpha>"
     by (simp add: Groups.mult_ac(2) Groups.mult_ac(3) Rings.ring_distribs(1) Rings.ring_distribs(4))
   then have "(\<alpha>-i)*((poly p'_x \<alpha>)*b - y + poly r'_x \<alpha>) = \<phi>_i - poly r_x i"

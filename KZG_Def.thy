@@ -1,13 +1,15 @@
 theory KZG_Def
 
-imports "CRYSTALS-Kyber.Kyber_spec" "CryptHOL.CryptHOL" "CryptHOL.Cyclic_Group" Berlekamp_Zassenhaus.Finite_Field
+imports  "CryptHOL.CryptHOL" "CryptHOL.Cyclic_Group" Berlekamp_Zassenhaus.Finite_Field
   "Sigma_Commit_Crypto.Cyclic_Group_Ext"
 begin
+
+hide_const order
 
 locale crypto_primitives = 
 G\<^sub>p : cyclic_group G\<^sub>p + G\<^sub>T : cyclic_group G\<^sub>T 
 for G\<^sub>p :: "('a, 'b) cyclic_group_scheme" (structure) and G\<^sub>T:: "('c, 'd) cyclic_group_scheme"  (structure) +
-fixes "type_a" :: "('q :: qr_spec) itself"
+fixes "type_a" :: "('q :: prime_card) itself"
   and p::int
   and e
 and max_deg::nat

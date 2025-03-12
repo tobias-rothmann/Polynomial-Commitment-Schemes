@@ -4,6 +4,8 @@ imports KZG_correct "tSDH_assumption" CryptHOL_ext
 
 begin
 
+hide_const order
+
 locale bind_game_def = KZG_correct
 begin
 

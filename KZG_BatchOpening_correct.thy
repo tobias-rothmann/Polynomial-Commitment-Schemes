@@ -3,6 +3,9 @@ theory KZG_BatchOpening_correct
 imports KZG_BatchOpening_Def KZG_correct
 begin
 
+
+hide_const order
+
 locale KZG_BatchOpening_correct = KZG_BatchOpening_def + KZG_correct
 begin
 

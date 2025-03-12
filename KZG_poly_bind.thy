@@ -4,6 +4,7 @@ imports KZG_correct "Sigma_Commit_Crypto.Commitment_Schemes" "tSDH_assumption"
  "Berlekamp_Zassenhaus.Finite_Field_Factorization" "Elimination_Of_Repeated_Factors.ERF_Algorithm"
 
 begin
+hide_const order
 
 section \<open>polynomial binding\<close>
 text \<open>We show that the KZG is polynomial binding for every polynomial of degree <= max_deg.
@@ -371,7 +372,7 @@ lemma helping_2_factorize_\<alpha>: "\<phi> \<noteq> \<phi>' \<and> SCC_valid_ms
 proof
   assume ?lhs
   then show ?rhs using poly_eq0_imp_find_\<alpha>_eq_\<alpha>
-    by (metis right_minus_eq to_qr_of_qr)
+    by (meson right_minus_eq)
 next 
   assume ?rhs
   then show ?lhs 
@@ -600,7 +601,7 @@ lemma helping_2_factorize_\<alpha>_bindv: "\<phi> \<noteq> \<phi>' \<and> SCC_va
 proof
   assume ?lhs
   then show ?rhs using poly_eq0_imp_find_\<alpha>_eq_\<alpha>
-    by (metis right_minus_eq to_qr_of_qr)
+    by (metis right_minus_eq)
 next 
   assume ?rhs
   then show ?lhs 

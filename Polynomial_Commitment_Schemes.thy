@@ -1,10 +1,10 @@
 theory Polynomial_Commitment_Schemes 
   imports CryptHOL.CryptHOL "HOL-Computational_Algebra.Polynomial" Sigma_Commit_Crypto.Commitment_Schemes
-begin 
+begin
 
 locale abstract_polynomial_commitment_scheme =
   fixes key_gen :: "('ck \<times> 'vk) spmf" \<comment> \<open>outputs the keys received by the two parties\<close>
-    and commit :: "'ck \<Rightarrow> 'r poly  \<Rightarrow> ('commit \<times> 'trapdoor) spmf" 
+    and commit :: "'ck \<Rightarrow> 'r::zero poly  \<Rightarrow> ('commit \<times> 'trapdoor) spmf" 
       \<comment> \<open>outputs the commitment as well as the secret, which might be used to derive witnesses, 
          and the opening values sent by the committer in the reveal phase\<close>    
     and verify_poly :: "'vk \<Rightarrow> 'r poly \<Rightarrow> 'commit \<Rightarrow> 'trapdoor \<Rightarrow> bool"       
@@ -99,6 +99,6 @@ definition knowledge_soundness_advantage :: " ('ck, 'commit, 'state, 'argument, 
   knowledge_soundness_adversary \<Rightarrow> ('r, 'commit, 'trapdoor) extractor \<Rightarrow> real"
   where "knowledge_soundness_advantage \<A> E \<equiv> spmf (knowledge_soundness_game \<A> E) True"
 
-end                                                          
+end   
 
 end                                                         
