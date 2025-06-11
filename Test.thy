@@ -58,39 +58,10 @@ lemma left_assoc: "f x (f y z) = f (f x y) z"
 
 type_synonym ('g','b', 'a')alg = "'g' \<Rightarrow> 'b' \<Rightarrow> 'a' \<Rightarrow> ('g' * int)"
 
-lift_to_algebraic 'g "int list"  "'g \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> ('g * int * ('g * bool) * nat)" => agm_adv
+lift_to_algebraic 'g "int list"  "('a,'b,'g)semigroup.alg" => agm_adv
 
 ML \<open>
-
-  (* val testT = @{typ 'a}
-  val tps = Algebraic_Algorithm.extract_type_params testT;
-  val advT = @{typ "'g \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> ('g * int)"}
-  val alg = Algebraic_Algorithm.lift_to_algebraic @{typ 'g} @{typ "int list"} advT;*)
-
   val t = @{typ "('a,'b,'g)agm_adv"}
-\<close>
-
-(* Test Ground *)
-
-type_synonym pair = "(int * int)"
-
-ML \<open>
-
-fun type_constructor_name_option my_typ =
-  (case my_typ of
-    Type (name, _) => SOME name  (* If it's a type constructor application, extract its name *)
-  | TFree (_, _) => NONE         (* It's a fixed type variable like 'a' *)
-  | TVar (_, _) => NONE);
-
-val t = @{typ pair}
-
-val ts = type_constructor_name_option t
-
-val ct = @{typ "'a \<Rightarrow> bool \<Rightarrow> 'a * 'b"}
-
-fun f _ = @{typ int};
-
-val t' = Term.map_atyps f ct;
 \<close>
 
 end
