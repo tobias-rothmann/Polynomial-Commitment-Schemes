@@ -36,9 +36,9 @@ val build_ret_term : Name.context -> typ -> term
 
 val abs_typ_over_term : Name.context -> typ -> term -> term
 
-val enforce_alg: Name.context -> term -> term
+val enforce_alg: Name.context -> typ -> term -> term
 
-val build_alg_fun : Name.context -> typ -> term * Name.context
+val build_alg_fun : Name.context -> typ -> typ -> term * Name.context
 
 end;
 
@@ -114,9 +114,9 @@ fun constrain_pairs nctxt T resT = resT
   |> extract_vec_pair_list T
   (*TODO here comes the assert*)
 
-fun create_assert (*T*) resT = 
+fun create_assert nctxt grpT resT = 
   let 
-    (* val vlist = constrain_pairs T resT *)
+    val vlist = constrain_pairs nctxt grpT resT
     val assert_term = @{term True} (* TODO create assert term belongs here *)
   in 
     \<^Const>\<open>SPMF.assert_spmf for assert_term\<close>
@@ -162,7 +162,7 @@ fun abs_typ_over_term nctxt T t = abs_typ_over_term_rec T (t,nctxt) |> fst
 fun extract_params nctxt T = 
   let 
     val (pramsT, _) = Term.strip_type T;
-    val (pNames,nctxt') = Name.invent' "" (length pramsT) Name.context;
+    val (pNames,nctxt') = Name.invent' "" (length pramsT) nctxt;
     val prams = map (fn (n,T) => Term.Free (n, T)) (pNames ~~ pramsT)
   in 
     (prams, nctxt') 
@@ -176,28 +176,28 @@ fun supply_prams nctxt t =
     (rapply prams t, nctxt')
   end
 
-fun build_assert_fun nctxt (*grpT*) retT t = 
+fun build_assert_fun nctxt grpT retT t = 
   let 
     val unitT = @{typ unit}
-    val assert_term = create_assert (*grpT*) retT
+    val assert_term = create_assert nctxt grpT retT
     val t' = Term.absdummy unitT t
   in
    \<^Const>\<open>bind_spmf unitT retT for assert_term t'\<close>
   end
 
-fun build_body_fun nctxt T = 
-  build_ret_term nctxt T |> build_assert_fun nctxt T |> abs_typ_over_term nctxt T
+fun build_body_fun nctxt grpT T = 
+  build_ret_term nctxt T |> build_assert_fun nctxt grpT T |> abs_typ_over_term nctxt T
 
-fun enforce_alg nctxt t = 
+fun enforce_alg nctxt grpT t = 
   let 
     val (spmf,nctxt') = supply_prams nctxt t
     val retT = Term.fastype_of spmf |> strip_spmfT
-    val body_term = build_body_fun nctxt' retT
+    val body_term = build_body_fun nctxt' grpT retT
   in 
      \<^Const>\<open>bind_spmf retT retT for spmf body_term\<close>
   end
 
-fun build_alg_fun nctxt T = 
+fun build_alg_fun nctxt grpT T = 
   let
     (* create params to abstract over*)
     val (prams,nctxt') = extract_params nctxt T
@@ -205,7 +205,7 @@ fun build_alg_fun nctxt T =
     val (advN, nctxt'') = Name.variant "\<A>" nctxt'
     val adv = Term.Free(advN,T)
     (* create the fun term to enforce the agm for the adversary *)
-    val fun_term = enforce_alg nctxt adv
+    val fun_term = enforce_alg nctxt grpT adv
   in 
     (rabs (rev (adv::prams)) fun_term, nctxt'')
   end
@@ -260,6 +260,8 @@ declare [[ML_print_depth = 1000]]
 ML \<open>
   val agmT = @{typ "('a,'b,'g)agm_adv"}
 
+  val grpT = @{typ 'a}
+
   val (paramsT, resT) = Term.strip_type agmT
 
  val boolT = @{typ bool}
@@ -294,7 +296,7 @@ ML \<open>
 
   val test_monad = Algebraic_Algorithm.enforce_alg Name.context adv_term*)
 
-  val test_monad' = Algebraic_Algorithm.build_alg_fun Name.context agmT |> fst
+  val test_monad' = Algebraic_Algorithm.build_alg_fun Name.context grpT agmT |> fst
 (*
  bind_spmf type is not dependent on further statments in the monad, but the monads outcome.
 bind_spmf type is reswspmf \<Rightarrow> (fun resw/ospmf \<Rightarrow> monad res) \<Rightarrow> monad_res 
@@ -324,7 +326,8 @@ ML \<open>
     (Parse.binding >> (fn b => fn lthy =>
       let
         val agmT = @{typ "('a,'b,'g)agm_adv"}
-        val agm_term = Algebraic_Algorithm.build_alg_fun Name.context agmT |> fst;
+        val grpT = @{typ "'a"}
+        val agm_term = Algebraic_Algorithm.build_alg_fun Name.context grpT agmT |> fst;
         val (def, lthy') = Local_Theory.define ((b, NoSyn), ((Thm.def_binding b, []), agm_term)) lthy;
       in lthy' end));
 \<close>
