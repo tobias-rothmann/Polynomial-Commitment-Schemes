@@ -1,30 +1,21 @@
 theory KZG_Def
 
 imports  "CryptHOL.CryptHOL" "CryptHOL.Cyclic_Group" Berlekamp_Zassenhaus.Finite_Field
-  "Sigma_Commit_Crypto.Cyclic_Group_Ext"
+  "Sigma_Commit_Crypto.Cyclic_Group_Ext" Pairing Polynomial_Commitment_Schemes Algebraic_Group_Model
 begin
 
 hide_const order
 
-locale crypto_primitives = 
-G\<^sub>p : cyclic_group G\<^sub>p + G\<^sub>T : cyclic_group G\<^sub>T 
-for G\<^sub>p :: "('a, 'b) cyclic_group_scheme" (structure) and G\<^sub>T:: "('c, 'd) cyclic_group_scheme"  (structure) +
-fixes "type_a" :: "('q :: prime_card) itself"
+locale crypto_primitives = pairing G\<^sub>p  G\<^sub>T p e
+  for G\<^sub>p :: "('a, 'b) cyclic_group_scheme" (structure)
+  and G\<^sub>T:: "('c, 'd) cyclic_group_scheme"  (structure)
   and p::int
-  and e
+  and e::"'a \<Rightarrow> 'a \<Rightarrow> 'c"
++ 
+fixes "type_q" :: "('q :: prime_card) itself"
 and max_deg::nat
 assumes
 p_gr_two: "p > 2" and
-p_prime : "prime p" and
-(* Bilinear Group Assumptions *)
-CARD_G\<^sub>p: "int (order G\<^sub>p) = p" and
-CARD_G\<^sub>T: "int (order G\<^sub>T) = p" and
-e_symmetric: "e \<in> carrier G\<^sub>p \<rightarrow> carrier G\<^sub>p \<rightarrow> carrier G\<^sub>T" and 
-e_bilinearity[simp]: "\<forall>a b::int . \<forall>P Q. P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p \<longrightarrow> 
-   e (P [^]\<^bsub>G\<^sub>p\<^esub> a) (Q [^]\<^bsub>G\<^sub>p\<^esub> b) 
-= (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> (a*b)" and 
-e_non_degeneracy[simp]: "\<not>(\<forall>P Q. P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p \<longrightarrow> e P Q = \<one>\<^bsub>G\<^sub>T\<^esub>)" and 
-(*$(\mathbb{Z}_p[x])^{<d}$ Assumptions*)
 d_pos: "max_deg > 0" and
 CARD_q: "int (CARD('q)) = p" and
 d_l_p: "max_deg < p"
@@ -38,23 +29,29 @@ abbreviation div_in_grp (infixr "\<div>\<index>" 70)
 
 subsubsection \<open>mod_ring operations on pow of Gp\<close>
 
-lemma pow_mod_order_G\<^sub>p: "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod p)" 
+lemma carrier_pow_mod_order_G\<^sub>p: 
+  assumes "g \<in> carrier G\<^sub>p"
+  shows "g [^]\<^bsub>G\<^sub>p\<^esub> x = g [^]\<^bsub>G\<^sub>p\<^esub> (x mod p)"
 proof -
   have "p=(order G\<^sub>p)" by (simp add: CARD_G\<^sub>p)
-  also have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod order G\<^sub>p)"
+  also have "g [^]\<^bsub>G\<^sub>p\<^esub> x = g [^]\<^bsub>G\<^sub>p\<^esub> (x mod order G\<^sub>p)"
   proof -
-    have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x \<in> carrier G\<^sub>p" by simp
+    have "g [^]\<^bsub>G\<^sub>p\<^esub> x \<in> carrier G\<^sub>p" by (simp add: assms)
     let ?d = "x div (order G\<^sub>p)"
-    have "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (?d * order G\<^sub>p + x mod order G\<^sub>p)" 
+    have "g [^]\<^bsub>G\<^sub>p\<^esub> x = g [^]\<^bsub>G\<^sub>p\<^esub> (?d * order G\<^sub>p + x mod order G\<^sub>p)" 
       using div_mult_mod_eq by presburger
-    also have "\<dots>= \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (?d * order G\<^sub>p) \<otimes>\<^bsub>G\<^sub>p\<^esub>  \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod order G\<^sub>p)"
-      using G\<^sub>p.int_pow_mult by blast
-    also have "\<dots>=\<one>\<^bsub>G\<^sub>p\<^esub> \<otimes>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod order G\<^sub>p)"
-      by (metis G\<^sub>p.generator_closed G\<^sub>p.int_pow_closed G\<^sub>p.int_pow_pow G\<^sub>p.pow_order_eq_1 int_pow_int)
-    finally show "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod order G\<^sub>p)" by fastforce
+    also have "\<dots>= g [^]\<^bsub>G\<^sub>p\<^esub> (?d * order G\<^sub>p) \<otimes>\<^bsub>G\<^sub>p\<^esub>  g [^]\<^bsub>G\<^sub>p\<^esub> (x mod order G\<^sub>p)"
+      using G\<^sub>p.int_pow_mult assms by blast
+    also have "\<dots>=\<one>\<^bsub>G\<^sub>p\<^esub> \<otimes>\<^bsub>G\<^sub>p\<^esub> g [^]\<^bsub>G\<^sub>p\<^esub> (x mod order G\<^sub>p)"
+      by (metis G\<^sub>p.int_pow_closed G\<^sub>p.int_pow_pow G\<^sub>p.pow_order_eq_1 assms int_pow_int)
+    finally show "g [^]\<^bsub>G\<^sub>p\<^esub> x = g [^]\<^bsub>G\<^sub>p\<^esub> (x mod order G\<^sub>p)"
+      using assms by fastforce
   qed
-  finally show "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod p)" .
+  finally show "g [^]\<^bsub>G\<^sub>p\<^esub> x = g [^]\<^bsub>G\<^sub>p\<^esub> (x mod p)" .
 qed
+
+lemma pow_mod_order_G\<^sub>p: "\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> x = \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (x mod p)"
+  using carrier_pow_mod_order_G\<^sub>p by blast
 
 lemma mod_ring_pow_mult_inv_G\<^sub>p[symmetric]:" (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a::'q mod_ring))) \<otimes>\<^bsub>G\<^sub>p\<^esub> inv\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring b)) 
   =  \<^bold>g\<^bsub>G\<^sub>p\<^esub> [^]\<^bsub>G\<^sub>p\<^esub> (to_int_mod_ring (a-b))"
@@ -114,7 +111,7 @@ proof
   then have "[to_int_mod_ring x = to_int_mod_ring y] (mod p)" 
     using CARD_G\<^sub>p by fast
   then have "to_int_mod_ring x = to_int_mod_ring y" using range_to_int_mod_ring CARD_q
-    by (metis cong_def of_int_mod_ring.rep_eq of_int_mod_ring_to_int_mod_ring to_int_mod_ring.rep_eq)
+    by (metis Rep_mod_ring_mod to_int_mod_ring.rep_eq unique_euclidean_semiring_class.cong_def)
   then show "x = y" by force
 next 
   assume "x = y"
@@ -279,7 +276,8 @@ proof
   then have "[to_int_mod_ring x = to_int_mod_ring y] (mod p)" 
     using CARD_G\<^sub>T by fast
   then have "to_int_mod_ring x = to_int_mod_ring y" using range_to_int_mod_ring CARD_q
-    by (metis cong_def of_int_mod_ring.rep_eq of_int_mod_ring_to_int_mod_ring to_int_mod_ring.rep_eq)
+    by (metis arith_simps(49) to_int_mod_ring_add to_int_mod_ring_hom.hom_0_iff
+        unique_euclidean_semiring_class.cong_def)
   then show "x = y" by force
 next 
   assume "x = y"
@@ -501,5 +499,79 @@ thm CreateWitness_def[simp]
 thm VerifyEval_def[simp]
 
 end
+
+
+
+
+
+
+
+
+
+
+
+
+locale KZG = crypto_primitives
+begin
+
+type_synonym trapdoor = unit
+type_synonym 'a' ck = "'a' list"
+type_synonym 'a' vk = "'a' list"
+type_synonym 'a' commit = "'a'"
+type_synonym 'e' argument = "'e' mod_ring"
+type_synonym 'e' evaluation = "'e' mod_ring"
+type_synonym 'a' witness = "'a'"
+
+definition Setup :: "('e mod_ring \<times> 'a list) spmf"
+where 
+  "Setup = do {
+    x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
+    let \<alpha>::'e mod_ring = of_int_mod_ring (int x) in
+    return_spmf (\<alpha>, map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) 
+  }"
+
+fun g_pow_PK_Prod :: "'a list \<Rightarrow>'e mod_ring poly \<Rightarrow> 'a" where
+  "g_pow_PK_Prod PK \<phi> = fold (\<lambda>i acc. acc \<otimes>\<^bsub>G\<^sub>p\<^esub> PK!i ^\<^bsub>G\<^sub>p\<^esub> (poly.coeff \<phi> i)) [0..<Suc (degree \<phi>)] \<one>\<^bsub>G\<^sub>p\<^esub>"
+
+definition coeffs_n :: "'e mod_ring poly \<Rightarrow> 'e mod_ring \<Rightarrow> 'e mod_ring list \<Rightarrow> nat \<Rightarrow> 'e mod_ring list"
+  where "coeffs_n \<phi> u = (\<lambda>q_coeffs. \<lambda>n. map (\<lambda>(i::nat). (nth_default 0 q_coeffs i + poly.coeff \<phi> n * u ^ (n - Suc i))) [0..<n])"
+
+definition \<psi>_of :: "'e mod_ring poly \<Rightarrow> 'e mod_ring \<Rightarrow> 'e mod_ring poly" 
+  where "\<psi>_of \<phi> u = (let 
+     \<psi>_coeffs = foldl (coeffs_n \<phi> u) [] [0..<Suc (degree \<phi>)] \<comment>\<open>coefficients of \<psi>\<close>
+    in Poly \<psi>_coeffs) \<comment>\<open>\<psi>\<close>"
+
+
+definition key_gen :: "('a ck \<times> 'a vk) spmf"
+  where "key_gen =  do {
+    (\<alpha>, PK) \<leftarrow> Setup;
+    return_spmf (PK,PK) 
+  }"
+
+definition commit :: "'a ck \<Rightarrow> 'e mod_ring poly \<Rightarrow> ('a commit \<times> trapdoor) spmf"
+  where "commit PK \<phi> = return_spmf (g_pow_PK_Prod PK \<phi>, ())"
+
+definition verify_poly :: "'a vk \<Rightarrow> 'e mod_ring poly \<Rightarrow> 'a commit \<Rightarrow> trapdoor \<Rightarrow> bool"
+  where "verify_poly PK \<phi> C td = (C = g_pow_PK_Prod PK \<phi>)"
+
+definition Eval :: "'a ck \<Rightarrow> trapdoor \<Rightarrow> 'e mod_ring poly \<Rightarrow> 'e mod_ring \<Rightarrow> ('e mod_ring \<times> 'a witness)"
+  where "Eval PK td \<phi> i = (let \<psi> = \<psi>_of \<phi> i \<comment>\<open>\<psi> in \<phi>(x) - \<phi>(i) = (x-i) * \<psi>(x)\<close>
+    in (poly \<phi> i, g_pow_PK_Prod PK \<psi>) \<comment>\<open>(\<phi>(i),g^\<psi>(\<alpha>))\<close>)"
+
+definition verify_eval :: "'a vk \<Rightarrow> 'a commit \<Rightarrow> 'e mod_ring \<Rightarrow> ('e mod_ring \<times> 'a witness) \<Rightarrow> bool"
+  where "verify_eval PK C i val = (let (eval,w) = val 
+  in  (e w (PK!1  \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> eval) = e C \<^bold>g\<^bsub>G\<^sub>p\<^esub>)) 
+    \<comment>\<open>e(g^\<psi>(\<alpha>), g^\<alpha> / g^i) \<otimes> e(g,g)^\<phi>(i) = e(C, g)\<close>"
+
+definition valid_poly::"'e mod_ring poly \<Rightarrow> bool"
+  where "valid_poly \<phi> = (degree \<phi> \<le> max_deg)"
+
+definition valid_eval::"('e mod_ring \<times> 'a witness) \<Rightarrow> bool"
+  where "valid_eval val = (let (_,w) = val in w \<in> carrier G\<^sub>p)"
+
+sublocale abstract_polynomial_commitment_scheme key_gen commit verify_poly Eval verify_eval valid_poly valid_eval.
+
+end
+
 
 end
