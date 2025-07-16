@@ -40,8 +40,6 @@ val enforce_alg: Name.context -> term -> term
 
 val build_alg_fun : Name.context -> typ -> term * Name.context
 
-val to_eta_long_term: typ -> term
-
 end;
 
 structure Algebraic_Algorithm : ALGEBRAIC_ALGORITHM = 
@@ -116,11 +114,12 @@ fun constrain_pairs nctxt T resT = resT
   |> extract_vec_pair_list T
   (*TODO here comes the assert*)
 
-fun create_assert T resT = 
+fun create_assert (*T*) resT = 
   let 
-    val vlist = constrain_pairs T resT 
+    (* val vlist = constrain_pairs T resT *)
+    val assert_term = @{term True} (* TODO create assert term belongs here *)
   in 
-    vlist
+    \<^Const>\<open>SPMF.assert_spmf for assert_term\<close>
   end
 
 (* TODO create a constrain list pairs function. Accordingly create a type lifting that lifts 'g lists
@@ -177,14 +176,23 @@ fun supply_prams nctxt t =
     (rapply prams t, nctxt')
   end
 
-fun build_body_term nctxt T = 
-  build_ret_term nctxt T |> abs_typ_over_term nctxt T
+fun build_assert_fun nctxt (*grpT*) retT t = 
+  let 
+    val unitT = @{typ unit}
+    val assert_term = create_assert (*grpT*) retT
+    val t' = Term.absdummy unitT t
+  in
+   \<^Const>\<open>bind_spmf unitT retT for assert_term t'\<close>
+  end
+
+fun build_body_fun nctxt T = 
+  build_ret_term nctxt T |> build_assert_fun nctxt T |> abs_typ_over_term nctxt T
 
 fun enforce_alg nctxt t = 
   let 
     val (spmf,nctxt') = supply_prams nctxt t
     val retT = Term.fastype_of spmf |> strip_spmfT
-    val body_term = build_body_term nctxt' retT
+    val body_term = build_body_fun nctxt' retT
   in 
      \<^Const>\<open>bind_spmf retT retT for spmf body_term\<close>
   end
@@ -200,15 +208,6 @@ fun build_alg_fun nctxt T =
     val fun_term = enforce_alg nctxt adv
   in 
     (rabs (rev (adv::prams)) fun_term, nctxt'')
-  end
-
-fun to_eta_long_term t = let 
-  val (pramsT, resT) = Term.strip_type t;
-  val (fName::pNames) = Name.invent Name.context "" (length pramsT+1);
-  val prams = map (fn (n,T) => Term.Free (n, T)) (pNames ~~ pramsT)
-  val alg = Term.Free (fName, t)
-  in
-  rabs (rev (alg::prams)) (rapply prams alg)
   end
 
 (* TODO write function that takes the free vars list and filters it for group#int_list#xs and 
@@ -287,6 +286,7 @@ ML \<open>
   val test_term = @{term 
     "\<lambda>(A::('a,'b,'g)agm_adv) g b a. do { 
       ((g',c),i,j) \<leftarrow> A g b a;
+      _::unit \<leftarrow> assert_spmf(True);
       return_spmf ((g',c),i,j) 
     }"}
 
@@ -295,7 +295,6 @@ ML \<open>
   val test_monad = Algebraic_Algorithm.enforce_alg Name.context adv_term*)
 
   val test_monad' = Algebraic_Algorithm.build_alg_fun Name.context agmT |> fst
-  
 (*
  bind_spmf type is not dependent on further statments in the monad, but the monads outcome.
 bind_spmf type is reswspmf \<Rightarrow> (fun resw/ospmf \<Rightarrow> monad res) \<Rightarrow> monad_res 
@@ -325,7 +324,7 @@ ML \<open>
     (Parse.binding >> (fn b => fn lthy =>
       let
         val agmT = @{typ "('a,'b,'g)agm_adv"}
-        val agm_term = Algebraic_Algorithm.to_eta_long_term agmT;
+        val agm_term = Algebraic_Algorithm.build_alg_fun Name.context agmT |> fst;
         val (def, lthy') = Local_Theory.define ((b, NoSyn), ((Thm.def_binding b, []), agm_term)) lthy;
       in lthy' end));
 \<close>
@@ -334,6 +333,16 @@ declare [[show_types]]
 local_test test_adv
 thm test_adv_def 
 
+definition test 
+  where "test \<equiv> \<lambda>(A::('a,'b,'g)agm_adv) g b a. do { 
+      ((g',c),i,j) \<leftarrow> A g b a;
+      _::unit \<leftarrow>assert_spmf(True);
+      return_spmf ((g',c),i,j) 
+    }" 
+
+lemma "test_adv \<equiv> test"
+  unfolding test_def test_adv_def
+  by argo
 
 end
 
