@@ -1,4 +1,4 @@
-theory Test 
+theory Algebraic_Group_Model 
   imports Polynomial_Commitment_Schemes
   keywords
   "lift_to_algebraic" :: thy_decl
@@ -9,32 +9,9 @@ ML \<open>
 signature ALGEBRAIC_ALGORITHM =
 sig 
 
-val rcodomain_transf : (typ -> typ) -> typ -> typ
-
-val adjoin : typ -> typ -> (typ -> typ)
-
 val lift_to_algebraicT : typ -> typ -> typ -> typ
 
-val strip_spmfT : typ -> typ
-
-val return_spmf : term -> term
-
 val extract_type_params : typ -> string list
-
-val rapply : term list -> term -> term 
-
-val rabs : term list -> term -> term 
-
-(* TODO delete the next two in the interface *)
-val create_names_prod_cases :  Name.context -> typ -> term list * Name.context;
-
-val extract_vec_pair_list: typ -> term list -> term
-
-val constrain_pairs: Name.context -> typ -> typ -> term
-
-val build_ret_term : Name.context -> typ -> term
-
-val abs_typ_over_term : Name.context -> typ -> term -> term
 
 val enforce_alg: Name.context -> typ -> term -> term
 
@@ -112,7 +89,8 @@ fun constrain_pairs nctxt T resT = resT
   |> create_names_prod_cases nctxt 
   |> fst 
   |> extract_vec_pair_list T
-  (*TODO here comes the assert*)
+  (* TODO here comes the assert
+    add the list of all seen group elements to the parameters here *)
 
 fun create_assert nctxt grpT resT = 
   let 
@@ -242,11 +220,12 @@ ML \<open>
 context cyclic_group
 begin 
 
-fun constrain :: "'a \<Rightarrow> (int list) \<Rightarrow> bool"
-  where "constrain g c_vec = (g = fold (\<lambda>c g. g \<otimes> \<^bold>g [^] c) c_vec \<^bold>g)"
+fun constrain :: "'a list \<Rightarrow> 'a \<Rightarrow> (int list) \<Rightarrow> bool"
+  where "constrain seen_vec g c_vec = (length seen_vec = length c_vec 
+    \<and> g = fold (\<lambda> i acc. acc \<otimes> seen_vec!i [^] (c_vec!i)) [0..<length seen_vec] \<one>)"
 
-fun constrain_list :: "('a \<times> int list) list \<Rightarrow> bool"
-  where "constrain_list xs = list_all (\<lambda>(g, c_vec). constrain g c_vec) xs"
+fun constrain_list :: "'a list \<Rightarrow> ('a \<times> nat list) list \<Rightarrow> bool"
+  where "constrain_list seen xs = list_all (\<lambda>(g, c_vec). constrain seen g c_vec) xs"
 
 type_synonym ('g','b', 'a')alg = "'g' \<Rightarrow> 'b' \<Rightarrow> 'a' \<Rightarrow> ('g' * int*nat) spmf"
 
@@ -262,29 +241,6 @@ ML \<open>
 
   val grpT = @{typ 'a}
 
-  val (paramsT, resT) = Term.strip_type agmT
-
- val boolT = @{typ bool}
-
- (* val truet = @{term True}
-  
-  val testt = @{term "return_spmf True"}
-
-  (* return_spmf*)
-  val testt' = \<^Const>\<open>return_pmf  \<^Type>\<open>option boolT\<close> for \<^Const>\<open>Some boolT for truet\<close>\<close>*)
-
-  val striped_resT = Algebraic_Algorithm.strip_spmfT resT
-
-  val ret_True = Algebraic_Algorithm.return_spmf @{term True}
-
-  val testgame =  \<^Const>\<open>bind_spmf boolT boolT for ret_True\<close>
-
-  val testgame' = @{term "do {return_spmf True}"}
-
-  val testtt = Algebraic_Algorithm.build_ret_term Name.context striped_resT
-
-  val testttt = Algebraic_Algorithm.abs_typ_over_term Name.context striped_resT testtt 
-
   val test_term = @{term 
     "\<lambda>(A::('a,'b,'g)agm_adv) g b a. do { 
       ((g',c),i,j) \<leftarrow> A g b a;
@@ -292,34 +248,8 @@ ML \<open>
       return_spmf ((g',c),i,j) 
     }"}
 
- (* val adv_term = Term.Free("A", agmT)
-
-  val test_monad = Algebraic_Algorithm.enforce_alg Name.context adv_term*)
-
   val test_monad' = Algebraic_Algorithm.build_alg_fun Name.context grpT agmT |> fst
-(*
- bind_spmf type is not dependent on further statments in the monad, but the monads outcome.
-bind_spmf type is reswspmf \<Rightarrow> (fun resw/ospmf \<Rightarrow> monad res) \<Rightarrow> monad_res 
-
-In terms:
-bind_spmf $ reswspmf $ (fun resw/ospmf \<Rightarrow> monad res)
-
-Product_Type.prod.case_prod typ is:
-(fun newtype \<Rightarrow> function typ) \<Rightarrow> new_type x codomain of fun type \<Rightarrow> domain of fun type
-
-
-Strategy:
- bind_spmf is just aplly and gives one implicit var for the complete type 
-  \<rightarrow> nothing todo
-  the core is the function that takes the type without spmf and returns the end result type
-  \<rightarrow> here two phases 
-    1. define var decomposition with abs 
-      \<longrightarrow> how to order the names i.e. 
-          create the right names that are used in the body?
-    2. define actual content with the vars. 
-*)
 \<close>
-
 
 ML \<open>
   Outer_Syntax.local_theory \<^command_keyword>\<open>local_test\<close> "test local definition"
@@ -377,9 +307,7 @@ ML \<open>
   (*writeln (Syntax.string_of_term  \<^context> test2);*)
   (*writeln (@{make_string} test2)*)
 \<close>
-(*TODO find out how c is represented (Var, Abs, Bound, Free, and how to change that)*) 
 
 end
-
 
 end
