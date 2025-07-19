@@ -13,10 +13,12 @@ locale abstract_polynomial_commitment_scheme =
       \<comment> \<open>outputs a point and a witness\<close>
     and verify_eval :: "'vk \<Rightarrow> 'commit \<Rightarrow> 'argument \<Rightarrow> ('evaluation \<times> 'witness) \<Rightarrow> bool"
       \<comment> \<open>checks whether the point is on the polynomial corresponding to the commitment\<close>
-    and valid_msg :: "'r poly \<Rightarrow> bool" \<comment> \<open>checks whether a message is valid\<close>
+    and valid_poly :: "'r poly \<Rightarrow> bool" \<comment> \<open>checks whether a polynomial is a valid message e.g. it's 
+        degree is bounded\<close>
+    and valid_eval :: "('evaluation \<times> 'witness) \<Rightarrow> bool"
 begin
 
-sublocale cs: abstract_commitment key_gen commit verify_poly valid_msg .
+sublocale cs: abstract_commitment key_gen commit verify_poly valid_poly .
 
 definition correct_cs_game :: "'r poly \<Rightarrow> bool spmf"
   where "correct_cs_game \<equiv> cs.correct_game"
@@ -38,7 +40,7 @@ lemma lossless_correct_eval_game: "\<lbrakk> lossless_spmf key_gen; lossless_spm
   by (simp add: correct_eval_game_def split_def Let_def)
  
 definition correct_eval
-  where "correct_eval \<equiv> (\<forall>p i. valid_msg p \<longrightarrow> spmf (correct_eval_game p i) True = 1)"
+  where "correct_eval \<equiv> (\<forall>p i. valid_poly p \<longrightarrow> spmf (correct_eval_game p i) True = 1)"
 
 definition poly_bind_game
   where "poly_bind_game \<equiv> cs.bind_game"
@@ -52,10 +54,11 @@ type_synonym ('ck', 'commit', 'argument', 'evaluation', 'witness')  eval_bind_ad
 definition eval_bind_game :: "('ck, 'commit, 'argument, 'evaluation, 'witness) eval_bind_adversary \<Rightarrow> bool spmf"
   where "eval_bind_game \<A> = TRY do {
   (ck, vk) \<leftarrow> key_gen;
-  (c, i, v, w, v', w') \<leftarrow> \<A> ck;                         
+  (c, i, v, w, v', w') \<leftarrow> \<A> ck;     
+  _ :: unit \<leftarrow> assert_spmf (v \<noteq> v' \<and> valid_eval (v, w) \<and> valid_eval (v', w'));                     
   let b = verify_eval vk c i (v,w);
   let b' = verify_eval vk c i (v',w');
-  return_spmf (b \<and> b' \<and> v \<noteq> v')} ELSE return_spmf False"  
+  return_spmf (b \<and> b')} ELSE return_spmf False"  
 
 definition eval_bind_advantage :: "('ck, 'commit, 'argument, 'evaluation, 'witness) eval_bind_adversary \<Rightarrow> real"
   where "eval_bind_advantage \<A> \<equiv> spmf (eval_bind_game \<A>) True"
@@ -76,9 +79,16 @@ definition hiding_advantage :: "'r poly \<Rightarrow> 'argument list \<Rightarro
   eval_hiding_adversary \<Rightarrow> real"
   where "hiding_advantage p i \<A> \<equiv> spmf (eval_hiding_game p i \<A>) True"
 
+
+type_synonym ('ck', 'commit', 'state') knowledge_soundness_adversary1 = "'ck' \<Rightarrow> ('commit' \<times> 'state') spmf"
+
+type_synonym ('state', 'argument', 'evaluation', 'witness') knowledge_soundness_adversary2 
+  = "'state' \<Rightarrow> ('argument' \<times> ('evaluation' \<times> 'witness')) spmf"
+
 type_synonym ('ck', 'commit', 'state', 'argument', 'evaluation', 'witness') 
   knowledge_soundness_adversary =                                                           
-  "('ck' \<Rightarrow> ('commit' \<times> 'state') spmf) \<times> ('state' \<Rightarrow> ('argument' \<times> ('evaluation' \<times> 'witness')) spmf)"        
+  "('ck', 'commit', 'state') knowledge_soundness_adversary1 
+  \<times> ('state', 'argument', 'evaluation', 'witness') knowledge_soundness_adversary2"  
 
 type_synonym ('r', 'commit', 'trapdoor') extractor = "'commit' \<Rightarrow> ('r' poly \<times> 'trapdoor') spmf"
                                                                                                  
@@ -87,18 +97,18 @@ definition knowledge_soundness_game :: "('ck, 'commit, 'state, 'argument, 'evalu
   where "knowledge_soundness_game \<A> E = TRY do {
   let (\<A>1,\<A>2) = \<A>;
   (ck,vk) \<leftarrow> key_gen;
-  (c,\<sigma>) \<leftarrow> \<A>1 ck;  
-  (p,d) \<leftarrow> E c;             
-  (i, w) \<leftarrow> \<A>2 \<sigma>;                   
+  (c,\<sigma>) \<leftarrow> \<A>1 ck;
+  (p,d) \<leftarrow> E c;
+  (i, w) \<leftarrow> \<A>2 \<sigma>;
   let (p_i,_) = w;
   let (p_i',_) = eval ck d p i;         
-  return_spmf (verify_eval vk c i w \<and> p_i \<noteq> p_i')       
+  return_spmf (verify_eval vk c i w \<and> p_i \<noteq> p_i' \<and> valid_eval w)       
   } ELSE return_spmf False"
 
 definition knowledge_soundness_advantage :: " ('ck, 'commit, 'state, 'argument, 'evaluation, 'witness) 
   knowledge_soundness_adversary \<Rightarrow> ('r, 'commit, 'trapdoor) extractor \<Rightarrow> real"
   where "knowledge_soundness_advantage \<A> E \<equiv> spmf (knowledge_soundness_game \<A> E) True"
 
-end   
+end
 
 end                                                         
