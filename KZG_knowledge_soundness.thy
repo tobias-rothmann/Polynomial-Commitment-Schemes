@@ -9,12 +9,12 @@ begin
 
 
 lift_to_agm "('a ck, 'a commit, 'state) knowledge_soundness_adversary1"  "G\<^sub>p"  => AGM_knowledge_soundness_adversary1
-AGMtransform  "('a ck, 'a commit, 'state) knowledge_soundness_adversary1" "G\<^sub>p" => AGM1
-thm AGM1_def
+AGMLifting  "('a ck, 'a commit, 'state) knowledge_soundness_adversary1" "G\<^sub>p" => lift_\<A>1
+thm lift_\<A>1_def
 
 lift_to_agm "('state, 'e mod_ring, 'e evaluation, 'a witness) knowledge_soundness_adversary2"  "G\<^sub>p"  => AGM_knowledge_soundness_adversary2
-AGMtransform  "('state, 'e mod_ring, 'e evaluation, 'a witness) knowledge_soundness_adversary2" "G\<^sub>p" => AGM2
-thm AGM2_def
+AGMLifting  "('state, 'e mod_ring, 'e evaluation, 'a witness) knowledge_soundness_adversary2" "G\<^sub>p" => lift_\<A>2
+thm lift_\<A>2_def
 
 text \<open>print obtained adversary types\<close>
 ML \<open>
@@ -36,7 +36,7 @@ definition AGM_knowledge_soundness_game :: "(('state, 'a) AGM_knowledge_soundnes
   \<Rightarrow> ('a, 'e) extractor \<Rightarrow> bool spmf"
   where "AGM_knowledge_soundness_game \<A> E = TRY do {
   let (\<A>1,\<A>2) = \<A>;
-  let \<A>1_AGM = AGM1 \<A>1;
+  let \<A>1_AGM = lift_\<A>1 \<A>1;
   (ck,vk) \<leftarrow> key_gen;
   ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
   (p,td) \<leftarrow> E (c,cvec);
@@ -52,8 +52,8 @@ definition knowledge_soundness_reduction
   \<Rightarrow> ('a ck, 'a commit, 'e argument, 'e evaluation, 'a witness)  eval_bind_adversary"                     
 where
   "knowledge_soundness_reduction \<E> \<A>1 \<A>2 ck = do {
-  let \<A>1_AGM = AGM1 \<A>1;
-  let \<A>2_AGM = AGM2 \<A>2;
+  let \<A>1_AGM = lift_\<A>1 \<A>1;
+  let \<A>2_AGM = lift_\<A>2 \<A>2;
   ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
   (p,td) \<leftarrow> \<E> (c,cvec);
   (i, p_i, w, wvec) \<leftarrow> \<A>2 \<sigma>;
@@ -76,8 +76,8 @@ definition knowledge_soundness_reduction_ext
   \<Rightarrow> ('a ck, 'a commit, 'e argument, 'e evaluation, 'a witness)  eval_bind_adversary"                     
 where
   "knowledge_soundness_reduction_ext \<E> \<A>1 \<A>2 ck = do {
-  let \<A>1_AGM = AGM1 \<A>1;
-  let \<A>2_AGM = AGM2 \<A>2;
+  let \<A>1_AGM = lift_\<A>1 \<A>1;
+  let \<A>2_AGM = lift_\<A>2 \<A>2;
   ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
   (p,td) \<leftarrow> \<E> (c,cvec);
   (i, p_i, w, wvec) \<leftarrow> \<A>2 \<sigma>;
@@ -360,46 +360,6 @@ proof -
           using eq_on_e[of "(Poly ?cvec)" i \<alpha>]
           by (metis "1" "2" 3 Eval_def ck_def vk_def p_i'_def w'_def eq_on_e fst_conv snd_conv)
       qed
-  
-      (*show "w \<noteq> w'"
-      proof -
-        obtain w_pow where w_pow: "w = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> w_pow" 
-          using asm 
-          unfolding valid_eval_def 
-          by (metis G\<^sub>p.generatorE g_pow_to_int_mod_ring_of_int_mod_ring int_pow_int prod.sel(2) split_def)
-        obtain w'_pow where w'_pow: "w' = \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> w'_pow" 
-          using valid_eval_gen 
-          unfolding valid_eval_def
-          by (metis G\<^sub>p.generatorE g_pow_to_int_mod_ring_of_int_mod_ring int_pow_int prod.sel(2) split_def)
-      
-        from valid_eval_adv verify_eval_gen
-        have "e w (vk ! 1 \<otimes> inv (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i)) 
-              \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> p_i 
-            = e w' (vk ! 1 \<otimes> inv (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i)) 
-              \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> p_i'" using asm unfolding verify_eval_def by force
-        then have "e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> w_pow) ((\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<otimes> inv (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i)) 
-              \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> p_i 
-            = e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> w'_pow) ((\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha>) \<otimes> inv (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> i)) 
-              \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> p_i'"
-          using PK_i unfolding w_pow w'_pow vk_def
-          using add.commute add_diff_cancel_right' d_pos landau_product_preprocess(52) length_upt less_diff_conv nth_map nth_upt power_one_right
-          by auto
-        then have "e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> w_pow) (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>-i)) 
-              \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> p_i 
-            = e (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> w'_pow) (\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>-i)) 
-              \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> p_i'"
-          using mod_ring_pow_mult_inv_G\<^sub>p by presburger
-        then have "e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> (w_pow * (\<alpha>-i) + p_i)
-            = e \<^bold>g \<^bold>g ^\<^bsub>G\<^sub>T\<^esub> (w'_pow * (\<alpha>-i) + p_i')"
-          using e_bilinear
-          by (metis G\<^sub>p.generator_closed e_g_g_in_carrier_GT mod_ring_pow_mult_G\<^sub>T)
-        then have "w_pow * (\<alpha>-i) + p_i = w'_pow * (\<alpha>-i) + p_i'"
-          using pow_on_eq_card_GT_carrier_ext' by blast
-        then have "w_pow \<noteq> w'_pow"
-          using asm by fastforce
-        then show ?thesis 
-          using w_pow w'_pow pow_on_eq_card by presburger
-      qed*)
     qed (force simp add: asm)+
   next
     assume asm: "?rhs"
@@ -421,8 +381,8 @@ proof -
 
   have "AGM_knowledge_soundness_game (\<A>1,\<A>2) E = 
     TRY do {
-      let \<A>1_AGM = AGM1 \<A>1;
-      let \<A>2_AGM = AGM2 \<A>2;
+      let \<A>1_AGM = lift_\<A>1 \<A>1;
+      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
       (p,td) \<leftarrow> E (c,cvec);
@@ -433,7 +393,7 @@ proof -
        by (simp add: AGM_knowledge_soundness_game_def)
     also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = AGM2 \<A>2;
+      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       _ :: unit \<leftarrow> assert_spmf (G\<^sub>p.constrain_list (ck @ []) [(c, cvec)]);
@@ -442,10 +402,10 @@ proof -
       let (p_i',w') = Eval ck td p i;         
       return_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_eval (p_i,w))       
     } ELSE return_spmf False"
-      unfolding AGM1_def by simp
+      unfolding lift_\<A>1_def by simp
     also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = AGM2 \<A>2;
+      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
@@ -458,7 +418,7 @@ proof -
       by simp
     also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = AGM2 \<A>2;
+      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       (p,td) \<leftarrow> E (c,cvec);
@@ -471,7 +431,7 @@ proof -
       by (rule try_spmf_cong)(simp add: assert_commute)+
     also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = AGM2 \<A>2;
+      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       TRY do {
         ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
@@ -495,7 +455,7 @@ proof -
       by (fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
    also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = AGM2 \<A>2;
+      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       TRY do {
         ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
@@ -517,7 +477,7 @@ proof -
      by(auto simp add: try_bind_assert_spmf try_spmf_return_spmf1 intro!: try_spmf_cong bind_spmf_cong)
   also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = AGM2 \<A>2;
+      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       (p,td) \<leftarrow> E (c,cvec);
@@ -532,7 +492,7 @@ proof -
     by (fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
   also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = AGM2 \<A>2;
+      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       (p,td) \<leftarrow> E (c,cvec);
@@ -547,7 +507,7 @@ proof -
     } ELSE return_spmf False" 
     by (simp add: assert_collapse)
   also have "\<dots> = TRY do {
-      let \<A>2_AGM = AGM2 \<A>2;
+      let \<A>2_AGM = lift_\<A>2 \<A>2;
       x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
       let (\<alpha>::'e mod_ring) = of_int_mod_ring (int x);
       let ck = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
@@ -567,7 +527,7 @@ proof -
 (* TODO add or remove \<and> w \<noteq> w'*)
    also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = AGM2 \<A>2;
+      let \<A>2_AGM = lift_\<A>2 \<A>2;
       x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
       let (\<alpha>::'e mod_ring) = of_int_mod_ring (int x);
       let ck = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
@@ -597,7 +557,7 @@ proof -
      done
    also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = AGM2 \<A>2;
+      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       (p,td) \<leftarrow> E (c,cvec);
@@ -616,7 +576,7 @@ proof -
      unfolding key_gen_def Setup_def by force
   also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = AGM2 \<A>2;
+      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       (p,td) \<leftarrow> E (c,cvec);
@@ -636,7 +596,7 @@ proof -
     by (simp add: assert_collapse)
   also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = AGM2 \<A>2;
+      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
@@ -660,8 +620,8 @@ proof -
   also have "\<dots> = 
     TRY do {
       (ck,vk) \<leftarrow> key_gen;
-      let \<A>1_AGM = AGM1 \<A>1;
-      let \<A>2_AGM = AGM2 \<A>2;
+      let \<A>1_AGM = lift_\<A>1 \<A>1;
+      let \<A>2_AGM = lift_\<A>2 \<A>2;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
       (p,td) \<leftarrow> E (c,cvec);
       (i, p_i, (w, wvec)) \<leftarrow> \<A>2 \<sigma>;
@@ -675,12 +635,12 @@ proof -
           \<and> verify_eval vk c i (p_i', w'));
       return_spmf True
     } ELSE return_spmf False" 
-    unfolding AGM1_def by fastforce
+    unfolding lift_\<A>1_def by fastforce
   also have "\<dots> = 
     TRY do {
       (ck,vk) \<leftarrow> key_gen;
-      let \<A>1_AGM = AGM1 \<A>1;
-      let \<A>2_AGM = AGM2 \<A>2;
+      let \<A>1_AGM = lift_\<A>1 \<A>1;
+      let \<A>2_AGM = lift_\<A>2 \<A>2;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
       (p,td) \<leftarrow> E (c,cvec);
       (i, p_i, (w, wvec)) \<leftarrow> \<A>2 \<sigma>;
@@ -704,8 +664,8 @@ proof -
   also have "\<dots> = 
     TRY do {
       (ck,vk) \<leftarrow> key_gen;
-      let \<A>1_AGM = AGM1 \<A>1;
-      let \<A>2_AGM = AGM2 \<A>2;
+      let \<A>1_AGM = lift_\<A>1 \<A>1;
+      let \<A>2_AGM = lift_\<A>2 \<A>2;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
       (p,td) \<leftarrow> E (c,cvec);
       (i, p_i, (w, wvec)) \<leftarrow> \<A>2 \<sigma>;
@@ -803,8 +763,8 @@ proof -
    have w_assert_ext: "eval_bind_game (knowledge_soundness_reduction_ext E \<A> \<A>') = 
     TRY do {
       (ck, vk) \<leftarrow> key_gen;
-      let \<A>1_AGM = AGM1 \<A>;
-      let \<A>2_AGM = AGM2 \<A>';
+      let \<A>1_AGM = lift_\<A>1 \<A>;
+      let \<A>2_AGM = lift_\<A>2 \<A>';
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
       (p,td) \<leftarrow> E (c,cvec);
       (i, v, w, wvec) \<leftarrow> \<A>' \<sigma>;
@@ -822,8 +782,8 @@ proof -
    have wo_assert_ext: "eval_bind_game (knowledge_soundness_reduction E \<A> \<A>') = 
     TRY do {
       (ck, vk) \<leftarrow> key_gen;
-      let \<A>1_AGM = AGM1 \<A>;
-      let \<A>2_AGM = AGM2 \<A>';
+      let \<A>1_AGM = lift_\<A>1 \<A>;
+      let \<A>2_AGM = lift_\<A>2 \<A>';
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
       (p,td) \<leftarrow> E (c,cvec);
       (i, v, w, wvec) \<leftarrow> \<A>' \<sigma>;
@@ -844,7 +804,6 @@ proof -
     apply (simp add: assert_spmf_def)
     apply (simp add: measure_spmf.emeasure_eq_measure)
     done
-    
   then show ?thesis by simp
 qed
   

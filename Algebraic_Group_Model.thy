@@ -2,8 +2,17 @@ theory Algebraic_Group_Model
   imports CryptHOL.CryptHOL
   keywords
   "lift_to_agm" :: thy_decl
-and  "AGMtransform" :: thy_decl
+and  "AGMLifting" :: thy_decl
+and "algebraic_lifting" :: thy_decl
 begin
+
+text \<open>this theory captures the definition of an algebraic algorithm according to 
+Fuchsbauer, Kiltz, and Loss: The Algebraic Group Model and its Applications
+https://eprint.iacr.org/2017/620.pdf
+
+We provide dynamic ML functionalities to enforce the rules of an algebraic algorithm and to 
+practically transform adversaries from the standard model to the algebraic group model. 
+\<close>
 
 context cyclic_group
 begin 
@@ -78,6 +87,7 @@ proof -
   finally show "g \<in> carrier G" by blast
 qed
 
+subsection \<open>Algebraic Algorithm\<close>
 
 ML \<open>
 signature ALGEBRAIC_ALGORITHM =
@@ -89,7 +99,7 @@ val extract_type_params : typ -> string list
 
 val enforce_alg: Name.context -> term -> term -> term
 
-val build_alg_fun : Name.context -> term -> typ -> term * Name.context
+val build_alg_fun : Name.context -> term -> typ -> term
 
 end;
 
@@ -198,9 +208,6 @@ fun constrain_pairs nctxt grp_desc resT prams =
      \<^Const>\<open>cyclic_group.constrain_list grpT1 grpT2 for grp_desc seen xs\<close>
   end
 
-  (* TODO here comes the assert
-    add the list of all seen group elements to the parameters here *)
-
 fun create_assert nctxt grp_desc resT prams = 
   let 
     val _ = writeln (@{make_string} resT);
@@ -228,7 +235,7 @@ fun build_ret_term nctxt T =
 
 fun abs_typ_over_term_rec (Type ("Product_Type.prod", [T1, T2])) (t,nctxt) = 
   let 
-    val restT = t |> Term.fastype_of (* |> Term.dest_funT |> snd TODO ggf check for fun?*)
+    val restT = t |> Term.fastype_of
     val (rest,nctxt') = abs_typ_over_term_rec T2 (t,nctxt) |> abs_typ_over_term_rec T1
   in
      (\<^Const>\<open>Product_Type.prod.case_prod T1 T2 restT\<close> $ rest, nctxt') (*abs T1 (abs T2)*)
@@ -271,7 +278,6 @@ fun enforce_alg nctxt grp_desc t =
     val spmf = supply_prams t prams
     val retT = Term.fastype_of spmf |> strip_spmfT
     val body_term = build_body_fun nctxt' grp_desc retT prams
-  (* TODO here supply prams as well for seen*)
   in 
      \<^Const>\<open>bind_spmf retT retT for spmf body_term\<close>
   end
@@ -281,17 +287,19 @@ fun build_alg_fun nctxt grp_desc T =
     (* create params to abstract over*)
     val (prams,nctxt') = extract_params nctxt T
     (* instantiate the adversary*)
-    val (advN, nctxt'') = Name.variant "\<A>" nctxt'
+    val (advN, _) = Name.variant "\<A>" nctxt'
     val adv = Term.Free(advN,T)
     (* create the fun term to enforce the agm for the adversary *)
     val fun_term = enforce_alg nctxt grp_desc adv
   in 
-    (rabs (rev (adv::prams)) fun_term, nctxt'')
+    rabs (rev (adv::prams)) fun_term
   end
 
 end;
 \<close>
 
+text \<open>This takes any algorithm/function type and lifts it to the algebraic algorithm equivalent type.
+For examples take a look at the end of this file.\<close>
 ML \<open>
   Outer_Syntax.local_theory \<^command_keyword>\<open>lift_to_agm\<close> "lift to algebraic type"
     (Parse.typ -- (Parse.term -- (\<^keyword>\<open>=>\<close> |--Parse.binding)) >> 
@@ -306,8 +314,28 @@ ML \<open>
       in thy' end) lthy));
 \<close>
 
+text \<open>This takes any algorithm/function and enforces the rules of an algebraic algorithm on all 
+suitable output pairs (g,gvec).
+For examples take a look at the end of this file.\<close>
 ML \<open>
-  Outer_Syntax.local_theory \<^command_keyword>\<open>AGMtransform\<close> "lift to algebraic type"
+  Outer_Syntax.local_theory \<^command_keyword>\<open>algebraic_lifting\<close> "lift to algebraic type"
+    (Parse.term -- (Parse.term -- (\<^keyword>\<open>=>\<close> |--Parse.binding)) >> 
+      (fn (a,(grp,b)) => fn lthy =>
+      let
+        val nctxt = Variable.names_of lthy
+        val alg = Syntax.read_term lthy a;
+        val grp_desc = Syntax.read_term lthy grp;
+        val agm_term = Algebraic_Algorithm.enforce_alg nctxt grp_desc alg;
+        val (def, thy') = Local_Theory.define ((b, NoSyn), ((Thm.def_binding b, []), agm_term)) lthy;
+      in thy' end));
+\<close>
+
+text \<open>This takes any function/algorithm type T and computes a function that enforces the algebraic 
+algorithm rules on concrete algorithms of the algebraic algorithm equivalent type of T. To be used 
+to turn adversaries from the standard model into the algebraic group model.
+For examples take a look at the end of this file.\<close>
+ML \<open>
+  Outer_Syntax.local_theory \<^command_keyword>\<open>AGMLifting\<close> "lift to algebraic type"
     (Parse.typ -- (Parse.term -- (\<^keyword>\<open>=>\<close> |--Parse.binding)) >> 
       (fn (adv,(grp,b)) => fn lthy =>
       let
@@ -316,71 +344,31 @@ ML \<open>
         val grp_desc = Syntax.read_term lthy grp;
         val grpT = Term.fastype_of grp_desc |> Term.dest_Type_args |> hd;
         val agm_advT = Algebraic_Algorithm.lift_to_algebraicT grpT @{typ "int list"} advT;
-        val agm_term = Algebraic_Algorithm.build_alg_fun nctxt grp_desc agm_advT |> fst;
+        val agm_term = Algebraic_Algorithm.build_alg_fun nctxt grp_desc agm_advT;
         val (def, thy') = Local_Theory.define ((b, NoSyn), ((Thm.def_binding b, []), agm_term)) lthy;
       in thy' end));
 \<close>
 
-(*
-ML \<open>
-  Outer_Syntax.local_theory \<^command_keyword>\<open>AGMtransform\<close> "test local definition"
-    (Parse.binding >> (fn b => fn lthy =>
-      let
-        val agmT = @{typ "('g,'b,'a)agm_adv"}
-        val grp_desc = @{term "G"}
-        val agm_term = Algebraic_Algorithm.build_alg_fun Name.context grp_desc agmT |> fst;
-        val (def, lthy') = Local_Theory.define ((b, NoSyn), ((Thm.def_binding b, []), agm_term)) lthy;
-      in lthy' end));
-\<close>*)
-
 subsection \<open>Examples\<close>
 
-type_synonym ('g','b', 'a')alg = "'g' \<Rightarrow> 'b' \<Rightarrow> 'a' \<Rightarrow> ('g' * int*nat) spmf"
+type_synonym ('a')alg = "'a' list \<Rightarrow> int \<Rightarrow> nat \<Rightarrow> ('a' * int * nat) spmf"
 
-lift_to_agm "('a,'b,'g)cyclic_group.alg" G => agm_adv
+AGMLifting  "('a) alg" "G" => lift_adv
+thm lift_adv_def
 
-AGMtransform  "('a,'b,'g)alg" "G" => test_adv
-thm test_adv_def
-
-declare [[ML_print_depth = 1000]]
-ML \<open>
-  val agmT = @{typ "('g,'b,'a)agm_adv"}
-
-  val grp_desc = @{term "G"}
-
-  val isabelle_term = @{term 
-    "\<lambda>(A::('g,'b,'a)agm_adv) a b c. do { 
-      ((g,f),e,d) \<leftarrow> A a b c;
-      _::unit \<leftarrow> assert_spmf(constrain_list [a] [(g,f)]);
-      return_spmf ((g,f),e,d) 
-    }"}
-
-  val ml_term = Algebraic_Algorithm.build_alg_fun Name.context grp_desc agmT |> fst
-\<close>
+lift_to_agm "('a) cyclic_group.alg" G => agm_adv
 
 definition test 
-  where "test \<equiv> \<lambda>(A::('g,'b,'a)agm_adv) a b c. do { 
-      ((g,f),e,d) \<leftarrow> A a b c;
-      _::unit \<leftarrow> assert_spmf(constrain_list [a] [(g,f)]);
-      return_spmf ((g,f),e,d) 
+  where "test \<equiv> \<lambda>(A::('a)agm_adv) a b c. do { 
+      ((g,gvec),e,d) \<leftarrow> A a b c;
+      _::unit \<leftarrow> assert_spmf((length a = length gvec 
+        \<and> g = fold (\<lambda> i acc. acc \<otimes> a!i [^] (gvec!i)) [0..<length a] \<one>));
+      return_spmf ((g,gvec),e,d) 
     }"
 
-lemma "test_adv \<equiv> test"
-  unfolding test_def test_adv_def
-  by argo
-
-type_synonym ('ck', 'commit', 'state') knowledge_soundness_adversary1 = "'ck' \<Rightarrow> ('commit' \<times> 'state') spmf"
-
-type_synonym 'a' vk = "'a' list"
-
-type_synonym 'a' commit = "'a'"
-
-AGMtransform "('a vk,'a commit,'state)knowledge_soundness_adversary1" "G" => test_adv2
-thm test_adv2_def
-thm test_adv_def
-
-(* TODO investigate why lift_to_algebraic 'g  "('a,'b,'g)cyclic_group.alg" => agm_adv 
-changes parameters to ('a * int list)*)
+declare[[show_types]]
+lemma "lift_adv \<equiv> test"
+  unfolding test_def lift_adv_def by fastforce
 
 end
 
