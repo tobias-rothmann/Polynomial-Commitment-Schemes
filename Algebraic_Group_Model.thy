@@ -1,17 +1,20 @@
 theory Algebraic_Group_Model 
   imports CryptHOL.CryptHOL
   keywords
-  "lift_to_agm" :: thy_decl
+  "lift_to_agmT" :: thy_decl
 and  "AGMLifting" :: thy_decl
-and "algebraic_lifting" :: thy_decl
+and "lift_to_agm" :: thy_decl
 begin
 
-text \<open>this theory captures the definition of an algebraic algorithm according to 
+text \<open>This theory captures the definition of an algebraic algorithm according to 
 Fuchsbauer, Kiltz, and Loss: The Algebraic Group Model and its Applications
 https://eprint.iacr.org/2017/620.pdf
 
-We provide dynamic ML functionalities to enforce the rules of an algebraic algorithm and to 
-practically transform adversaries from the standard model to the algebraic group model. 
+(* Erwähne functions *)
+
+We provide dynamic ML functions to enforce the rules of an algebraic algorithm on 
+arbitrary algorithms thereby practically lifting adversaries from the standard model 
+to the algebraic group model.
 \<close>
 
 context cyclic_group
@@ -103,10 +106,10 @@ val build_alg_fun : Name.context -> term -> typ -> term
 
 end;
 
-structure Algebraic_Algorithm : ALGEBRAIC_ALGORITHM = 
+structure Algebraic_Algorithm (*TODO uncomment : ALGEBRAIC_ALGORITHM*) = 
 struct
 
-fun rcodomain_transf f (Type ("fun", [T, U])) = (Type ("fun", [T, f U]))
+fun rcodomain_transf f (Type ("fun", [T, U])) = (Type ("fun", [T, rcodomain_transf f U]))
   | rcodomain_transf f T = f T;
 
 fun adjoin t vec = fn T => if T = t then Type ("Product_Type.prod", [T, vec]) else T
@@ -278,8 +281,9 @@ fun enforce_alg nctxt grp_desc t =
     val spmf = supply_prams t prams
     val retT = Term.fastype_of spmf |> strip_spmfT
     val body_term = build_body_fun nctxt' grp_desc retT prams
+    val fun_term = \<^Const>\<open>bind_spmf retT retT for spmf body_term\<close>
   in 
-     \<^Const>\<open>bind_spmf retT retT for spmf body_term\<close>
+    rabs (rev prams) fun_term
   end
 
 fun build_alg_fun nctxt grp_desc T = 
@@ -292,7 +296,7 @@ fun build_alg_fun nctxt grp_desc T =
     (* create the fun term to enforce the agm for the adversary *)
     val fun_term = enforce_alg nctxt grp_desc adv
   in 
-    rabs (rev (adv::prams)) fun_term
+    Term.lambda adv fun_term
   end
 
 end;
@@ -301,7 +305,7 @@ end;
 text \<open>This takes any algorithm/function type and lifts it to the algebraic algorithm equivalent type.
 For examples take a look at the end of this file.\<close>
 ML \<open>
-  Outer_Syntax.local_theory \<^command_keyword>\<open>lift_to_agm\<close> "lift to algebraic type"
+  Outer_Syntax.local_theory \<^command_keyword>\<open>lift_to_agmT\<close> "lift to algebraic type"
     (Parse.typ -- (Parse.term -- (\<^keyword>\<open>=>\<close> |--Parse.binding)) >> 
       (fn (alg,(grp,b)) => fn lthy => Local_Theory.raw_theory (fn thy =>
       let
@@ -318,7 +322,7 @@ text \<open>This takes any algorithm/function and enforces the rules of an algeb
 suitable output pairs (g,gvec).
 For examples take a look at the end of this file.\<close>
 ML \<open>
-  Outer_Syntax.local_theory \<^command_keyword>\<open>algebraic_lifting\<close> "lift to algebraic type"
+  Outer_Syntax.local_theory \<^command_keyword>\<open>lift_to_agm\<close> "lift to algebraic type"
     (Parse.term -- (Parse.term -- (\<^keyword>\<open>=>\<close> |--Parse.binding)) >> 
       (fn (a,(grp,b)) => fn lthy =>
       let
@@ -351,24 +355,44 @@ ML \<open>
 
 subsection \<open>Examples\<close>
 
-type_synonym ('a')alg = "'a' list \<Rightarrow> int \<Rightarrow> nat \<Rightarrow> ('a' * int * nat) spmf"
+text\<open>Example to enforce the algebraic rules on an arbitrary adversary.\<close>
 
-AGMLifting  "('a) alg" "G" => lift_adv
-thm lift_adv_def
+type_synonym ('a')adv = "'a' list \<Rightarrow> 'a' \<Rightarrow> nat \<Rightarrow> ('a' * int * nat) spmf"
 
-lift_to_agm "('a) cyclic_group.alg" G => agm_adv
+declare [[show_types]]
+AGMLifting  "('a) adv" "G" => agm_adv
+thm agm_adv_def
 
-definition test 
-  where "test \<equiv> \<lambda>(A::('a)agm_adv) a b c. do { 
+lift_to_agmT "('a)adv" G => agm_advT
+
+ML \<open>
+val agm_adv_typ = @{typ "('a)agm_advT"}
+\<close>
+
+lemma "agm_adv \<equiv> \<lambda>(A::('a)agm_advT) a b c. do { 
       ((g,gvec),e,d) \<leftarrow> A a b c;
-      _::unit \<leftarrow> assert_spmf((length a = length gvec 
-        \<and> g = fold (\<lambda> i acc. acc \<otimes> a!i [^] (gvec!i)) [0..<length a] \<one>));
+      _::unit \<leftarrow> assert_spmf((length (a @ [b]) = length gvec 
+        \<and> g = fold (\<lambda> i acc. acc \<otimes> (a @ [b])!i [^] (gvec!i)) [0..<length (a @ [b])] \<one>));
       return_spmf ((g,gvec),e,d) 
     }"
+  unfolding agm_adv_def by fastforce
 
-declare[[show_types]]
-lemma "lift_adv \<equiv> test"
-  unfolding test_def lift_adv_def by fastforce
+text \<open>Example to enforce algebraic rules on the outputs of a specific adversary of correct type\<close>
+
+definition \<A>::"('a) agm_advT"
+  where "\<A> a b c = return_spmf((\<one>,[0,0]),-1,1)"
+
+lift_to_agm \<A> G => \<A>_algebraic
+thm \<A>_algebraic_def
+
+lemma 
+  "\<A>_algebraic \<equiv> \<lambda>a b c. do { 
+      ((g,gvec),e,d) \<leftarrow>  \<A> a b c;
+      _::unit \<leftarrow> assert_spmf((length (a @ [b]) = length gvec 
+        \<and> g = fold (\<lambda> i acc. acc \<otimes> (a @ [b])!i [^] (gvec!i)) [0..<length (a @ [b])] \<one>));
+      return_spmf ((g,gvec),e,d) 
+    }"
+  unfolding \<A>_algebraic_def by fastforce
 
 end
 
