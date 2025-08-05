@@ -4,15 +4,117 @@ imports KZG_eval_bind Algebraic_Group_Model
 
 begin
 
+locale test = abstract_polynomial_commitment_scheme + cyclic_group G
+  for G :: "('d, 'b) cyclic_group_scheme" (structure)
+begin
+                                                            
+
+
+end
+
 locale KZG_PCS_knowledge_sound = KZG_PCS_binding
 begin 
 
 
-lift_to_agm "('a ck, 'a commit, 'state) knowledge_soundness_adversary1"  "G\<^sub>p"  => AGM_knowledge_soundness_adversary1
+declare [[ML_print_depth = 1000]]
+ML \<open> 
+  val thy = (Proof_Context.theory_of @{context})
+  val ctxt =  @{context}
+  val nctxt = Variable.names_of ctxt
+  val def = @{term "knowledge_soundness_game \<A>1 \<A>2 \<E>"}
+  val advs = [@{term "\<A>1::'a list \<Rightarrow> ('a \<times> 'f) spmf"}, @{term "\<A>2::'f \<Rightarrow> ('e mod_ring \<times> 'e mod_ring \<times> 'a) spmf"}]
+  val extrs = [@{term "\<E>::'a \<Rightarrow> ('e mod_ring poly \<times> unit) spmf"}]
+  val grp_desc = @{term "G\<^sub>p"}
+
+  val thm_lhs = Algebraic_Algorithm.get_def_thm_lhs thy def 
+  val raw_game = Algebraic_Algorithm.get_def_thm_rhs thy def
+  val def_term = Term.dest_comb def |> fst
+  val def_cterm = Thm.cterm_of ctxt def_term
+  val thm_lhs_cterm = Thm.cterm_of ctxt thm_lhs
+  val raw_game_cterm = Thm.cterm_of ctxt raw_game
+  val tables = Algebraic_Algorithm.match_subterms ctxt thm_lhs def
+  val game_cterm = Thm.instantiate_beta_cterm tables raw_game_cterm
+  val game = Thm.term_of game_cterm
+
+  val combs = Algebraic_Algorithm.get_combs thy ctxt def
+  val combs' = Algebraic_Algorithm.lift_to_agmT ctxt grp_desc combs advs extrs
+
+   val grpT = Term.fastype_of grp_desc |> Term.dest_Type_args |> hd;
+  val vecT = @{typ "int list"}
+  val agm_advs = map (fn (Term.Free(name,T)) => (Term.Free(name, Algebraic_Algorithm.lift_to_algebraicT grpT vecT T)) | _ => raise Algebraic_Algorithm.ADV_PARAM) advs
+
+  val game' = Term.betapplys (game,combs')
+
+  val stripped_game = game'
+    |> Term.dest_comb |> fst
+    |> Term.dest_comb |> snd
+    |> Term.dest_comb |> snd
+    |> Term.dest_comb |> snd
+    |> Term.dest_abs_global |> snd 
+    |> Term.dest_abs_global |> snd 
+
+    
+    
+
+  val (agm_stripped_game,_) = Algebraic_Algorithm.repair_agm_abss grpT nctxt game' agm_advs
+
+(*  val agm_cterm = Thm.cterm_of ctxt agm_stripped_game*)
+
+  val agm_game = fold (fn comb => fn game => Term.lambda comb game) (rev combs') agm_stripped_game
+
+  val intT = @{typ int}
+  val natT = @{typ nat}
+  val test = \<^Type>\<open>fun intT \<^Type>\<open>fun intT  \<^Type>\<open>fun natT natT\<close>\<close>\<close> 
+  val test' = Term.range_type test
+
+  val stripped_game' = stripped_game 
+    |> Term.dest_comb |> snd
+    |> Term.dest_comb |> snd
+    |> Term.dest_abs_global |> snd 
+  val test'' = test |> Term.strip_type 
+  val test''' = fold (fn t1 => fn t2 => \<^Type>\<open>fun t1 t2\<close>) (fst test'' |> rev) (snd test'')
+
+ (* val agm_cterm = Thm.cterm_of ctxt agm_game *)
+
+ (* val stripped_game = game'
+    |> Term.dest_comb |> fst
+    |> Term.dest_comb |> snd
+    |> Term.dest_comb |> snd
+    |> Term.dest_comb |> snd
+    |> Term.dest_abs_global |> snd 
+    |> Term.dest_abs_global |> snd 
+    
+    
+    |> Term.dest_comb |> snd
+    |> Term.dest_comb |> snd
+    |> Term.dest_abs_global |> snd 
+    |> Term.dest_abs_global |> snd 
+    |> Term.dest_comb |> snd
+    |> Term.dest_comb |> snd
+    |> Term.dest_abs_global |> snd 
+    |> Term.dest_abs_global |> snd 
+    
+
+  val adv = stripped_game |> Term.dest_comb  |> fst |> Term.dest_comb |> snd
+  val abs = stripped_game |> Term.dest_comb  |> snd
+
+  val (fixed_abs,_) = Algebraic_Algorithm.repair_agm_abs nctxt adv abs
+    *)
+     
+(*
+  
+  val game_test = Algebraic_Algorithm.unfold_def thy ctxt*)
+\<close>
+
+lift_to_AGM "knowledge_soundness_game \<A>1 \<A>2 \<E>" => KS
+thm KS_def
+
+
+lift_to_algebraicT "('a ck, 'a commit, 'state) knowledge_soundness_adversary1"  "G\<^sub>p"  => AGM_knowledge_soundness_adversary1
 AGMLifting  "('a ck, 'a commit, 'state) knowledge_soundness_adversary1" "G\<^sub>p" => lift_\<A>1
 thm lift_\<A>1_def
 
-lift_to_agm "('state, 'e mod_ring, 'e evaluation, 'a witness) knowledge_soundness_adversary2"  "G\<^sub>p"  => AGM_knowledge_soundness_adversary2
+lift_to_algebraicT "('state, 'e mod_ring, 'e evaluation, 'a witness) knowledge_soundness_adversary2"  "G\<^sub>p"  => AGM_knowledge_soundness_adversary2
 AGMLifting  "('state, 'e mod_ring, 'e evaluation, 'a witness) knowledge_soundness_adversary2" "G\<^sub>p" => lift_\<A>2
 thm lift_\<A>2_def
 
@@ -31,11 +133,10 @@ type_synonym ('a', 'e') extractor =
     ('e' mod_ring poly \<times> unit) spmf"
 
 text \<open>the knowledge soundness game in the agm\<close>
-definition AGM_knowledge_soundness_game :: "(('state, 'a) AGM_knowledge_soundness_adversary1 
-  \<times> ('a, 'e, 'state) AGM_knowledge_soundness_adversary2) 
+definition AGM_knowledge_soundness_game :: "('state, 'a) AGM_knowledge_soundness_adversary1 
+  \<Rightarrow> ('a, 'e, 'state) AGM_knowledge_soundness_adversary2
   \<Rightarrow> ('a, 'e) extractor \<Rightarrow> bool spmf"
-  where "AGM_knowledge_soundness_game \<A> E = TRY do {
-  let (\<A>1,\<A>2) = \<A>;
+  where "AGM_knowledge_soundness_game \<A>1 \<A>2 E = TRY do {
   let \<A>1_AGM = lift_\<A>1 \<A>1;
   (ck,vk) \<leftarrow> key_gen;
   ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
@@ -44,6 +145,58 @@ definition AGM_knowledge_soundness_game :: "(('state, 'a) AGM_knowledge_soundnes
   let (p_i',w') = Eval ck td p i;         
   return_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_eval (p_i,w))       
   } ELSE return_spmf False"
+
+(* TODO delete*)
+ML \<open>
+
+  val ks = Algebraic_Algorithm.unfold_def (Proof_Context.theory_of @{context}) @{context} @{term AGM_knowledge_soundness_game}
+\<close>
+
+declare [[ML_print_depth = 1000]]
+ML \<open>
+
+  (* fun unfold_game def = 
+    let 
+      val suffix = "_def_raw" (* TODO clearify this*)
+      val ctxt = Proof_Context.theory_of @{context}
+      val def_stripped = Term.head_of def
+      val name = (Term.dest_Const_name def_stripped) ^ suffix
+      val def_thm = Thm.axiom ctxt name
+      val def_content = Thm.prop_of def_thm
+      val rhs = def_content |> Term.dest_comb |> fst
+    in
+      rhs
+    end
+
+  fun unfold_game_def def = 
+    Thm.prop_of def 
+    |> Term.dest_comb |> snd
+    |> Term.dest_comb |> snd
+  
+  val test_unfold = unfold_game @{term AGM_knowledge_soundness_game}
+ val test_unfold_def = unfold_game_def @{thm AGM_knowledge_soundness_game_def}*)
+
+(*  fun AGM (t1 $ t2) bound_list = (AGM t1 bound_list) $ (AGM t2 bound_list)
+  | AGM term bound_list = term
+
+
+  val test = @{thm knowledge_soundness_game_def}
+  val test =  Thm.prop_of test 
+    |> Term.dest_comb |> snd
+    |> Term.dest_comb |> snd*)
+
+   
+ (*   def_raw related: ggf. prefix Suche statt def_raw?
+
+  val all_axiom_names =
+    let 
+      val prefix = ".knowledge_soundness_game"
+      val thy = Proof_Context.theory_of @{context}; (* Get current theory context *)
+      val names = map (fn (name, _) => name) (Thm.all_axioms_of thy);
+    in 
+      filter (fn name => String.isSubstring prefix name) names
+    end *)
+\<close>
 
 text \<open>reduction to eval bind game\<close>
 definition knowledge_soundness_reduction
@@ -374,12 +527,12 @@ proof -
 qed
 
 lemma knowledge_soundness_game_alt_def: 
-  "AGM_knowledge_soundness_game (\<A>1,\<A>2) E = 
+  "AGM_knowledge_soundness_game \<A>1 \<A>2 E = 
   eval_bind_game (knowledge_soundness_reduction_ext E \<A>1 \<A>2)"
 proof -
   note [simp] = Let_def split_def
 
-  have "AGM_knowledge_soundness_game (\<A>1,\<A>2) E = 
+  have "AGM_knowledge_soundness_game \<A>1 \<A>2 E = 
     TRY do {
       let \<A>1_AGM = lift_\<A>1 \<A>1;
       let \<A>2_AGM = lift_\<A>2 \<A>2;
@@ -524,7 +677,6 @@ proof -
       return_spmf True
     } ELSE return_spmf False" 
     unfolding key_gen_def Setup_def by auto
-(* TODO add or remove \<and> w \<noteq> w'*)
    also have "\<dots> = 
     TRY do {
       let \<A>2_AGM = lift_\<A>2 \<A>2;
@@ -539,7 +691,6 @@ proof -
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
           \<and> p_i \<noteq> p_i'
-          
           \<and> valid_eval (p_i,w)
           \<and> valid_eval (p_i', w')
           \<and> verify_eval vk c i (p_i, w) 
@@ -566,7 +717,6 @@ proof -
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
           \<and> p_i \<noteq> p_i'
-          
           \<and> valid_eval (p_i,w)
           \<and> valid_eval (p_i', w')
           \<and> verify_eval vk c i (p_i, w) 
@@ -586,7 +736,6 @@ proof -
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf ( 
            p_i \<noteq> p_i'
-          
           \<and> valid_eval (p_i,w)
           \<and> valid_eval (p_i', w')
           \<and> verify_eval vk c i (p_i, w) 
@@ -628,7 +777,6 @@ proof -
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf ( 
            p_i \<noteq> p_i'
-          
           \<and> valid_eval (p_i,w)
           \<and> valid_eval (p_i', w')
           \<and> verify_eval vk c i (p_i, w) 
@@ -806,18 +954,15 @@ proof -
     done
   then show ?thesis by simp
 qed
-  
-text \<open>Proof Step 6:
 
-Finally we put everything together:
-we conclude that for every efficient adversary in the AGM the advantage of winning the 
-knowledge soundness game is less equal to breaking the t-SDH assumption.\<close>
-(* TODO advantage in the AGM *)
+text \<open>Finally we put everything together:
+we conclude that for every efficient adversary in the AGM the advantage over winning the 
+knowledge soundness game is less than or equal to breaking the t-SDH assumption.\<close>
 theorem knowledge_soundness: 
-  "spmf (AGM_knowledge_soundness_game (\<A>,\<A>') E) True
-  \<le> t_SDH_G\<^sub>p.advantage (eval_bind_reduction (knowledge_soundness_reduction E \<A> \<A>'))"
-  using evaluation_binding[of "knowledge_soundness_reduction E \<A> \<A>'"]
-    overestimate_reductions[of \<A> \<A>']
+  "spmf (AGM_knowledge_soundness_game \<A>1 \<A>2 E) True
+  \<le> t_SDH_G\<^sub>p.advantage (eval_bind_reduction (knowledge_soundness_reduction E \<A>1 \<A>2))"
+  using evaluation_binding[of "knowledge_soundness_reduction E \<A>1 \<A>2"]
+    overestimate_reductions[of \<A>1 \<A>2]
   unfolding eval_bind_advantage_def  knowledge_soundness_game_alt_def
   by linarith
 

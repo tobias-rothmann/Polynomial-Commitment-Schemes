@@ -1,9 +1,10 @@
 theory Algebraic_Group_Model 
   imports CryptHOL.CryptHOL
   keywords
-  "lift_to_agmT" :: thy_decl
+  "lift_to_algebraicT" :: thy_decl
 and  "AGMLifting" :: thy_decl
-and "lift_to_agm" :: thy_decl
+and "lift_to_algebraic" :: thy_decl
+and "lift_to_AGM" :: thy_decl 
 begin
 
 text \<open>This theory captures the definition of an algebraic algorithm according to 
@@ -20,8 +21,8 @@ to the algebraic group model.
 context cyclic_group
 begin 
 
-text \<open>check the rules of an algebraic algorithm i.e. given the elements g, agroup element, 
-and the vector vec_c=[c_0,...c_n] from the algorithm ensure that g=s_0 [^] c_0 \<otimes> ... \<otimes>
+text \<open>check the rules of an algebraic algorithm i.e. given the elements g, a group element, 
+and the vector vec=[c_0,...c_n] from the algorithm ensure that g=s_0 [^] c_0 \<otimes> ... \<otimes>
 s_0 [^] c_0, where [s_0,...,s_n]=seen are the group values the algorithm was supplied with.
 \<close>
 fun constrain :: "'a list \<Rightarrow> 'a \<Rightarrow> (int list) \<Rightarrow> bool"
@@ -109,12 +110,18 @@ end;
 structure Algebraic_Algorithm (*TODO uncomment : ALGEBRAIC_ALGORITHM*) = 
 struct
 
+(* Functions relevant for lifting a standard model adversary type to an algebraic adversary type 
+i.e lift_to_algebraicT *)
+
 fun rcodomain_transf f (Type ("fun", [T, U])) = (Type ("fun", [T, rcodomain_transf f U]))
   | rcodomain_transf f T = f T;
 
 fun adjoin t vec = fn T => if T = t then Type ("Product_Type.prod", [T, vec]) else T
 
 fun lift_to_algebraicT grpT vec = (rcodomain_transf o Term.map_atyps) (adjoin grpT vec)
+
+(* Functions relevant for enforcing algebraic rules on a concrete (suitable typed) algorithm. I.e. 
+lift_to_algebraic *)
 
 fun strip_spmfT T = T 
     |> Term.dest_Type_args 
@@ -286,6 +293,8 @@ fun enforce_alg nctxt grp_desc t =
     rabs (rev prams) fun_term
   end
 
+(* function that enforces algebraic rules for an arbitrary (suitably typed) algorithm *)
+
 fun build_alg_fun nctxt grp_desc T = 
   let
     (* create params to abstract over*)
@@ -299,13 +308,222 @@ fun build_alg_fun nctxt grp_desc T =
     Term.lambda adv fun_term
   end
 
+(* functions relevant for turning a standard model game in a game in the AGM i.e. lift_to_agm *)
+
+fun get_def_thm thy def = 
+    let 
+      val def_stripped = Term.head_of def
+      val name = (Term.dest_Const_name def_stripped) ^ "_def_raw" (*TODO  exception if not found?*)
+      val def_thm = Thm.axiom thy name
+    in
+      def_thm
+    end
+
+fun get_def_thm_rhs thy def = 
+    let 
+      val def_thm = get_def_thm thy def
+      val def_content = Thm.concl_of def_thm
+      val rhs = def_content |> Logic.dest_equals |> snd
+    in
+      rhs
+    end
+
+fun get_def_thm_lhs thy def = 
+    let 
+      val def_thm = get_def_thm thy def
+      val def_content = Thm.concl_of def_thm
+      val lhs = def_content |> Logic.dest_equals |> fst
+    in
+      lhs
+    end
+
+exception MATCH;
+
+(* t1 is the term do be matched on a subterm of t2 *)
+fun match_subterms ctxt t1 t2 = 
+   let
+    fun ex t2 = 
+    Thm.match (Thm.cterm_of ctxt t1,Thm.cterm_of ctxt t2)
+    handle Pattern.MATCH => 
+      (case t2 of
+        t $ u => (ex t handle Pattern.MATCH => ex u)
+      | Abs (_, _, t) => ex t
+      | _ => raise MATCH);
+  in ex t2 end;
+
+fun unfold_def thy ctxt def = 
+  let 
+    val thm_lhs = get_def_thm_lhs thy def 
+    val raw_game_cterm = get_def_thm_rhs thy def |> Thm.cterm_of ctxt
+    val tables = match_subterms ctxt thm_lhs def
+    val game_cterm = Thm.instantiate_beta_cterm tables raw_game_cterm
+    val game = Thm.term_of game_cterm
+  in
+    game
+  end
+
+(* deconstructs term combination until a subterm in t2 matches t1 *)
+fun match_combs ctxt t1 t2 =
+    let
+        fun match_helper t2 =
+            (Thm.match (Thm.cterm_of ctxt t1, Thm.cterm_of ctxt t2);
+             [])
+            handle Pattern.MATCH =>
+                (case t2 of
+                    t $ u => u :: match_helper t
+                  | Abs (_, _, t) => match_helper t
+                  | _ => [])
+    in
+       match_helper t2 |> rev
+    end;
+
+fun get_combs thy ctxt def =
+  let 
+    val thm_lhs = get_def_thm_lhs thy def 
+    val tables = match_subterms ctxt thm_lhs def
+    val thm_lhs_cterm = Thm.cterm_of ctxt thm_lhs
+    val lhs = Thm.instantiate_beta_cterm tables thm_lhs_cterm
+    val combs = match_combs ctxt (Thm.term_of lhs) def
+  in
+    combs
+  end
+
+fun agm_combs (c::combs) (adv::advs) (agm::agm_advs) (extr::extrs) = 
+  if c=adv 
+  then agm::agm_combs combs advs agm_advs (extr::extrs)
+  else if c=extr
+       then extr::agm_combs combs (adv::advs) (agm::agm_advs) extrs 
+       else agm_combs combs (adv::advs) (agm::agm_advs) (extr::extrs)
+  | agm_combs (c::combs) (adv::advs) (agm::agm_advs) extrs =  
+  if c=adv 
+  then agm::agm_combs combs advs agm_advs extrs
+  else agm_combs combs (adv::advs) (agm::agm_advs) extrs
+  | agm_combs (c::combs) advs agm_advs (extr::extrs) = 
+  if c=extr 
+  then extr::agm_combs combs advs agm_advs extrs 
+  else agm_combs combs advs agm_advs (extr::extrs)
+  | agm_combs combs _ _ _ = combs
+  
+exception ADV_PARAM;
+
+(* combs with the adversary lifted type to an algebraic algorithm *)
+fun lift_to_agmT ctxt grp_desc combs advs extrs = 
+  let 
+    val nctxt = Variable.names_of ctxt
+    val grpT = Term.fastype_of grp_desc |> Term.dest_Type_args |> hd;
+    val vecT = @{typ "int list"}
+    val agm_advs = map (fn (Term.Free(name,T)) => (Term.Free(name, lift_to_algebraicT grpT vecT T)) | _ => raise ADV_PARAM) advs
+    val combs' = agm_combs combs advs agm_advs extrs
+  in 
+    combs'
+  end
+
+(* TODO unify *)
+exception AGMTYPE1;
+exception AGMTYPE2 of typ*(string*typ);
+
+fun repair_agmT_abs nctxt (\<^Type>\<open>Product_Type.prod T1 T2\<close>) (Const ("Product_Type.prod.case_prod", T3) $ t) T2list
+  = let 
+      val retT = Term.body_type T3
+      val (fixed_t, nctxt') = repair_agmT_abs nctxt T1 t (T2::T2list)
+    in 
+       (\<^Const>\<open>Product_Type.prod.case_prod T1 T2 retT\<close> $ fixed_t, nctxt')
+    end
+  | repair_agmT_abs nctxt (\<^Type>\<open>Product_Type.prod T1 T2\<close>) (Abs(aN,aT,t)) T2list = 
+      if T1 = aT andalso T2 = @{typ "int list"} then 
+        let 
+          val (vecN,nctxt') = Name.variant (aN ^ "vec") nctxt 
+          val (fixed_t, nctxt'') = case T2list of (T2::T2tl) => repair_agmT_abs nctxt' T2 t T2tl
+          | [] => (t,nctxt)
+          val retT = Term.fastype_of t |> Term.body_type
+          val vec = Free (vecN,T2)
+          val abs_vec = fixed_t |> Term.incr_boundvars 1 |> Term.lambda vec  (* TODO maybe the incr needs switching*)
+        in
+          (\<^Const>\<open>Product_Type.prod.case_prod T1 T2 retT\<close> $ Abs(aN, aT, abs_vec), nctxt'') (* TODO here extract to backtrack vecN*)
+        end
+      else raise AGMTYPE1
+  | repair_agmT_abs nctxt T1 (Abs(varN, varT, t)) (T2::T2list) =
+    if T1 <> varT then 
+      raise AGMTYPE2(T1, (varN,varT))
+    else 
+      let 
+        val (fixed_t, nctxt') = repair_agmT_abs nctxt T2 t T2list
+      in
+        (Abs(varN, varT, fixed_t), nctxt')
+      end
+ (* | repair_agmT_abs nctxt T1 (Abs(varN, varT, t)) (T2::T2list) =
+    if T1 <> dummyT andalso T1 = varT then
+      let 
+        val (fixed_t, nctxt') = repair_agmT_abs nctxt dummyT t (T2::T2list)
+      in
+        (Abs(varN, varT, fixed_t), nctxt')
+      end 
+    else if T1 = dummyT andalso T2 = varT then
+      let 
+        val (fixed_t, nctxt') = repair_agmT_abs nctxt dummyT t T2list
+      in 
+        (Abs(varN, varT, fixed_t), nctxt')
+      end
+    else raise AGMTYPE2(T1, (varN,varT), T2)*)
+  | repair_agmT_abs nctxt _ t  _ = (t,nctxt)
+  
+
+fun repair_agm_abs nctxt spmf abs = 
+  let 
+    val spmfT = Term.head_of spmf |> Term.fastype_of |> Term.body_type |> strip_spmfT
+  in
+    repair_agmT_abs nctxt spmfT abs []
+  end
+
+fun repair_agm_abss grpT nctxt t advs = 
+  case t of 
+    Const("SPMF.bind_spmf",bindT) $ spmf $ abs => (* TODO correct bindT in res*)
+    let 
+      val (fixed_abs,nctxt') = repair_agm_abss grpT nctxt abs advs
+    in 
+      if List.exists (fn a => Term.head_of spmf = a) advs then 
+        let 
+          val (fix,nctxt'') = repair_agm_abs nctxt' spmf fixed_abs
+          val bindT_fix = Term.map_atyps (adjoin grpT @{typ "int list"}) bindT
+        in 
+          (Const("SPMF.bind_spmf",bindT_fix) $ spmf $ fix, nctxt'') 
+        end
+        else (Const("SPMF.bind_spmf",bindT) $ spmf $ fixed_abs, nctxt') 
+    end
+  | Abs(aT,aN,t) => 
+    let 
+      val (fixed_t, nctxt') = repair_agm_abss grpT nctxt t advs
+    in 
+      (Abs(aT,aN,fixed_t),nctxt')
+    end
+   | t1 $ t2 => 
+      let 
+        val (fixed_t1,nctxt') = repair_agm_abss grpT nctxt t1 advs;
+        val (fixed_t2,nctxt'') = repair_agm_abss grpT nctxt' t2 advs;
+      in 
+        ((fixed_t1 $ fixed_t2), nctxt'')
+      end
+    | t => (t,nctxt)
+
+
+(*
+fun extract_AGM_combs ctxt grp_desc combs advs extrs = 
+  let 
+    
+    val nctxt = Variable.names_of ctxt
+    val agm_advs = map (fn a => enforce_alg nctxt grp_desc a) advs
+    val combs' = agm_combs combs advs agm_advs extrs
+  in 
+    combs'
+  end*)
+
 end;
 \<close>
 
 text \<open>This takes any algorithm/function type and lifts it to the algebraic algorithm equivalent type.
 For examples take a look at the end of this file.\<close>
 ML \<open>
-  Outer_Syntax.local_theory \<^command_keyword>\<open>lift_to_agmT\<close> "lift to algebraic type"
+  Outer_Syntax.local_theory \<^command_keyword>\<open>lift_to_algebraicT\<close> "lift to algebraic type"
     (Parse.typ -- (Parse.term -- (\<^keyword>\<open>=>\<close> |--Parse.binding)) >> 
       (fn (alg,(grp,b)) => fn lthy => Local_Theory.raw_theory (fn thy =>
       let
@@ -322,9 +540,9 @@ text \<open>This takes any algorithm/function and enforces the rules of an algeb
 suitable output pairs (g,gvec).
 For examples take a look at the end of this file.\<close>
 ML \<open>
-  Outer_Syntax.local_theory \<^command_keyword>\<open>lift_to_agm\<close> "lift to algebraic type"
+  Outer_Syntax.local_theory \<^command_keyword>\<open>lift_to_algebraic\<close> "lift to algebraic type"
     (Parse.term -- (Parse.term -- (\<^keyword>\<open>=>\<close> |--Parse.binding)) >> 
-      (fn (a,(grp,b)) => fn lthy =>
+      (fn (a,(grp,b)) => fn lthy => 
       let
         val nctxt = Variable.names_of lthy
         val alg = Syntax.read_term lthy a;
@@ -353,7 +571,25 @@ ML \<open>
       in thy' end));
 \<close>
 
+text \<open>This takes a game in the standard model and lifts it into the AGM.\<close>
+ML \<open>
+  Outer_Syntax.local_theory \<^command_keyword>\<open>lift_to_AGM\<close> "lift game to Algeraic Group Model"
+    (Parse.term -- (\<^keyword>\<open>=>\<close> |--Parse.binding) >> 
+      (fn (game_name,b) => fn lthy => 
+      let
+        val thy = Proof_Context.theory_of lthy;
+        val game_ref = Syntax.read_term lthy game_name;
+        val agm_term = Algebraic_Algorithm.unfold_def thy lthy game_ref;
+        val (def, lthy') = Local_Theory.define ((b, NoSyn), ((Thm.def_binding b, []), agm_term)) lthy;
+      in lthy' end));
+\<close>
+
+
+
 subsection \<open>Examples\<close>
+
+text \<open>Example to lift a game into the AGM\<close>
+
 
 text\<open>Example to enforce the algebraic rules on an arbitrary adversary.\<close>
 
@@ -363,7 +599,7 @@ declare [[show_types]]
 AGMLifting  "('a) adv" "G" => agm_adv
 thm agm_adv_def
 
-lift_to_agmT "('a)adv" G => agm_advT
+lift_to_algebraicT "('a)adv" G => agm_advT
 
 ML \<open>
 val agm_adv_typ = @{typ "('a)agm_advT"}
@@ -382,12 +618,12 @@ text \<open>Example to enforce algebraic rules on the outputs of a specific adve
 definition \<A>::"('a) agm_advT"
   where "\<A> a b c = return_spmf((\<one>,[0,0]),-1,1)"
 
-lift_to_agm \<A> G => \<A>_algebraic
+lift_to_algebraic \<A> G => \<A>_algebraic
 thm \<A>_algebraic_def
 
 lemma 
   "\<A>_algebraic \<equiv> \<lambda>a b c. do { 
-      ((g,gvec),e,d) \<leftarrow>  \<A> a b c;
+      ((g,gvec),e,d) \<leftarrow> \<A> a b c;
       _::unit \<leftarrow> assert_spmf((length (a @ [b]) = length gvec 
         \<and> g = fold (\<lambda> i acc. acc \<otimes> (a @ [b])!i [^] (gvec!i)) [0..<length (a @ [b])] \<one>));
       return_spmf ((g,gvec),e,d) 
