@@ -6,6 +6,10 @@ begin
 
 hide_const Polynomial.order
 
+text\<open> We formalize symmetric parings for cryptography following the textbook:
+'A Graduate Course in Applied Cryptography' by Boneh and Shoup
+https://toc.cryptobook.us/book.pdf\<close>
+
 locale pairing =
 G\<^sub>p : cyclic_group G\<^sub>p + G\<^sub>T : cyclic_group G\<^sub>T 
 for G\<^sub>p :: "('a, 'b) cyclic_group_scheme" (structure) 
@@ -24,7 +28,7 @@ e_bilinearity[simp]: "\<forall>a b::int . \<forall>P Q. P \<in> carrier G\<^sub>
 e_non_degeneracy[simp]: "\<not>(\<forall>P Q. P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p \<longrightarrow> e P Q = \<one>\<^bsub>G\<^sub>T\<^esub>)"
 begin
 
-
+text \<open>The pairing function e is linear in the first component\<close>
 lemma e_linear_in_fst: 
   assumes "P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p"
   shows "e (P [^]\<^bsub>G\<^sub>p\<^esub> (a::int)) Q = (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> a"
@@ -35,6 +39,7 @@ proof -
   finally show "e (P [^]\<^bsub>G\<^sub>p\<^esub> a) Q = (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> a" .
 qed
 
+text \<open>The pairing function e is linear in the second component\<close>
 lemma e_linear_in_snd: 
   assumes "P \<in> carrier G\<^sub>p \<and> Q \<in> carrier G\<^sub>p"
   shows "e P (Q [^]\<^bsub>G\<^sub>p\<^esub> (a::int)) = (e P Q) [^]\<^bsub>G\<^sub>T\<^esub> a"
@@ -50,6 +55,7 @@ lemma addition_in_exponents_on_e[simp]:
   shows "(e x y) [^]\<^bsub>G\<^sub>T\<^esub> (a::int) \<otimes>\<^bsub>G\<^sub>T\<^esub> (e x y) [^]\<^bsub>G\<^sub>T\<^esub> (b::int) = (e x y) [^]\<^bsub>G\<^sub>T\<^esub> (a+b)"
   by (metis G\<^sub>T.int_pow_mult assms PiE e_symmetric)
 
+text \<open>this follows from non-degeneracy\<close>
 lemma e_from_generators_ne_1: "e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<noteq> \<one>\<^bsub>G\<^sub>T\<^esub>"
 proof 
   assume asm: "e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> = \<one>\<^bsub>G\<^sub>T\<^esub>"
@@ -77,6 +83,8 @@ qed
 
 lemma e_g_g_in_carrier_GT[simp]: "e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<in> carrier G\<^sub>T"
   using e_symmetric by fast
+
+text \<open>mod relations on the exponent (typically useful for cryptographic proofs)\<close>
 
 lemma pow_on_eq_card_GT[simp]: "(\<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> (x::int) = \<^bold>g\<^bsub>G\<^sub>T\<^esub> [^]\<^bsub>G\<^sub>T\<^esub> (y::int)) = ([x= y] (mod p))"
  by (metis (no_types, lifting) CARD_G\<^sub>T G\<^sub>T.finite_carrier G\<^sub>T.gen_power_0 G\<^sub>T.generator_closed G\<^sub>T.int_pow_eq G\<^sub>T.ord_ge_1 G\<^sub>T.ord_le_group_order G\<^sub>T.pow_ord_eq_1 One_nat_def add_diff_inverse_nat arith_extra_simps(6) cong_iff_dvd_diff diff_is_0_eq' less_eq_Suc_le

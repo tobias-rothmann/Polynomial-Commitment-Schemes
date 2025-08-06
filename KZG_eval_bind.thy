@@ -518,7 +518,7 @@ end
 
 
 
-
+text \<open>proof evaluation binding from the abstract PCS for the KZG instantiated as a PCS\<close>
 
 locale KZG_PCS_binding = KZG_PCS_correct
 begin 

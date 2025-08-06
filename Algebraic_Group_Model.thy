@@ -7,15 +7,22 @@ and "lift_to_algebraic" :: thy_decl
 and "lift_to_AGM" :: thy_decl 
 begin
 
-text \<open>This theory captures the definition of an algebraic algorithm according to 
+text \<open>This theory extends CryptHOL for the Algebraic Group Model according to 
 Fuchsbauer, Kiltz, and Loss: The Algebraic Group Model and its Applications
 https://eprint.iacr.org/2017/620.pdf
 
-(* Erwähne functions *)
+Adversaries in CryptHOL are modelled as uninitialized parameters (arbitrary functions), thus we 
+cannot ensure that the adversary algorithm itself is algebraic. Instead we enforce the algebraic 
+rules on the outputs of the adversary, counting rule breaking as losing the game. Hence, every 
+adversary with non-negligible advantage has to be an algebraic algorithm.
 
-We provide dynamic ML functions to enforce the rules of an algebraic algorithm on 
-arbitrary algorithms thereby practically lifting adversaries from the standard model 
-to the algebraic group model.
+We formalize the algebraic rules in the functions 'constrain' and 'constrain_list', which enforce 
+the algebraic rules for one/resp. a list of  input pair/s.
+
+We provide dynamic ML functions to enforce the rules of an algebraic algorithm on specific and
+arbitrary algorithms thereby practically lifting adversaries from the standard model to the AGM. 
+Finally, we provide the ML function 'lift_to_agm' that takes any game in the standard model and 
+automatically derives it's definition in the AGM.
 \<close>
 
 context cyclic_group
@@ -29,7 +36,7 @@ fun constrain :: "'a list \<Rightarrow> 'a \<Rightarrow> (int list) \<Rightarrow
   where "constrain seen_vec g c_vec = (length seen_vec = length c_vec 
     \<and> g = fold (\<lambda> i acc. acc \<otimes> seen_vec!i [^] (c_vec!i)) [0..<length seen_vec] \<one>)"
 
-text \<open>Given a list of group elements and vectors from an algebraic algorithm, 
+text \<open>Given a list of (seen) group elements and vectors from an algebraic algorithm, 
 constrain all of them to the rules of algebraic algorithms\<close>
 fun constrain_list :: "'a list \<Rightarrow> ('a \<times> int list) list \<Rightarrow> bool"
   where "constrain_list seen xs = list_all (\<lambda>(g, c_vec). constrain seen g c_vec) xs"
@@ -105,9 +112,11 @@ val enforce_alg: Name.context -> term -> term -> term
 
 val build_alg_fun : Name.context -> term -> typ -> term
 
+val lift_to_agm : theory -> Proof.context -> term -> term -> term list -> term list -> term
+
 end;
 
-structure Algebraic_Algorithm (*TODO uncomment : ALGEBRAIC_ALGORITHM*) = 
+structure Algebraic_Algorithm : ALGEBRAIC_ALGORITHM = 
 struct
 
 (* Functions relevant for lifting a standard model adversary type to an algebraic adversary type 
@@ -313,7 +322,7 @@ fun build_alg_fun nctxt grp_desc T =
 fun get_def_thm thy def = 
     let 
       val def_stripped = Term.head_of def
-      val name = (Term.dest_Const_name def_stripped) ^ "_def_raw" (*TODO  exception if not found?*)
+      val name = (Term.dest_Const_name def_stripped) ^ "_def_raw"
       val def_thm = Thm.axiom thy name
     in
       def_thm
@@ -418,7 +427,6 @@ fun lift_to_agmT ctxt grp_desc combs advs extrs =
     combs'
   end
 
-(* TODO unify *)
 exception AGMTYPE1;
 exception AGMTYPE2 of typ*(string*typ);
 
@@ -464,7 +472,7 @@ fun repair_agm_abs nctxt spmf abs =
 
 fun repair_agm_abss grpT nctxt t advs = 
   case t of 
-    Const("SPMF.bind_spmf",bindT) $ spmf $ abs => (* TODO correct bindT in res*)
+    Const("SPMF.bind_spmf",bindT) $ spmf $ abs => 
     let 
       val (fixed_abs,nctxt', agm_vars) = repair_agm_abss grpT nctxt abs advs
     in 
@@ -549,7 +557,7 @@ fun insert_agm_constraints nctxt grp_desc advs (Free(fN,fT)) =
   | insert_agm_constraints _ _ _ t = t
 
 
-fun lift_adv_to_agm thy ctxt grp_desc def advs extrs = 
+fun lift_to_agm thy ctxt grp_desc def advs extrs = 
   let 
     val nctxt = Variable.names_of ctxt
     val game = unfold_def thy ctxt def
@@ -559,26 +567,19 @@ fun lift_adv_to_agm thy ctxt grp_desc def advs extrs =
     val vecT = @{typ "int list"}
     val agm_advs = map (fn (Term.Free(name,T)) => (Term.Free(name, lift_to_algebraicT grpT vecT T)) | _ => raise ADV_PARAM) advs
     val game' = Term.betapplys (game,combs')
-    val (agm_game',_,agm_vars) = repair_agm_abss grpT nctxt game' agm_advs
-    val (agm_game'', extrs') = lift_extr_to_agm extrs agm_vars agm_game'
+    val (game'',_,agm_vars) = repair_agm_abss grpT nctxt game' agm_advs
+    val (game''', extrs') = lift_extr_to_agm extrs agm_vars game''
     val combs'' = map (fn Free(combN,combT) => 
       (case List.find (fn Free(eN,eT) => eN = combN | _ => raise ADV_FREE_VAR) extrs' 
         of SOME e => e 
         | NONE => Free(combN,combT)) 
       | _ => raise ADV_FREE_VAR) combs'
-    val agm_game''' = insert_agm_constraints nctxt grp_desc advs agm_game''
-    (* TODO before converting insert agm adversaries via enforce_alg *)
-    val agm_game = fold (fn comb => fn game => Term.lambda comb game) (rev combs'') agm_game'''
+    val game'''' = insert_agm_constraints nctxt grp_desc advs game'''
+    val agm_game = fold (fn comb => fn game => Term.lambda comb game) (rev combs'') game''''
     val agm_cterm = Thm.cterm_of ctxt agm_game
   in
-    (agm_cterm, agm_vars)
+    agm_game
   end
-
-fun lift_to_agm thy ctxt grp_desc def advs extrs = 
-  (* lift_adv_to_agm *)
-  (* replace adv's by enforce alg*)
-  (* make extractors vecs available *)
-  def
 
 end;
 \<close>
@@ -634,25 +635,30 @@ ML \<open>
       in thy' end));
 \<close>
 
-text \<open>This takes a game in the standard model and lifts it into the AGM.\<close>
+text \<open>This takes a game in the standard model and lifts it into the AGM.
+Syntax: Group game | adversaries | extra(ctors) = *new_game_name*
+The game should be supplied with free variable parameters. A subset of these parameters will be the 
+adversaries, which may be explicitly lifted into the AGM by listing them in the "adversaries" 
+section, separated by commas - the same applies to the extra(ctors) (typically extractors), which 
+are algorithms that should also receive the AGM vector for values from a adversary. 
+For an Example take a look at KZG_knowledge_soundness.thy\<close>
 ML \<open>
   Outer_Syntax.local_theory \<^command_keyword>\<open>lift_to_AGM\<close> "lift game to Algeraic Group Model"
-    (Parse.term -- (\<^keyword>\<open>=>\<close> |--Parse.binding) >> 
-      (fn (game_name,b) => fn lthy => 
+    (Parse.term -- (Parse.term -- (\<^keyword>\<open>|\<close> |-- ((Parse.enum "," Parse.term ) -- 
+      (\<^keyword>\<open>|\<close> |-- ((Parse.enum "," Parse.term ) -- (\<^keyword>\<open>=\<close> |-- Parse.binding)))))) >> 
+      (fn (grp,(game_name,(advl, (extrl,b)))) => fn lthy => 
       let
         val thy = Proof_Context.theory_of lthy;
         val game_ref = Syntax.read_term lthy game_name;
-        val agm_term = Algebraic_Algorithm.unfold_def thy lthy game_ref;
+        val advs = Syntax.read_terms lthy advl;
+        val extrs = Syntax.read_terms lthy extrl;
+        val grp_desc = Syntax.read_term lthy grp;
+        val agm_term = Algebraic_Algorithm.lift_to_agm thy lthy grp_desc game_ref advs extrs;
         val (def, lthy') = Local_Theory.define ((b, NoSyn), ((Thm.def_binding b, []), agm_term)) lthy;
       in lthy' end));
 \<close>
 
-
-
 subsection \<open>Examples\<close>
-
-text \<open>Example to lift a game into the AGM\<close>
-
 
 text\<open>Example to enforce the algebraic rules on an arbitrary adversary.\<close>
 
@@ -692,6 +698,8 @@ lemma
       return_spmf ((g,gvec),e,d) 
     }"
   unfolding \<A>_algebraic_def by fastforce
+
+text \<open>For an example to lift a game into the AGM take a look at KZG_knowledge_soundness.thy\<close>
 
 end
 

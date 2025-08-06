@@ -561,8 +561,6 @@ end
 
 
 
-
-
 section \<open>Proving the KZG instantiated as a PCS in the PCS correctness game secure\<close>
 
 locale KZG_PCS_correct = KZG 
@@ -989,59 +987,65 @@ proof -
     using poly_altdef_to_fold[of "degree \<phi>" \<phi> \<alpha>] by fastforce
 qed
 
-
-theorem KZG_correct:  
-  assumes "valid_poly \<phi>"
-  shows "spmf (correct_eval_game \<phi> i) True = 1"
+text \<open>Finally put everything together and show perfect correctness of Eval and verify_eval\<close>
+theorem KZG_correct: correct_eval
 proof -
-  let ?\<alpha> = "\<lambda>x. of_int_mod_ring (int x)"
-  let ?PK = "\<lambda>x. (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> ?\<alpha> x ^ t) [0..<max_deg+1])"
-
-  have "correct_eval_game \<phi> i = do {
-  (ck, vk) \<leftarrow> key_gen;
-  (c,d) \<leftarrow> commit ck \<phi>;
-  let w  = Eval ck d \<phi> i;
-  return_spmf (verify_eval vk c i w)
-  }"
-    unfolding correct_eval_game_def ..
-  also have "\<dots> = do {
-      x::nat \<leftarrow> sample_uniform (order G\<^sub>p);
-      return_spmf
-             (e (g_pow_PK_Prod (?PK x) (\<psi>_of \<phi> i))((?PK x)!1 \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) 
-              \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>T\<^esub> poly \<phi> i 
-                  = e (g_pow_PK_Prod (?PK x) \<phi>) \<^bold>g\<^bsub>G\<^sub>p\<^esub>)}" 
-    unfolding commit_def Eval_def verify_eval_def key_gen_def Setup_def
-    by (auto simp add: Let_def del: g_pow_PK_Prod.simps)
-  also have "\<dots> = do {
-      x::nat \<leftarrow> sample_uniform (order G\<^sub>p);
-      return_spmf
-             (e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (\<psi>_of \<phi> i) (?\<alpha> x))) (( \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (?\<alpha> x))  \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> (poly \<phi> i )) 
-                   = e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly \<phi> (?\<alpha> x))) \<^bold>g\<^bsub>G\<^sub>p\<^esub>)}"
+  have "\<And>\<phi> i. valid_poly \<phi> \<Longrightarrow> spmf (correct_eval_game \<phi> i) True = 1"
   proof -
-    let ?g_pow_\<phi> = "\<lambda>x. g_pow_PK_Prod (?PK x) \<phi>"
-    let ?g_pow_\<psi> = "\<lambda>x. g_pow_PK_Prod (?PK x) (\<psi>_of \<phi> i)"
-    let ?g_pow_\<alpha> = "\<lambda>x. (?PK x)!1"
-    have g_pow_\<phi>: "?g_pow_\<phi> = (\<lambda>x. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly \<phi> (?\<alpha> x)))"
-      using g_pow_PK_Prod_correct assms unfolding valid_poly_def by presburger
-    have degree_\<psi>: "degree (\<psi>_of \<phi> i) \<le> max_deg" 
-      using assms degree_q_le_\<phi> le_trans unfolding valid_poly_def by fast
-    have g_pow_\<psi>: "?g_pow_\<psi> = (\<lambda>x. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (\<psi>_of \<phi> i) (?\<alpha> x)))"
-      using g_pow_PK_Prod_correct[OF degree_\<psi>] by presburger
-    have g_pow_\<alpha>: "?g_pow_\<alpha> = (\<lambda>x. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (?\<alpha> x))"
-      using PK_i d_pos by auto
-    show ?thesis using g_pow_\<phi> g_pow_\<psi> g_pow_\<alpha> by metis
+    fix \<phi> i
+    assume assms: "valid_poly \<phi>"
+    show "spmf (correct_eval_game \<phi> i) True = 1"
+    proof -
+      let ?\<alpha> = "\<lambda>x. of_int_mod_ring (int x)"
+      let ?PK = "\<lambda>x. (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> ?\<alpha> x ^ t) [0..<max_deg+1])"
+    
+      have "correct_eval_game \<phi> i = do {
+      (ck, vk) \<leftarrow> key_gen;
+      (c,d) \<leftarrow> commit ck \<phi>;
+      let w  = Eval ck d \<phi> i;
+      return_spmf (verify_eval vk c i w)
+      }"
+        unfolding correct_eval_game_def ..
+      also have "\<dots> = do {
+          x::nat \<leftarrow> sample_uniform (order G\<^sub>p);
+          return_spmf
+                 (e (g_pow_PK_Prod (?PK x) (\<psi>_of \<phi> i))((?PK x)!1 \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) 
+                  \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>T\<^esub> poly \<phi> i 
+                      = e (g_pow_PK_Prod (?PK x) \<phi>) \<^bold>g\<^bsub>G\<^sub>p\<^esub>)}" 
+        unfolding commit_def Eval_def verify_eval_def key_gen_def Setup_def
+        by (auto simp add: Let_def del: g_pow_PK_Prod.simps)
+      also have "\<dots> = do {
+          x::nat \<leftarrow> sample_uniform (order G\<^sub>p);
+          return_spmf
+                 (e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (\<psi>_of \<phi> i) (?\<alpha> x))) (( \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (?\<alpha> x))  \<div>\<^bsub>G\<^sub>p\<^esub> (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> i)) \<otimes>\<^bsub>G\<^sub>T\<^esub> ((e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub>) ^\<^bsub>G\<^sub>T\<^esub> (poly \<phi> i )) 
+                       = e (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly \<phi> (?\<alpha> x))) \<^bold>g\<^bsub>G\<^sub>p\<^esub>)}"
+      proof -
+        let ?g_pow_\<phi> = "\<lambda>x. g_pow_PK_Prod (?PK x) \<phi>"
+        let ?g_pow_\<psi> = "\<lambda>x. g_pow_PK_Prod (?PK x) (\<psi>_of \<phi> i)"
+        let ?g_pow_\<alpha> = "\<lambda>x. (?PK x)!1"
+        have g_pow_\<phi>: "?g_pow_\<phi> = (\<lambda>x. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly \<phi> (?\<alpha> x)))"
+          using g_pow_PK_Prod_correct assms unfolding valid_poly_def by presburger
+        have degree_\<psi>: "degree (\<psi>_of \<phi> i) \<le> max_deg" 
+          using assms degree_q_le_\<phi> le_trans unfolding valid_poly_def by fast
+        have g_pow_\<psi>: "?g_pow_\<psi> = (\<lambda>x. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (poly (\<psi>_of \<phi> i) (?\<alpha> x)))"
+          using g_pow_PK_Prod_correct[OF degree_\<psi>] by presburger
+        have g_pow_\<alpha>: "?g_pow_\<alpha> = (\<lambda>x. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (?\<alpha> x))"
+          using PK_i d_pos by auto
+        show ?thesis using g_pow_\<phi> g_pow_\<psi> g_pow_\<alpha> by metis
+        qed
+       also have "\<dots>= do {
+          x::nat \<leftarrow> sample_uniform (order G\<^sub>p);
+          return_spmf True}" 
+        using eq_on_e by presburger
+      also have "\<dots> = scale_spmf (weight_spmf (sample_uniform (order G\<^sub>p))) (return_spmf True)" 
+        using bind_spmf_const by metis
+      finally show ?thesis by (simp add: G\<^sub>p.order_gt_0)
     qed
-   also have "\<dots>= do {
-      x::nat \<leftarrow> sample_uniform (order G\<^sub>p);
-      return_spmf True}" 
-    using eq_on_e by presburger
-  also have "\<dots> = scale_spmf (weight_spmf (sample_uniform (order G\<^sub>p))) (return_spmf True)" 
-    using bind_spmf_const by metis
-  finally show ?thesis by (simp add: G\<^sub>p.order_gt_0)
+  qed
+  then show ?thesis 
+    unfolding correct_eval_def by blast
 qed
 
-lemma correct_eval
-  unfolding correct_eval_def using KZG_correct by argo
 end
 
 end

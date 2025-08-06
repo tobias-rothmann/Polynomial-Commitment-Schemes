@@ -4,116 +4,32 @@ imports KZG_eval_bind Algebraic_Group_Model
 
 begin
 
-locale test = abstract_polynomial_commitment_scheme + cyclic_group G
-  for G :: "('d, 'b) cyclic_group_scheme" (structure)
-begin
-                                                            
-
-
-end
-
 locale KZG_PCS_knowledge_sound = KZG_PCS_binding
 begin 
 
+text \<open>lift the knowledge soundness game (standard model) from the abstract polynomial commitment 
+scheme (instantiated with the KZG) into the AGM\<close>
+lift_to_AGM "G\<^sub>p" "knowledge_soundness_game \<A>1 \<A>2 \<E>" 
+  | "\<A>1:: 'a list \<Rightarrow> ('a \<times> 'f) spmf","\<A>2:: 'a list \<Rightarrow> 'f \<Rightarrow> ('e mod_ring \<times> 'e mod_ring \<times> 'a) spmf" 
+  | "\<E>:: 'a \<Rightarrow> ('e mod_ring poly \<times> unit) spmf" = knowledge_soundness_game_AGM
 
-declare [[ML_print_depth = 1000]]
-ML \<open> 
-  val thy = (Proof_Context.theory_of @{context})
-  val ctxt =  @{context}
-  val nctxt = Variable.names_of ctxt
-  val def = @{term "knowledge_soundness_game \<A>1 \<A>2 \<E>"}
-  val advs = [@{term "\<A>1::'a list \<Rightarrow> ('a \<times> 'f) spmf"}, @{term "\<A>2::'f \<Rightarrow> ('e mod_ring \<times> 'e mod_ring \<times> 'a) spmf"}]
-  val extrs = [@{term "\<E>::'a \<Rightarrow> ('e mod_ring poly \<times> unit) spmf"}]
-  val grp_desc = @{term "G\<^sub>p"}
+thm knowledge_soundness_game_AGM_def
 
-  val thm_lhs = Algebraic_Algorithm.get_def_thm_lhs thy def 
-  val raw_game = Algebraic_Algorithm.get_def_thm_rhs thy def
-  val def_term = Term.dest_comb def |> fst
-  val def_cterm = Thm.cterm_of ctxt def_term
-  val thm_lhs_cterm = Thm.cterm_of ctxt thm_lhs
-  val raw_game_cterm = Thm.cterm_of ctxt raw_game
-  val tables = Algebraic_Algorithm.match_subterms ctxt thm_lhs def
-  val game_cterm = Thm.instantiate_beta_cterm tables raw_game_cterm
-  val game = Thm.term_of game_cterm
+text \<open>the AGM adversary types that are useful in defining reductions (i.e. the reduction to the 
+evaluation binding game)\<close>
+lift_to_algebraicT "('a ck, 'a commit, 'state) knowledge_soundness_adversary1"  "G\<^sub>p" 
+  => AGM_knowledge_soundness_adversary1
+lift_to_algebraicT "('state, 'a ck, 'e mod_ring, 'e evaluation, 'a witness) knowledge_soundness_adversary2" 
+  "G\<^sub>p"  => AGM_knowledge_soundness_adversary2
 
-  val combs = Algebraic_Algorithm.get_combs thy ctxt def
-  val combs' = Algebraic_Algorithm.lift_to_agmT ctxt grp_desc combs advs extrs
-
-   val grpT = Term.fastype_of grp_desc |> Term.dest_Type_args |> hd;
-  val vecT = @{typ "int list"}
-  val agm_advs = map (fn (Term.Free(name,T)) => (Term.Free(name, Algebraic_Algorithm.lift_to_algebraicT grpT vecT T)) | _ => raise Algebraic_Algorithm.ADV_PARAM) advs
-
-  val game' = Term.betapplys (game,combs')
-
-  val stripped_game = game'
-    |> Term.dest_comb |> fst
-    |> Term.dest_comb |> snd
-    |> Term.dest_comb |> snd
-    |> Term.dest_comb |> snd
-    |> Term.dest_abs_global |> snd 
-    |> Term.dest_abs_global |> snd 
-
-  val (agm_stripped_game,_,agm_vars) = Algebraic_Algorithm.repair_agm_abss grpT nctxt game' agm_advs
-
-(*  val agm_cterm = Thm.cterm_of ctxt agm_stripped_game*)
-
-  val agm_game = fold (fn comb => fn game => Term.lambda comb game) (rev combs') agm_stripped_game
-
-  val (agm_cterm, agm_varlist) = Algebraic_Algorithm.lift_adv_to_agm thy ctxt grp_desc def advs extrs
-
-  val (test,extrs') = Algebraic_Algorithm.lift_extr_to_agm extrs agm_vars agm_stripped_game
-  
-  val test' = Algebraic_Algorithm.insert_agm_constraints nctxt grp_desc advs test 
-
- (* val agm_cterm = Thm.cterm_of ctxt agm_game *)
-
- (* val stripped_game = game'
-    |> Term.dest_comb |> fst
-    |> Term.dest_comb |> snd
-    |> Term.dest_comb |> snd
-    |> Term.dest_comb |> snd
-    |> Term.dest_abs_global |> snd 
-    |> Term.dest_abs_global |> snd 
-    
-    
-    |> Term.dest_comb |> snd
-    |> Term.dest_comb |> snd
-    |> Term.dest_abs_global |> snd 
-    |> Term.dest_abs_global |> snd 
-    |> Term.dest_comb |> snd
-    |> Term.dest_comb |> snd
-    |> Term.dest_abs_global |> snd 
-    |> Term.dest_abs_global |> snd 
-    
-
-  val adv = stripped_game |> Term.dest_comb  |> fst |> Term.dest_comb |> snd
-  val abs = stripped_game |> Term.dest_comb  |> snd
-
-  val (fixed_abs,_) = Algebraic_Algorithm.repair_agm_abs nctxt adv abs
-    *)
-     
-(*
-  
-  val game_test = Algebraic_Algorithm.unfold_def thy ctxt*)
-\<close>
-
-lift_to_AGM "knowledge_soundness_game \<A>1 \<A>2 \<E>" => KS
-thm KS_def
-
-
-lift_to_algebraicT "('a ck, 'a commit, 'state) knowledge_soundness_adversary1"  "G\<^sub>p"  => AGM_knowledge_soundness_adversary1
+text \<open>Functions that make it easier to deconstruct the game in the proof. They abstract the 
+enforcement of algebraic rules\<close>
 AGMLifting  "('a ck, 'a commit, 'state) knowledge_soundness_adversary1" "G\<^sub>p" => lift_\<A>1
+AGMLifting  "('state, 'a ck, 'e mod_ring, 'e evaluation, 'a witness) knowledge_soundness_adversary2" 
+  "G\<^sub>p" => lift_\<A>2
+
 thm lift_\<A>1_def
-
-lift_to_algebraicT "('state, 'e mod_ring, 'e evaluation, 'a witness) knowledge_soundness_adversary2"  "G\<^sub>p"  => AGM_knowledge_soundness_adversary2
-AGMLifting  "('state, 'e mod_ring, 'e evaluation, 'a witness) knowledge_soundness_adversary2" "G\<^sub>p" => lift_\<A>2
 thm lift_\<A>2_def
-
-text \<open>print obtained adversary types\<close>
-ML \<open>
-  val agm_adv1 = @{typ "('state, 'a) AGM_knowledge_soundness_adversary1"}
-  val agm_adv2 = @{typ "('a, 'e, 'state) AGM_knowledge_soundness_adversary2"}
-\<close>
 
 text \<open>The extractor is an algorithm that plays against the adversary. It is granted access to the 
 adversaries messages and state (which we neglect in this case as we do not need it because the 
@@ -123,76 +39,10 @@ type_synonym ('a', 'e') extractor =
   "('a' commit \<times> int list) \<Rightarrow> 
     ('e' mod_ring poly \<times> unit) spmf"
 
-text \<open>the knowledge soundness game in the agm\<close>
-definition AGM_knowledge_soundness_game :: "('state, 'a) AGM_knowledge_soundness_adversary1 
-  \<Rightarrow> ('a, 'e, 'state) AGM_knowledge_soundness_adversary2
-  \<Rightarrow> ('a, 'e) extractor \<Rightarrow> bool spmf"
-  where "AGM_knowledge_soundness_game \<A>1 \<A>2 E = TRY do {
-  let \<A>1_AGM = lift_\<A>1 \<A>1;
-  (ck,vk) \<leftarrow> key_gen;
-  ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
-  (p,td) \<leftarrow> E (c,cvec);
-  (i, p_i, (w, wvec)) \<leftarrow> \<A>2 \<sigma>;
-  let (p_i',w') = Eval ck td p i;         
-  return_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_eval (p_i,w))       
-  } ELSE return_spmf False"
-
-(* TODO delete*)
-ML \<open>
-
-  val ks = Algebraic_Algorithm.unfold_def (Proof_Context.theory_of @{context}) @{context} @{term AGM_knowledge_soundness_game}
-\<close>
-
-declare [[ML_print_depth = 1000]]
-ML \<open>
-
-  (* fun unfold_game def = 
-    let 
-      val suffix = "_def_raw" (* TODO clearify this*)
-      val ctxt = Proof_Context.theory_of @{context}
-      val def_stripped = Term.head_of def
-      val name = (Term.dest_Const_name def_stripped) ^ suffix
-      val def_thm = Thm.axiom ctxt name
-      val def_content = Thm.prop_of def_thm
-      val rhs = def_content |> Term.dest_comb |> fst
-    in
-      rhs
-    end
-
-  fun unfold_game_def def = 
-    Thm.prop_of def 
-    |> Term.dest_comb |> snd
-    |> Term.dest_comb |> snd
-  
-  val test_unfold = unfold_game @{term AGM_knowledge_soundness_game}
- val test_unfold_def = unfold_game_def @{thm AGM_knowledge_soundness_game_def}*)
-
-(*  fun AGM (t1 $ t2) bound_list = (AGM t1 bound_list) $ (AGM t2 bound_list)
-  | AGM term bound_list = term
-
-
-  val test = @{thm knowledge_soundness_game_def}
-  val test =  Thm.prop_of test 
-    |> Term.dest_comb |> snd
-    |> Term.dest_comb |> snd*)
-
-   
- (*   def_raw related: ggf. prefix Suche statt def_raw?
-
-  val all_axiom_names =
-    let 
-      val prefix = ".knowledge_soundness_game"
-      val thy = Proof_Context.theory_of @{context}; (* Get current theory context *)
-      val names = map (fn (name, _) => name) (Thm.all_axioms_of thy);
-    in 
-      filter (fn name => String.isSubstring prefix name) names
-    end *)
-\<close>
-
-text \<open>reduction to eval bind game\<close>
+text \<open>reduction to the evaluation bind game\<close>
 definition knowledge_soundness_reduction
   :: "('a, 'e) extractor \<Rightarrow> ('state, 'a) AGM_knowledge_soundness_adversary1  
-  \<Rightarrow> ('a, 'e, 'state) AGM_knowledge_soundness_adversary2
+  \<Rightarrow> ('e, 'state, 'a) AGM_knowledge_soundness_adversary2
   \<Rightarrow> ('a ck, 'a commit, 'e argument, 'e evaluation, 'a witness)  eval_bind_adversary"                     
 where
   "knowledge_soundness_reduction \<E> \<A>1 \<A>2 ck = do {
@@ -200,7 +50,7 @@ where
   let \<A>2_AGM = lift_\<A>2 \<A>2;
   ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
   (p,td) \<leftarrow> \<E> (c,cvec);
-  (i, p_i, w, wvec) \<leftarrow> \<A>2 \<sigma>;
+  (i, p_i, w, wvec) \<leftarrow> \<A>2_AGM ck \<sigma>;
   let (p_i',w') = Eval ck td p i;
   return_spmf (c, i, p_i, w, p_i', w')}"
 
@@ -216,7 +66,7 @@ the evaluation binding game. Later on we can then easily over-estimate the proba
 this extended version to the normal reduction.\<close> (* TODO properly integrate AGM2*)
 definition knowledge_soundness_reduction_ext
   :: "('a, 'e) extractor \<Rightarrow> ('state, 'a) AGM_knowledge_soundness_adversary1  
-  \<Rightarrow> ('a, 'e, 'state) AGM_knowledge_soundness_adversary2
+  \<Rightarrow> ('e, 'state, 'a) AGM_knowledge_soundness_adversary2
   \<Rightarrow> ('a ck, 'a commit, 'e argument, 'e evaluation, 'a witness)  eval_bind_adversary"                     
 where
   "knowledge_soundness_reduction_ext \<E> \<A>1 \<A>2 ck = do {
@@ -224,7 +74,7 @@ where
   let \<A>2_AGM = lift_\<A>2 \<A>2;
   ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
   (p,td) \<leftarrow> \<E> (c,cvec);
-  (i, p_i, w, wvec) \<leftarrow> \<A>2 \<sigma>;
+  (i, p_i, w, wvec) \<leftarrow> \<A>2_AGM ck \<sigma>;
   _ :: unit \<leftarrow> assert_spmf (valid_eval (p_i, w));
   let (p_i',w') = Eval ck td p i;
   return_spmf (c, i, p_i, w, p_i', w')}"
@@ -245,7 +95,7 @@ lemma assert_collapse: "bind_spmf (assert_spmf X) (\<lambda>_. bind_spmf (assert
 lemma assert_cong: " X = Y \<Longrightarrow> rel_spmf (=) (assert_spmf X)  (assert_spmf Y)"
   by simp
 
-text \<open>proof related helping lemmas\<close> (* TODO delete or add \<and> w \<noteq> w'*)
+text \<open>proof related helping lemmas\<close>
 
 lemma ks_imp_eval_bind_asserts:
       " let ck = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
@@ -261,7 +111,6 @@ lemma ks_imp_eval_bind_asserts:
           length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
           \<and> p_i \<noteq> p_i'
-          
           \<and> valid_eval (p_i,w)
           \<and> valid_eval (p_i', w')
           \<and> verify_eval vk c i (p_i, w) 
@@ -272,7 +121,6 @@ proof -
   define p_i'  where p_i'_def: "p_i' = fst (Eval ck td (Poly (map of_int_mod_ring cvec)) i)" 
   define w'  where w'_def: "w' = snd (Eval ck td (Poly (map of_int_mod_ring cvec)) i)" 
 
-  (* TODO add or remove \<and> w \<noteq> w'*)
   have " length ck = length (cvec::int list)
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
           \<and> verify_eval vk c i (p_i,w)
@@ -282,7 +130,6 @@ proof -
           length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
           \<and> p_i \<noteq> p_i'
-          
           \<and> valid_eval (p_i,w)
           \<and> valid_eval (p_i', w')
           \<and> verify_eval vk c i (p_i, w) 
@@ -316,7 +163,6 @@ proof -
           unfolding valid_eval_def
           by (simp add: Eval_def p_i'_def w'_def)
       qed
-  
   
       show verify_eval_gen: "verify_eval vk c i (p_i', w')"
       proof -
@@ -518,23 +364,23 @@ proof -
 qed
 
 lemma knowledge_soundness_game_alt_def: 
-  "AGM_knowledge_soundness_game \<A>1 \<A>2 E = 
+  "knowledge_soundness_game_AGM \<A>1 \<A>2 E = 
   eval_bind_game (knowledge_soundness_reduction_ext E \<A>1 \<A>2)"
 proof -
   note [simp] = Let_def split_def
 
-  have "AGM_knowledge_soundness_game \<A>1 \<A>2 E = 
+  have "knowledge_soundness_game_AGM \<A>1 \<A>2 E = 
     TRY do {
       let \<A>1_AGM = lift_\<A>1 \<A>1;
       let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2 \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
       let (p_i',w') = Eval ck td p i;         
       return_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_eval (p_i,w))       
     } ELSE return_spmf False"
-       by (simp add: AGM_knowledge_soundness_game_def)
+    by (simp add: knowledge_soundness_game_AGM_def lift_\<A>1_def lift_\<A>2_def del: Let_def split_def)
     also have "\<dots> = 
     TRY do {
       let \<A>2_AGM = lift_\<A>2 \<A>2;
@@ -542,7 +388,7 @@ proof -
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       _ :: unit \<leftarrow> assert_spmf (G\<^sub>p.constrain_list (ck @ []) [(c, cvec)]);
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2 \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
       let (p_i',w') = Eval ck td p i;         
       return_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_eval (p_i,w))       
     } ELSE return_spmf False"
@@ -555,7 +401,7 @@ proof -
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one>);
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2 \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
       let (p_i',w') = Eval ck td p i;         
       return_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_eval (p_i,w))       
     } ELSE return_spmf False" 
@@ -566,7 +412,7 @@ proof -
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2 \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one>);
@@ -582,7 +428,7 @@ proof -
         TRY do {
           (p,td) \<leftarrow> E (c,cvec);
           TRY do {
-            (i, p_i, (w, wvec)) \<leftarrow> \<A>2 \<sigma>;
+            (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
             TRY do {
               let (p_i',w') = Eval ck td p i;
               _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
@@ -606,7 +452,7 @@ proof -
         TRY do {
           (p,td) \<leftarrow> E (c,cvec);
           TRY do {
-            (i, p_i, (w, wvec)) \<leftarrow> \<A>2 \<sigma>;
+            (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
             TRY do {
               let (p_i',w') = Eval ck td p i;
               _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
@@ -625,7 +471,7 @@ proof -
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2 \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one>);
@@ -640,7 +486,7 @@ proof -
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2 \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
@@ -658,7 +504,7 @@ proof -
       let vk = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       let (p,td) = (Poly (map (of_int_mod_ring::int \<Rightarrow>'e mod_ring) cvec),());
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2 \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
@@ -677,7 +523,7 @@ proof -
       let vk = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       let (p,td) = (Poly (map (of_int_mod_ring::int \<Rightarrow>'e mod_ring) cvec),());
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2 \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
@@ -703,7 +549,7 @@ proof -
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2 \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
@@ -721,7 +567,7 @@ proof -
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2 \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one>);
       let (p_i',w') = Eval ck td p i;
@@ -742,7 +588,7 @@ proof -
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one>);
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2 \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf ( 
            p_i \<noteq> p_i'
@@ -764,7 +610,7 @@ proof -
       let \<A>2_AGM = lift_\<A>2 \<A>2;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2 \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf ( 
            p_i \<noteq> p_i'
@@ -782,7 +628,7 @@ proof -
       let \<A>2_AGM = lift_\<A>2 \<A>2;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2 \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf ( 
           valid_eval (p_i,w)
@@ -807,7 +653,7 @@ proof -
       let \<A>2_AGM = lift_\<A>2 \<A>2;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2 \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
       _ :: unit \<leftarrow> assert_spmf ( valid_eval (p_i,w));
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf ( 
@@ -906,7 +752,7 @@ proof -
       let \<A>2_AGM = lift_\<A>2 \<A>';
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, v, w, wvec) \<leftarrow> \<A>' \<sigma>;
+      (i, v, w, wvec) \<leftarrow> \<A>2_AGM ck \<sigma>;
       _ :: unit \<leftarrow> assert_spmf (valid_eval (v, w));
       let (v',w') = Eval ck td p i;     
       _ :: unit \<leftarrow> assert_spmf (v \<noteq> v' \<and> valid_eval (v, w) \<and> valid_eval (v', w'));                     
@@ -925,7 +771,7 @@ proof -
       let \<A>2_AGM = lift_\<A>2 \<A>';
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, v, w, wvec) \<leftarrow> \<A>' \<sigma>;
+      (i, v, w, wvec) \<leftarrow> \<A>2_AGM ck \<sigma>;
       let (v',w') = Eval ck td p i;     
       _ :: unit \<leftarrow> assert_spmf (v \<noteq> v' \<and> valid_eval (v, w) \<and> valid_eval (v', w'));                     
       let b = verify_eval vk c i (v,w);
@@ -950,7 +796,7 @@ text \<open>Finally we put everything together:
 we conclude that for every efficient adversary in the AGM the advantage over winning the 
 knowledge soundness game is less than or equal to breaking the t-SDH assumption.\<close>
 theorem knowledge_soundness: 
-  "spmf (AGM_knowledge_soundness_game \<A>1 \<A>2 E) True
+  "spmf (knowledge_soundness_game_AGM \<A>1 \<A>2 E) True
   \<le> t_SDH_G\<^sub>p.advantage (eval_bind_reduction (knowledge_soundness_reduction E \<A>1 \<A>2))"
   using evaluation_binding[of "knowledge_soundness_reduction E \<A>1 \<A>2"]
     overestimate_reductions[of \<A>1 \<A>2]
