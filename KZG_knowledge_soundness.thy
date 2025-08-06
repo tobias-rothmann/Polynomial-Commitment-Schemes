@@ -53,26 +53,17 @@ ML \<open>
     |> Term.dest_abs_global |> snd 
     |> Term.dest_abs_global |> snd 
 
-    
-    
-
-  val (agm_stripped_game,_) = Algebraic_Algorithm.repair_agm_abss grpT nctxt game' agm_advs
+  val (agm_stripped_game,_,agm_vars) = Algebraic_Algorithm.repair_agm_abss grpT nctxt game' agm_advs
 
 (*  val agm_cterm = Thm.cterm_of ctxt agm_stripped_game*)
 
   val agm_game = fold (fn comb => fn game => Term.lambda comb game) (rev combs') agm_stripped_game
 
-  val intT = @{typ int}
-  val natT = @{typ nat}
-  val test = \<^Type>\<open>fun intT \<^Type>\<open>fun intT  \<^Type>\<open>fun natT natT\<close>\<close>\<close> 
-  val test' = Term.range_type test
+  val (agm_cterm, agm_varlist) = Algebraic_Algorithm.lift_adv_to_agm thy ctxt grp_desc def advs extrs
 
-  val stripped_game' = stripped_game 
-    |> Term.dest_comb |> snd
-    |> Term.dest_comb |> snd
-    |> Term.dest_abs_global |> snd 
-  val test'' = test |> Term.strip_type 
-  val test''' = fold (fn t1 => fn t2 => \<^Type>\<open>fun t1 t2\<close>) (fst test'' |> rev) (snd test'')
+  val (test,extrs') = Algebraic_Algorithm.lift_extr_to_agm extrs agm_vars agm_stripped_game
+  
+  val test' = Algebraic_Algorithm.insert_agm_constraints nctxt grp_desc advs test 
 
  (* val agm_cterm = Thm.cterm_of ctxt agm_game *)
 

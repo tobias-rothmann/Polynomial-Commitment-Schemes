@@ -424,22 +424,23 @@ exception AGMTYPE2 of typ*(string*typ);
 
 fun repair_agmT_abs nctxt (\<^Type>\<open>Product_Type.prod T1 T2\<close>) (Const ("Product_Type.prod.case_prod", T3) $ t) T2list
   = let 
-      val retT = Term.body_type T3
-      val (fixed_t, nctxt') = repair_agmT_abs nctxt T1 t (T2::T2list)
+      val (fixed_t, nctxt', agm_vars) = repair_agmT_abs nctxt T1 t (T2::T2list)
+      val retT = Term.body_type T3 (* TODO this should also be more complicated not simply body_type*)
     in 
-       (\<^Const>\<open>Product_Type.prod.case_prod T1 T2 retT\<close> $ fixed_t, nctxt')
+       (\<^Const>\<open>Product_Type.prod.case_prod T1 T2 retT\<close> $ fixed_t, nctxt', agm_vars)
     end
   | repair_agmT_abs nctxt (\<^Type>\<open>Product_Type.prod T1 T2\<close>) (Abs(aN,aT,t)) T2list = 
       if T1 = aT andalso T2 = @{typ "int list"} then 
         let 
           val (vecN,nctxt') = Name.variant (aN ^ "vec") nctxt 
-          val (fixed_t, nctxt'') = case T2list of (T2::T2tl) => repair_agmT_abs nctxt' T2 t T2tl
-          | [] => (t,nctxt)
-          val retT = Term.fastype_of t |> Term.body_type
+          val (fixed_t, nctxt'', agm_vars) = case T2list of (T2::T2tl) => repair_agmT_abs nctxt' T2 t T2tl
+          | [] => (t,nctxt, [])
+          val retT = Term.fastype_of t
           val vec = Free (vecN,T2)
-          val abs_vec = fixed_t |> Term.incr_boundvars 1 |> Term.lambda vec  (* TODO maybe the incr needs switching*)
+          val agm_var = (Free(aN,aT), vec)
+          val abs_vec = fixed_t |> Term.incr_boundvars 1 |> Term.lambda vec
         in
-          (\<^Const>\<open>Product_Type.prod.case_prod T1 T2 retT\<close> $ Abs(aN, aT, abs_vec), nctxt'') (* TODO here extract to backtrack vecN*)
+          (\<^Const>\<open>Product_Type.prod.case_prod T1 T2 retT\<close> $ Abs(aN, aT, abs_vec), nctxt'', agm_var::agm_vars)
         end
       else raise AGMTYPE1
   | repair_agmT_abs nctxt T1 (Abs(varN, varT, t)) (T2::T2list) =
@@ -447,25 +448,11 @@ fun repair_agmT_abs nctxt (\<^Type>\<open>Product_Type.prod T1 T2\<close>) (Cons
       raise AGMTYPE2(T1, (varN,varT))
     else 
       let 
-        val (fixed_t, nctxt') = repair_agmT_abs nctxt T2 t T2list
+        val (fixed_t, nctxt', agm_vars) = repair_agmT_abs nctxt T2 t T2list
       in
-        (Abs(varN, varT, fixed_t), nctxt')
+        (Abs(varN, varT, fixed_t), nctxt',agm_vars)
       end
- (* | repair_agmT_abs nctxt T1 (Abs(varN, varT, t)) (T2::T2list) =
-    if T1 <> dummyT andalso T1 = varT then
-      let 
-        val (fixed_t, nctxt') = repair_agmT_abs nctxt dummyT t (T2::T2list)
-      in
-        (Abs(varN, varT, fixed_t), nctxt')
-      end 
-    else if T1 = dummyT andalso T2 = varT then
-      let 
-        val (fixed_t, nctxt') = repair_agmT_abs nctxt dummyT t T2list
-      in 
-        (Abs(varN, varT, fixed_t), nctxt')
-      end
-    else raise AGMTYPE2(T1, (varN,varT), T2)*)
-  | repair_agmT_abs nctxt _ t  _ = (t,nctxt)
+  | repair_agmT_abs nctxt _ t  _ = (t,nctxt,[])
   
 
 fun repair_agm_abs nctxt spmf abs = 
@@ -479,43 +466,119 @@ fun repair_agm_abss grpT nctxt t advs =
   case t of 
     Const("SPMF.bind_spmf",bindT) $ spmf $ abs => (* TODO correct bindT in res*)
     let 
-      val (fixed_abs,nctxt') = repair_agm_abss grpT nctxt abs advs
+      val (fixed_abs,nctxt', agm_vars) = repair_agm_abss grpT nctxt abs advs
     in 
       if List.exists (fn a => Term.head_of spmf = a) advs then 
         let 
-          val (fix,nctxt'') = repair_agm_abs nctxt' spmf fixed_abs
+          val (fix,nctxt'', agm_vars') = repair_agm_abs nctxt' spmf fixed_abs
           val bindT_fix = Term.map_atyps (adjoin grpT @{typ "int list"}) bindT
         in 
-          (Const("SPMF.bind_spmf",bindT_fix) $ spmf $ fix, nctxt'') 
+          (Const("SPMF.bind_spmf",bindT_fix) $ spmf $ fix, nctxt'', agm_vars' @ agm_vars) 
         end
-        else (Const("SPMF.bind_spmf",bindT) $ spmf $ fixed_abs, nctxt') 
+        else (Const("SPMF.bind_spmf",bindT) $ spmf $ fixed_abs, nctxt', agm_vars) 
     end
   | Abs(aT,aN,t) => 
     let 
-      val (fixed_t, nctxt') = repair_agm_abss grpT nctxt t advs
+      val (fixed_t, nctxt', agm_vars) = repair_agm_abss grpT nctxt t advs
     in 
-      (Abs(aT,aN,fixed_t),nctxt')
+      (Abs(aT,aN,fixed_t),nctxt', agm_vars)
     end
    | t1 $ t2 => 
       let 
-        val (fixed_t1,nctxt') = repair_agm_abss grpT nctxt t1 advs;
-        val (fixed_t2,nctxt'') = repair_agm_abss grpT nctxt' t2 advs;
+        val (fixed_t1,nctxt', agm_vars) = repair_agm_abss grpT nctxt t1 advs;
+        val (fixed_t2,nctxt'', agm_vars') = repair_agm_abss grpT nctxt' t2 advs;
       in 
-        ((fixed_t1 $ fixed_t2), nctxt'')
+        ((fixed_t1 $ fixed_t2), nctxt'', agm_vars @ agm_vars')
       end
-    | t => (t,nctxt)
+    | t => (t,nctxt,[])
 
+exception EXTR_FREE_VAR;
 
-(*
-fun extract_AGM_combs ctxt grp_desc combs advs extrs = 
+fun lift_extr_to_agm extrs agm_vars (Abs(aN,aT,t)) = 
   let 
-    
-    val nctxt = Variable.names_of ctxt
-    val agm_advs = map (fn a => enforce_alg nctxt grp_desc a) advs
-    val combs' = agm_combs combs advs agm_advs extrs
+    val (pram,inst) = Term.dest_abs_global (Abs(aN,aT,t))
+    val res = lift_extr_to_agm extrs agm_vars inst
+    val rest = fst res
+    val extrs' = snd res
+    val var = Free(pram)
   in 
-    combs'
-  end*)
+    (Term.lambda var rest, extrs')
+  end
+  | lift_extr_to_agm extrs agm_vars t = 
+  let
+    val (f,combs) = Term.strip_comb t
+    val extr = List.find (fn e => Term.head_of f = e) extrs
+  in
+    case extr of SOME extr => 
+    let 
+      val combs' = map (fn c => 
+        case List.find (fn (a,_) =>  a = c) agm_vars of SOME (a,avec) => 
+        let 
+          val aT = Term.fastype_of a
+          val avecT = Term.fastype_of avec
+        in
+          \<^Const>\<open>Product_Type.Pair aT avecT for a avec\<close> 
+        end
+        | NONE => c) combs
+      val f' = case extr of Free (fN, fT) => Free(fN, (map Term.fastype_of combs') ---> Term.body_type fT)
+        | _ => raise EXTR_FREE_VAR
+    in
+      (Term.list_comb (f', combs'), [f'])
+    end
+    | NONE => 
+    let 
+      val res = map (lift_extr_to_agm extrs agm_vars) combs
+      val combs' = map fst res
+      val extrs' = List.concat (map snd res)
+    in
+      (Term.list_comb (f,combs'), extrs')
+    end
+  end
+
+
+exception ADV_FREE_VAR;
+
+fun insert_agm_constraints nctxt grp_desc advs (Free(fN,fT)) = 
+  if List.exists (fn Free(aN,_) => aN = fN | _ => raise ADV_FREE_VAR) advs then
+     enforce_alg nctxt grp_desc (Free(fN,fT))
+  else Free(fN,fT)
+  | insert_agm_constraints nctxt grp_desc advs (Abs(aN,aT,t)) = 
+    (Abs(aN,aT,insert_agm_constraints nctxt grp_desc advs t))
+  | insert_agm_constraints nctxt grp_desc advs (t1 $ t2) = 
+   insert_agm_constraints nctxt grp_desc advs t1 $ (insert_agm_constraints nctxt grp_desc advs t2)
+  | insert_agm_constraints _ _ _ t = t
+
+
+fun lift_adv_to_agm thy ctxt grp_desc def advs extrs = 
+  let 
+    val nctxt = Variable.names_of ctxt
+    val game = unfold_def thy ctxt def
+    val combs = get_combs thy ctxt def
+    val combs' = lift_to_agmT ctxt grp_desc combs advs extrs
+    val grpT = Term.fastype_of grp_desc |> Term.dest_Type_args |> hd;
+    val vecT = @{typ "int list"}
+    val agm_advs = map (fn (Term.Free(name,T)) => (Term.Free(name, lift_to_algebraicT grpT vecT T)) | _ => raise ADV_PARAM) advs
+    val game' = Term.betapplys (game,combs')
+    val (agm_game',_,agm_vars) = repair_agm_abss grpT nctxt game' agm_advs
+    val (agm_game'', extrs') = lift_extr_to_agm extrs agm_vars agm_game'
+    val combs'' = map (fn Free(combN,combT) => 
+      (case List.find (fn Free(eN,eT) => eN = combN | _ => raise ADV_FREE_VAR) extrs' 
+        of SOME e => e 
+        | NONE => Free(combN,combT)) 
+      | _ => raise ADV_FREE_VAR) combs'
+    val agm_game''' = insert_agm_constraints nctxt grp_desc advs agm_game''
+    (* TODO before converting insert agm adversaries via enforce_alg *)
+    val agm_game = fold (fn comb => fn game => Term.lambda comb game) (rev combs'') agm_game'''
+    val agm_cterm = Thm.cterm_of ctxt agm_game
+  in
+    (agm_cterm, agm_vars)
+  end
+
+fun lift_to_agm thy ctxt grp_desc def advs extrs = 
+  (* lift_adv_to_agm *)
+  (* replace adv's by enforce alg*)
+  (* make extractors vecs available *)
+  def
 
 end;
 \<close>
