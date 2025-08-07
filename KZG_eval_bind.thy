@@ -4,6 +4,11 @@ imports KZG_correct "tSDH_assumption" CryptHOL_ext
 
 begin
 
+text \<open>In this theory we prove that the KZG is evaluation binding. The proof is a reduction to the 
+t-strong Diffie-Hellmann assumption and follows the paper proof by Kate, Zaverucha, and Goldberg in 
+the extended version of 'Constant-Size Commitments to Polynomials and Their Applications'
+https://cacr.uwaterloo.ca/techreports/2010/cacr2010-10.pdf\<close>
+
 hide_const order
 
 locale bind_game_def = KZG_correct

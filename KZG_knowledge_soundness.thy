@@ -4,6 +4,11 @@ imports KZG_eval_bind Algebraic_Group_Model
 
 begin
 
+text \<open>In this theory we prove knowledge soundness for the KZG, concretely the knowledge soundness 
+as defined in the abstract polynomial commitment scheme. The proof is a reduction to the 
+evaluation binding game which has been reduced to the t-strong Diffie-Hellmann problem in the 
+KZG_eval_bind theory.\<close>
+
 locale KZG_PCS_knowledge_sound = KZG_PCS_binding
 begin 
 
@@ -39,7 +44,12 @@ type_synonym ('a', 'e') extractor =
   "('a' commit \<times> int list) \<Rightarrow> 
     ('e' mod_ring poly \<times> unit) spmf"
 
-text \<open>reduction to the evaluation bind game\<close>
+text \<open>reduction to the evaluation bind game
+The main idea is that if the adversary can break knowledge soundness, i.e. give an 
+evaluation (+ proof) that differs from the evaluation of the polynomial provided by the extractor,
+the evaluation of the polynomial provided by the extractor will still yield a valid evaluation 
+(+ proof). Hence, one obtains two distinct valid evaluations of the same value, thus breaking 
+evaluation binding.\<close>
 definition knowledge_soundness_reduction
   :: "('a, 'e) extractor \<Rightarrow> ('state, 'a) AGM_knowledge_soundness_adversary1  
   \<Rightarrow> ('e, 'state, 'a) AGM_knowledge_soundness_adversary2
@@ -63,7 +73,7 @@ subsection \<open>helping definitions\<close>
 text \<open>The knowledge soundness reduction adversary extended for asserts that 
 are present in the evaluation binding game. We use this definition to show equivalence to 
 the evaluation binding game. Later on we can then easily over-estimate the probability from 
-this extended version to the normal reduction.\<close> (* TODO properly integrate AGM2*)
+this extended version to the normal reduction.\<close>
 definition knowledge_soundness_reduction_ext
   :: "('a, 'e) extractor \<Rightarrow> ('state, 'a) AGM_knowledge_soundness_adversary1  
   \<Rightarrow> ('e, 'state, 'a) AGM_knowledge_soundness_adversary2

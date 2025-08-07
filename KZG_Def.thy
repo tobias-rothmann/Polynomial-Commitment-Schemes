@@ -4,8 +4,13 @@ imports  "CryptHOL.CryptHOL" "CryptHOL.Cyclic_Group" Berlekamp_Zassenhaus.Finite
   "Sigma_Commit_Crypto.Cyclic_Group_Ext" Pairing Polynomial_Commitment_Schemes
 begin
 
+text \<open>In this theory we formalize the KZG polynomial commitment scheme as introduced in Kate, 
+Zaverucha, and Goldberg's: Constant-Size Commitments to Polynomials and Their Applications
+https://www.iacr.org/archive/asiacrypt2010/6477178/6477178.pdf\<close>
+
 hide_const order
 
+text \<open>the cryptographic primitives for the KZG\<close>
 locale crypto_primitives = pairing G\<^sub>p  G\<^sub>T p e
   for G\<^sub>p :: "('a, 'b) cyclic_group_scheme" (structure)
   and G\<^sub>T:: "('c, 'd) cyclic_group_scheme"  (structure)
@@ -612,12 +617,16 @@ definition key_gen :: "('a ck \<times> 'a vk) spmf"
     return_spmf (PK,PK) 
   }"
 
+text \<open>the KZG functions follow the description in section 3.2 of the KZG paper, but mirror the 
+structure and naming of the abstract polynomial commitment scheme.\<close>
+
 definition commit :: "'a ck \<Rightarrow> 'e mod_ring poly \<Rightarrow> ('a commit \<times> trapdoor) spmf"
   where "commit PK \<phi> = return_spmf (g_pow_PK_Prod PK \<phi>, ()) \<comment>\<open>g^\<phi>(\<alpha>)\<close>"
 
 definition verify_poly :: "'a vk \<Rightarrow> 'e mod_ring poly \<Rightarrow> 'a commit \<Rightarrow> trapdoor \<Rightarrow> bool"
   where "verify_poly PK \<phi> C td = (C = g_pow_PK_Prod PK \<phi>)  \<comment>\<open>C = g^\<phi>(\<alpha>)\<close>"
 
+text \<open>This is the createWitness function in the KZG paper\<close>
 definition Eval :: "'a ck \<Rightarrow> trapdoor \<Rightarrow> 'e mod_ring poly \<Rightarrow> 'e mod_ring \<Rightarrow> ('e mod_ring \<times> 'a witness)"
   where "Eval PK td \<phi> i = (let \<psi> = \<psi>_of \<phi> i \<comment>\<open>\<psi> in \<phi>(x) - \<phi>(i) = (x-i) * \<psi>(x)\<close>
     in (poly \<phi> i, g_pow_PK_Prod PK \<psi>) \<comment>\<open>(\<phi>(i),g^\<psi>(\<alpha>))\<close>)"

@@ -78,7 +78,7 @@ definition poly_bind_advantage
 type_synonym ('ck', 'commit', 'argument', 'evaluation', 'witness')  eval_bind_adversary = 
   "'ck' \<Rightarrow> ('commit' \<times> 'argument'  \<times> 'evaluation' \<times> 'witness'  \<times> 'evaluation' \<times> 'witness') spmf"
 
-text \<open>captures the evalutaion binding game i.e. verifying two contradicting evaluations (p(i) \<noteq> p(i)').\<close>
+text \<open>captures the evaluation binding game i.e. verifying two contradicting evaluations (p(i) \<noteq> p(i)').\<close>
 definition eval_bind_game :: "('ck, 'commit, 'argument, 'evaluation, 'witness) eval_bind_adversary \<Rightarrow> bool spmf"
   where "eval_bind_game \<A> = TRY do {
   (ck, vk) \<leftarrow> key_gen;
