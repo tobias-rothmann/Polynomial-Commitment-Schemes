@@ -17,9 +17,9 @@ rules on the outputs of the adversary, counting rule breaking as losing the game
 adversary with non-negligible advantage has to be an algebraic algorithm.
 
 We formalize the algebraic rules in the functions 'constrain' and 'constrain_list', which enforce 
-the algebraic rules for one/resp. a list of  input pair/s.
+the algebraic rules for one/resp. a list of output pair/s.
 
-We provide dynamic ML functions to enforce the rules of an algebraic algorithm on specific and
+We provide ML functions to enforce the rules of an algebraic algorithm on specific and
 arbitrary algorithms thereby practically lifting adversaries from the standard model to the AGM. 
 Finally, we provide the ML function 'lift_to_agm' that takes any game in the standard model and 
 automatically derives it's definition in the AGM.
@@ -100,9 +100,28 @@ qed
 
 subsection \<open>Algebraic Algorithm\<close>
 
+text \<open>ML functions that enforce algebraic rules on different objects.
+
+lift_to_algebraicT operates on the type level, lifiting standard model function types into their 
+corresponding type as an algebraic algorithm. I.e. extend the outputs that are group elements 
+with a vector.
+
+enforce_alg enforces the algebraic rules on a specific probabilistic algorithm. 
+Effectively turning any probabilistic algorithm into an algebraic algorithm.
+Probabilistic in this case means the algorithm has to return a spmf value. If the algorithm breaks the 
+algebraic rules, enforce_alg returns None.
+
+build_alg_fun takes a certain type T and builds a function that takes any probabilistic 
+(probabilistic defined as before) algorithm \<A> of that type and returns the algebraic algorithm 
+obtained by computing enforce_alg for \<A>.
+
+lift_to_agm takes a game in standard model and turns it into a game in the algebraic group model.
+\<close>
+
 ML \<open>
 signature ALGEBRAIC_ALGORITHM =
 sig 
+
 
 val lift_to_algebraicT : typ -> typ -> typ -> typ
 
