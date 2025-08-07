@@ -452,7 +452,7 @@ exception AGMTYPE2 of typ*(string*typ);
 fun repair_agmT_abs nctxt (\<^Type>\<open>Product_Type.prod T1 T2\<close>) (Const ("Product_Type.prod.case_prod", T3) $ t) T2list
   = let 
       val (fixed_t, nctxt', agm_vars) = repair_agmT_abs nctxt T1 t (T2::T2list)
-      val retT = Term.body_type T3 (* TODO this should also be more complicated not simply body_type*)
+      val retT = Term.body_type T3
     in 
        (\<^Const>\<open>Product_Type.prod.case_prod T1 T2 retT\<close> $ fixed_t, nctxt', agm_vars)
     end
