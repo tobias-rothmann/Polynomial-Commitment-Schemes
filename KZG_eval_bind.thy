@@ -323,40 +323,6 @@ proof -
   evaluation_game. To do that, we first merge the two asserts and show that the first assert's 
   statement implies the second one's statement, hence we can leave the second assert's statement 
   out and are left with only the first assert statement.\<close>
-  also have "\<dots> = TRY do { 
-     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
-    TRY do {
-    (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> (?PK \<alpha>);
-    TRY do {
-  _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 
-                            \<and> valid_msg \<phi>_of_i w_i
-                            \<and> valid_msg \<phi>'_of_i w'_i
-                            \<and> VerifyEval (?PK \<alpha>) C i \<phi>_of_i w_i 
-                            \<and> VerifyEval (?PK \<alpha>) C i \<phi>'_of_i w'_i);
-    _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(?\<alpha> \<alpha> + (-i))) = (w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i)));
-    return_spmf True 
-  } ELSE return_spmf False 
-  } ELSE return_spmf False 
-  } ELSE return_spmf False "
-    unfolding split_def Let_def
-    by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
-  also have "\<dots> = TRY do { 
-     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
-    TRY do {
-    (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> (?PK \<alpha>);
-    TRY do {
-  _ :: unit \<leftarrow> assert_spmf (\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 
-                            \<and> valid_msg \<phi>_of_i w_i
-                            \<and> valid_msg \<phi>'_of_i w'_i
-                            \<and> VerifyEval (?PK \<alpha>) C i \<phi>_of_i w_i 
-                            \<and> VerifyEval (?PK \<alpha>) C i \<phi>'_of_i w'_i
-                            \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(?\<alpha> \<alpha> + (-i))) 
-                              = (w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i)));
-    return_spmf True 
-  } ELSE return_spmf False 
-  } ELSE return_spmf False 
-  } ELSE return_spmf False "  
-    using assert_anding by presburger
  also have "\<dots> = TRY do { 
      \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, i, \<phi>_of_i, w_i, \<phi>'_of_i, w'_i) \<leftarrow> \<A> (?PK \<alpha>);
@@ -368,9 +334,8 @@ proof -
                             \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(?\<alpha> \<alpha> + (-i))) 
                               = (w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i)));
     return_spmf True 
-  } ELSE return_spmf False"  
-    unfolding split_def Let_def
-    by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
+  } ELSE return_spmf False"
+   by (simp add: assert_collapse)
   text \<open>We use the equivalence to erase the assert-term that t-SDH is broken, as it is not 
   contained in the evaluation binding game.\<close>
   also have "\<dots> = TRY do { 
@@ -436,7 +401,7 @@ proof -
       } ELSE return_spmf False 
     } ELSE return_spmf False 
   } ELSE return_spmf False"  
-    using assert_anding by presburger
+    by (simp add: assert_collapse)
   also  have "\<dots> = TRY do {
   PK \<leftarrow> KeyGen;
   (C, i, \<phi>_i, w_i, \<phi>'_i, w'_i) \<leftarrow> \<A> PK;
@@ -551,7 +516,6 @@ where
 
 
 
-
 subsection \<open>helping definitions\<close>
 
 text \<open>The eval_bind reduction adversary extended for asserts that 
@@ -564,6 +528,7 @@ where
   "ext_eval_bind_reduction \<A> PK = do {
   (C, i, v, w, v', w') \<leftarrow> \<A> PK;
   _ :: unit \<leftarrow> assert_spmf (v \<noteq> v'
+                            \<and> valid_argument i
                             \<and> valid_eval (v,w)
                             \<and> valid_eval (v',w')
                             \<and> verify_eval PK C i (v,w)
@@ -633,18 +598,21 @@ text \<open>CryptHOL has some difficulties with simplifying, thus we need to use
 that state the equalities we want to exchange literally.\<close>
 
 lemma add_witness_neq_if_eval_neq: "v \<noteq> v'
+                            \<and> valid_argument i
                             \<and> valid_eval (v,w)
                             \<and> valid_eval (v',w')
                             \<and> verify_eval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) C i (v,w) 
                             \<and> verify_eval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) C i (v',w') 
                         \<longleftrightarrow>                                       
                             v \<noteq> v' \<and> w\<noteq> w'
+                            \<and> valid_argument i
                             \<and> valid_eval (v,w)
                             \<and> valid_eval (v',w')
                             \<and> verify_eval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) C i (v,w) 
                             \<and> verify_eval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) C i (v',w')"
 proof 
   assume asm: "v \<noteq> v'
+              \<and> valid_argument i
               \<and> valid_eval (v,w)
               \<and> valid_eval (v',w')
               \<and> verify_eval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) C i (v,w) 
@@ -694,6 +662,7 @@ proof
       using w_i_pow w'_i_pow pow_on_eq_card by presburger
   qed
   then show "v \<noteq> v' \<and> w\<noteq> w'
+                            \<and> valid_argument i
                             \<and> valid_eval (v,w)
                             \<and> valid_eval (v',w')
                             \<and> verify_eval (map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]) C i (v,w) 
@@ -702,6 +671,7 @@ proof
 qed fast
 
 lemma helping_1: "\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 
+        \<and> valid_argument i
         \<and> w_i \<in> carrier G\<^sub>p \<and>  w'_i \<in> carrier G\<^sub>p
         \<and> verify_eval ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((\<alpha>)^t)) [0..<max_deg+1])) C i (\<phi>_of_i, w_i) 
         \<and> verify_eval ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((\<alpha>)^t)) [0..<max_deg+1])) C i (\<phi>'_of_i, w'_i)
@@ -709,6 +679,7 @@ lemma helping_1: "\<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i
         = (w_i \<div>\<^bsub>G\<^sub>p\<^esub> w'_i) ^\<^bsub>G\<^sub>p\<^esub> (1 / (\<phi>'_of_i - \<phi>_of_i)) 
   \<longleftrightarrow> 
         \<phi>_of_i \<noteq> \<phi>'_of_i \<and> w_i \<noteq> w'_i 
+        \<and> valid_argument i
         \<and> w_i \<in> carrier G\<^sub>p \<and>  w'_i \<in> carrier G\<^sub>p
         \<and> verify_eval ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((\<alpha>)^t)) [0..<max_deg+1])) C i (\<phi>_of_i, w_i) 
         \<and> verify_eval ((map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> ((\<alpha>)^t)) [0..<max_deg+1])) C i (\<phi>'_of_i, w'_i)"
@@ -735,6 +706,7 @@ proof -
      \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, i, v, w, v', w') \<leftarrow> \<A> (?PK \<alpha>);
     _ :: unit \<leftarrow> assert_spmf (v \<noteq> v' 
+                            \<and> valid_argument i
                             \<and> valid_eval (v,w)
                             \<and> valid_eval (v',w')
                             \<and> verify_eval (?PK \<alpha>) C i (v,w)
@@ -749,6 +721,7 @@ proof -
      \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, i, v, w, v', w') \<leftarrow> \<A> (?PK \<alpha>);
     _ :: unit \<leftarrow> assert_spmf (v \<noteq> v' \<and> w \<noteq> w'
+                            \<and> valid_argument i
                             \<and> valid_eval (v,w)
                             \<and> valid_eval (v',w')
                             \<and> verify_eval (?PK \<alpha>) C i (v,w)
@@ -761,44 +734,11 @@ proof -
   evaluation_game. To do that, we first merge the two asserts and show that the first assert's 
   statement implies the second one's statement, hence we can leave the second assert's statement 
   out and are left with only the first assert statement.\<close>
-  also have "\<dots> = TRY do { 
-     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
-    TRY do {
-    (C, i, v, w, v', w') \<leftarrow> \<A> (?PK \<alpha>);
-    TRY do {
-    _ :: unit \<leftarrow> assert_spmf (v \<noteq> v' \<and> w \<noteq> w'
-                            \<and> valid_eval (v,w)
-                            \<and> valid_eval (v',w')
-                            \<and> verify_eval (?PK \<alpha>) C i (v,w)
-                            \<and> verify_eval (?PK \<alpha>) C i (v',w'));
-    _::unit \<leftarrow> assert_spmf (\<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(?\<alpha> \<alpha> + (-i))) = (w \<div>\<^bsub>G\<^sub>p\<^esub> w') ^\<^bsub>G\<^sub>p\<^esub> (1 / (v' - v)));
-    return_spmf True 
-  } ELSE return_spmf False 
-  } ELSE return_spmf False 
-  } ELSE return_spmf False "
-    unfolding split_def Let_def
-    by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
-  also have "\<dots> = TRY do { 
-     \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
-    TRY do {
-    (C, i, v, w, v', w') \<leftarrow> \<A> (?PK \<alpha>);
-    TRY do {
-    _ :: unit \<leftarrow> assert_spmf (v \<noteq> v' \<and> w \<noteq> w'
-                            \<and> valid_eval (v,w)
-                            \<and> valid_eval (v',w')
-                            \<and> verify_eval (?PK \<alpha>) C i (v,w)
-                            \<and> verify_eval (?PK \<alpha>) C i (v',w')
-                            \<and> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (1/(?\<alpha> \<alpha> + (-i))) 
-                              = (w \<div>\<^bsub>G\<^sub>p\<^esub> w') ^\<^bsub>G\<^sub>p\<^esub> (1 / (v' - v)));
-    return_spmf True 
-  } ELSE return_spmf False 
-  } ELSE return_spmf False 
-  } ELSE return_spmf False "  
-    using assert_anding by presburger
  also have "\<dots> = TRY do { 
      \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, i, v, w, v', w') \<leftarrow> \<A> (?PK \<alpha>);
     _ :: unit \<leftarrow> assert_spmf (v \<noteq> v' \<and> w \<noteq> w'
+                            \<and> valid_argument i
                             \<and> valid_eval (v,w)
                             \<and> valid_eval (v',w')
                             \<and> verify_eval (?PK \<alpha>) C i (v,w)
@@ -807,14 +747,14 @@ proof -
                               = (w \<div>\<^bsub>G\<^sub>p\<^esub> w') ^\<^bsub>G\<^sub>p\<^esub> (1 / (v' - v)));
     return_spmf True 
   } ELSE return_spmf False"  
-    unfolding split_def Let_def
-    by(fold try_bind_spmf_lossless2[OF lossless_return_spmf]) simp
+   by (simp add: assert_collapse)
   text \<open>We use the equivalence to erase the assert-term that t-SDH is broken, as it is not 
   contained in the evaluation binding game.\<close>
   also have "\<dots> = TRY do { 
      \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, i, v, w, v', w') \<leftarrow> \<A> (?PK \<alpha>);
     _ :: unit \<leftarrow> assert_spmf (v \<noteq> v' \<and> w \<noteq> w'
+                            \<and> valid_argument i
                             \<and> valid_eval (v,w)
                             \<and> valid_eval (v',w')
                             \<and> verify_eval (?PK \<alpha>) C i (v,w)
@@ -828,6 +768,7 @@ proof -
      \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
     (C, i, v, w, v', w') \<leftarrow> \<A> (?PK \<alpha>);
     _ :: unit \<leftarrow> assert_spmf (v \<noteq> v'
+                            \<and> valid_argument i
                             \<and> valid_eval (v,w)
                             \<and> valid_eval (v',w')
                             \<and> verify_eval (?PK \<alpha>) C i (v,w)
@@ -840,6 +781,7 @@ proof -
     (PK,PK') \<leftarrow> key_gen;
     (C, i, v, w, v', w') \<leftarrow> \<A> PK;
     _ :: unit \<leftarrow> assert_spmf (v \<noteq> v'
+                            \<and> valid_argument i
                             \<and> valid_eval (v,w)
                             \<and> valid_eval (v',w')
                             \<and> verify_eval PK C i (v,w)
@@ -854,6 +796,7 @@ proof -
       (C, i, v, w, v', w') \<leftarrow> \<A> PK;
       TRY do {
       _ :: unit \<leftarrow> assert_spmf (v \<noteq> v'
+                            \<and> valid_argument i
                             \<and> valid_eval (v,w)
                             \<and> valid_eval (v',w')
                             \<and> verify_eval PK C i (v,w)
@@ -869,19 +812,19 @@ proof -
     TRY do {
     (C, i, v, w, v', w') \<leftarrow> \<A> PK;
       TRY do {
-        _ :: unit \<leftarrow> assert_spmf (v \<noteq> v'\<and> valid_eval (v,w) \<and> valid_eval (v',w'));
+        _ :: unit \<leftarrow> assert_spmf (v \<noteq> v'\<and> valid_argument i \<and> valid_eval (v,w) \<and> valid_eval (v',w'));
         _ :: unit \<leftarrow> assert_spmf (verify_eval PK C i (v,w) \<and> verify_eval PK C i (v',w'));
         return_spmf True
       } ELSE return_spmf False 
     } ELSE return_spmf False 
   } ELSE return_spmf False"  
-    using assert_anding by presburger
+    by (simp add: assert_collapse)
   also  have "\<dots> = TRY do {
   (PK,_) \<leftarrow> key_gen;
     TRY do {
     (C, i, v, w, v', w') \<leftarrow> \<A> PK;
       TRY do {
-        _ :: unit \<leftarrow> assert_spmf (v \<noteq> v'\<and> valid_eval (v,w) \<and> valid_eval (v',w'));
+        _ :: unit \<leftarrow> assert_spmf (v \<noteq> v'\<and> valid_argument i \<and> valid_eval (v,w) \<and> valid_eval (v',w'));
         TRY do {
           let b = verify_eval PK C i (v,w);
           let b' = verify_eval PK C i (v',w');
@@ -894,7 +837,7 @@ proof -
   also have "\<dots> = TRY do {
   (PK,_) \<leftarrow> key_gen;
   (C, i, v, w, v', w') \<leftarrow> \<A> PK;
-  _ :: unit \<leftarrow> assert_spmf (v \<noteq> v'\<and> valid_eval (v,w) \<and> valid_eval (v',w'));
+  _ :: unit \<leftarrow> assert_spmf (v \<noteq> v'\<and> valid_argument i \<and> valid_eval (v,w) \<and> valid_eval (v',w'));
   let b = verify_eval PK C i (v,w);
   let b' = verify_eval PK C i (v',w');
   return_spmf (b \<and> b')} ELSE return_spmf False"
@@ -904,7 +847,6 @@ proof -
      using eval_bind_game_def unfolding key_gen_def Setup_def by auto
   finally show ?thesis  ..
 qed
-
 
 lemma overestimate_reductions: "spmf (t_SDH_G\<^sub>p.game (ext_eval_bind_reduction \<A>)) True 
   \<le> spmf (t_SDH_G\<^sub>p.game (eval_bind_reduction \<A>)) True"
@@ -922,6 +864,7 @@ proof -
      \<alpha> \<leftarrow> sample_uniform (order G\<^sub>p);
       (C, i, v, w, v', w') \<leftarrow> \<A> (?PK \<alpha>);
       _ :: unit \<leftarrow> assert_spmf (v \<noteq> v'
+                            \<and> valid_argument i
                             \<and> valid_eval (v,w)
                             \<and> valid_eval (v',w')
                             \<and> verify_eval (?PK \<alpha>) C i (v,w)

@@ -6,10 +6,12 @@ text \<open>This theory captures the notion of Polynomial Commitment Schemes, in
 Kate, Zaverucha, and Goldberg's: Constant-Size Commitments to Polynomials and Their Applications
 https://www.iacr.org/archive/asiacrypt2010/6477178/6477178.pdf
 
-The formalization differs slightly from the early notion of Kate, Zaverucha, and Goldberg, as it 
+The formalization differs slightly from the early notion of Kate, Zaverucha, and Goldberg, as it
 aims to capture, and also draws from, newer approaches to polynomial commitment schemes. 
 Exempli gratia:
-Zeilberger, Chen, and Fisch: BaseFold: Efficient Field-Agnostic Polynomial Commitment Schemes from 
+Arnon, Chiesa, Fenzi, Yogev: WHIR: Reed–Solomon Proximity Testing with Super-Fast Verification
+https://eprint.iacr.org/2024/1586.pdf
+Zeilberger, Chen, and Fisch: BaseFold: Efficient Field-Agnostic Polynomial Commitment Schemes from
 Foldable Codes
 https://eprint.iacr.org/2023/1705.pdf
 Diamond and Posen's: Succinct Arguments over Towers of Binary Fields
@@ -35,7 +37,10 @@ locale abstract_polynomial_commitment_scheme =
       \<comment> \<open>checks whether the point is on the polynomial corresponding to the commitment\<close>
     and valid_poly :: "'r poly \<Rightarrow> bool" \<comment> \<open>checks whether a polynomial is a valid message e.g. it's 
         degree is bounded\<close>
-    and valid_eval :: "('evaluation \<times> 'witness) \<Rightarrow> bool"
+    and valid_argument :: "'argument \<Rightarrow> bool" \<comment> \<open>checks whether an argument is a valid message 
+      e.g. set size in a batched version\<close>
+    and valid_eval :: "('evaluation \<times> 'witness) \<Rightarrow> bool" \<comment> \<open>checks whether an evaluation is a valid
+       message e.g. a valid group element\<close>
 begin
 
 text \<open>A polynomial commitment scheme is an extension of a standard commitment scheme. 
@@ -59,14 +64,14 @@ definition correct_eval_game :: "'r poly \<Rightarrow> 'argument \<Rightarrow> b
   return_spmf (verify_eval vk c i w)
   }"
 
-lemma lossless_correct_eval_game: "\<lbrakk> lossless_spmf key_gen; lossless_spmf TI;
+lemma lossless_correct_eval_game: "\<lbrakk>lossless_spmf key_gen;
           \<And>ck p. valid_msg p \<Longrightarrow> lossless_spmf (commit ck p)\<rbrakk>
               \<Longrightarrow> valid_msg p \<Longrightarrow> lossless_spmf (correct_eval_game p i)"  
   by (simp add: correct_eval_game_def split_def Let_def)
 
 text \<open>captures the  perfect correctness property of eval\<close>
 definition correct_eval
-  where "correct_eval \<equiv> (\<forall>p i. valid_poly p \<longrightarrow> spmf (correct_eval_game p i) True = 1)"
+  where "correct_eval \<equiv> (\<forall>p i. valid_poly p \<longrightarrow> valid_argument i \<longrightarrow> spmf (correct_eval_game p i) True = 1)"
 
 text \<open>We again reuse the previous work on commitment schemes\<close>
 definition poly_bind_game
@@ -82,38 +87,42 @@ text \<open>captures the evaluation binding game i.e. verifying two contradictin
 definition eval_bind_game :: "('ck, 'commit, 'argument, 'evaluation, 'witness) eval_bind_adversary \<Rightarrow> bool spmf"
   where "eval_bind_game \<A> = TRY do {
   (ck, vk) \<leftarrow> key_gen;
-  (c, i, v, w, v', w') \<leftarrow> \<A> ck;     
-  _ :: unit \<leftarrow> assert_spmf (v \<noteq> v' \<and> valid_eval (v, w) \<and> valid_eval (v', w'));                     
+  (c, i, v, w, v', w') \<leftarrow> \<A> ck;
+  _ :: unit \<leftarrow> assert_spmf (v \<noteq> v' \<and> valid_argument i \<and> valid_eval (v, w) \<and> valid_eval (v', w'));                     
   let b = verify_eval vk c i (v,w);
   let b' = verify_eval vk c i (v',w');
-  return_spmf (b \<and> b')} ELSE return_spmf False"  
+  return_spmf (b \<and> b')} ELSE return_spmf False"
 
 text \<open>We capture the advantage of an adversary over wining the evaluation binding game. This has to 
 be negligible for evaluation binding to hold.\<close>
 definition eval_bind_advantage :: "('ck, 'commit, 'argument, 'evaluation, 'witness) eval_bind_adversary \<Rightarrow> real"
   where "eval_bind_advantage \<A> \<equiv> spmf (eval_bind_game \<A>) True"
 
-type_synonym ('r', 'vk', 'commit', 'argument', 'evaluation', 'witness')  eval_hiding_adversary = 
-  "('vk' \<Rightarrow> 'commit' \<Rightarrow> 'argument' list \<Rightarrow> ('evaluation' \<times> 'witness') list \<Rightarrow> ('r' poly) spmf)"
+type_synonym ('r','vk', 'argument','state')  eval_hiding_adversary1 = 
+  "'vk' \<Rightarrow>  ('r' poly \<times> 'argument' list \<times> 'state') spmf"
+
+type_synonym ('r', 'vk', 'commit', 'argument', 'evaluation', 'witness', 'state')  eval_hiding_adversary2 = 
+  "('vk' \<Rightarrow> 'state' \<Rightarrow> 'commit' \<Rightarrow> 'argument' list \<Rightarrow> ('evaluation' \<times> 'witness') list \<Rightarrow> ('r' poly) spmf)"
 
 text \<open>captures the hiding property of the Commit and Eval functions in combination.
 Note,this property deviates from the typical indistinguishability games for hiding in general.
 Kate, Zaverucha, and Goldberg introduced this notion in their work. \<close>
-definition eval_hiding_game :: "'r poly \<Rightarrow> 'argument list \<Rightarrow> ('r, 'vk, 'commit, 'argument, 'evaluation, 'witness) 
-  eval_hiding_adversary \<Rightarrow> bool spmf"
-  where "eval_hiding_game p I \<A> = TRY do {
+definition eval_hiding_game :: "('r,'vk, 'argument,'state) eval_hiding_adversary1 \<Rightarrow> 
+  ('r, 'vk, 'commit, 'argument, 'evaluation, 'witness, 'state) eval_hiding_adversary2 \<Rightarrow> bool spmf"
+  where "eval_hiding_game \<A>1 \<A>2 = TRY do {
   (ck, vk) \<leftarrow> key_gen;
+  (p,I,\<sigma>) \<leftarrow> \<A>1 vk;
+  _ ::unit \<leftarrow> assert_spmf (valid_poly p);
   (c,d) \<leftarrow> commit ck p; 
   let W = map (\<lambda>i. eval ck d p i) I; 
-  p' \<leftarrow> \<A> vk c I W;
+  p' \<leftarrow> \<A>2 vk \<sigma> c I W;
   return_spmf (p = p')} ELSE return_spmf False"
 
 text \<open>We capture the advantage of an adversary over wining the hiding game. This has to be 
 negligible for hiding to hold.\<close>
-definition hiding_advantage :: "'r poly \<Rightarrow> 'argument list \<Rightarrow> ('r, 'vk, 'commit, 'argument, 'evaluation, 'witness) 
-  eval_hiding_adversary \<Rightarrow> real"
-  where "hiding_advantage p i \<A> \<equiv> spmf (eval_hiding_game p i \<A>) True"
-
+definition eval_hiding_advantage :: "('r,'vk, 'argument,'state) eval_hiding_adversary1 \<Rightarrow> 
+  ('r, 'vk, 'commit, 'argument, 'evaluation, 'witness, 'state) eval_hiding_adversary2 \<Rightarrow> real"
+  where "eval_hiding_advantage \<A>1 \<A>2 \<equiv> spmf (eval_hiding_game \<A>1 \<A>2) True"
 
 type_synonym ('ck', 'commit', 'state') knowledge_soundness_adversary1 = "'ck' \<Rightarrow> ('commit' \<times> 'state') spmf"
 
@@ -137,7 +146,7 @@ definition knowledge_soundness_game :: "('ck, 'commit, 'state) knowledge_soundne
   (i, (p_i,\<pi>)) \<leftarrow> \<A>2 ck \<sigma>;
   let w = (p_i, \<pi>);
   let (p_i',_) = eval ck d p i;         
-  return_spmf (verify_eval vk c i w \<and> p_i \<noteq> p_i' \<and> valid_eval w)       
+  return_spmf (verify_eval vk c i w \<and> p_i \<noteq> p_i' \<and> valid_argument i \<and> valid_eval w)       
   } ELSE return_spmf False"
 
 text \<open>We capture the advantage of an adversary over wining the knowledge soundness game. This has to

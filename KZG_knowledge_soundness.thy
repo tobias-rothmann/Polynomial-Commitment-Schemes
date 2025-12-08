@@ -91,20 +91,6 @@ where
 
 subsection \<open>helping lemmas\<close>
 
-text \<open>CryptHOL extenstions\<close>
-lemma assert_commute: "bind_spmf X (\<lambda>x. bind_spmf (assert_spmf Y) (\<lambda>_. Z x)) 
-  = bind_spmf (assert_spmf Y) (\<lambda>_. bind_spmf X (\<lambda>x. Z x))"
-  by (rule bind_commute_spmf)
-
-thm assert_commute[symmetric]
-
-lemma assert_collapse: "bind_spmf (assert_spmf X) (\<lambda>_. bind_spmf (assert_spmf Y) (\<lambda>_. Z)) = 
-   bind_spmf (assert_spmf (X \<and> Y)) (\<lambda>_. Z)"
-  by (smt (verit) assert_spmf_simps(1,2) return_None_bind_spmf return_bind_spmf)
-
-lemma assert_cong: " X = Y \<Longrightarrow> rel_spmf (=) (assert_spmf X)  (assert_spmf Y)"
-  by simp
-
 text \<open>proof related helping lemmas\<close>
 
 lemma ks_imp_eval_bind_asserts:
@@ -116,11 +102,13 @@ lemma ks_imp_eval_bind_asserts:
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
           \<and> verify_eval vk c i (p_i,w)
           \<and> p_i \<noteq> p_i'
+          \<and> valid_argument i
           \<and> valid_eval (p_i,w) 
         \<longleftrightarrow>
           length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
           \<and> p_i \<noteq> p_i'
+          \<and> valid_argument i
           \<and> valid_eval (p_i,w)
           \<and> valid_eval (p_i', w')
           \<and> verify_eval vk c i (p_i, w) 
@@ -135,11 +123,13 @@ proof -
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
           \<and> verify_eval vk c i (p_i,w)
           \<and> p_i \<noteq> p_i'
+          \<and> valid_argument i
           \<and> valid_eval (p_i,w) 
         \<longleftrightarrow>
           length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
           \<and> p_i \<noteq> p_i'
+          \<and> valid_argument i
           \<and> valid_eval (p_i,w)
           \<and> valid_eval (p_i', w')
           \<and> verify_eval vk c i (p_i, w) 
@@ -388,7 +378,7 @@ proof -
       (p,td) \<leftarrow> E (c,cvec);
       (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
       let (p_i',w') = Eval ck td p i;         
-      return_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_eval (p_i,w))       
+      return_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_argument i \<and> valid_eval (p_i,w))       
     } ELSE return_spmf False"
     by (simp add: knowledge_soundness_game_AGM_def lift_\<A>1_def lift_\<A>2_def del: Let_def split_def)
     also have "\<dots> = 
@@ -400,7 +390,7 @@ proof -
       (p,td) \<leftarrow> E (c,cvec);
       (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
       let (p_i',w') = Eval ck td p i;         
-      return_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_eval (p_i,w))       
+      return_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_argument i \<and> valid_eval (p_i,w))       
     } ELSE return_spmf False"
       unfolding lift_\<A>1_def by simp
     also have "\<dots> = 
@@ -413,7 +403,7 @@ proof -
       (p,td) \<leftarrow> E (c,cvec);
       (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
       let (p_i',w') = Eval ck td p i;         
-      return_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_eval (p_i,w))       
+      return_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_argument i \<and> valid_eval (p_i,w))       
     } ELSE return_spmf False" 
       by simp
     also have "\<dots> = 
@@ -426,7 +416,7 @@ proof -
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one>);
-      return_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_eval (p_i,w))       
+      return_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_argument i \<and> valid_eval (p_i,w))       
     } ELSE return_spmf False" 
       by (rule try_spmf_cong)(simp add: assert_commute)+
     also have "\<dots> = 
@@ -444,7 +434,7 @@ proof -
               _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
                     \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one>);
               TRY do {
-                return_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_eval (p_i,w)) 
+                return_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_argument i \<and> valid_eval (p_i,w)) 
               } ELSE return_spmf False    
             } ELSE return_spmf False    
           } ELSE return_spmf False    
@@ -467,7 +457,7 @@ proof -
               let (p_i',w') = Eval ck td p i;
               _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
                     \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one>);
-              _ :: unit \<leftarrow> assert_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_eval (p_i,w));
+              _ :: unit \<leftarrow> assert_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_argument i \<and> valid_eval (p_i,w));
               return_spmf True   
             } ELSE return_spmf False    
           } ELSE return_spmf False    
@@ -485,7 +475,7 @@ proof -
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one>);
-      _ :: unit \<leftarrow> assert_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_eval (p_i,w));
+      _ :: unit \<leftarrow> assert_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_argument i \<and> valid_eval (p_i,w));
       return_spmf True
     } ELSE return_spmf False" 
     unfolding Let_def split_def
@@ -502,6 +492,7 @@ proof -
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
           \<and> verify_eval vk c i (p_i,w) 
           \<and> p_i \<noteq> p_i' 
+          \<and> valid_argument i 
           \<and> valid_eval (p_i,w));
       return_spmf True
     } ELSE return_spmf False" 
@@ -520,6 +511,7 @@ proof -
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
           \<and> verify_eval vk c i (p_i,w) 
           \<and> p_i \<noteq> p_i' 
+          \<and> valid_argument i
           \<and> valid_eval (p_i,w));
       return_spmf True
     } ELSE return_spmf False" 
@@ -538,6 +530,7 @@ proof -
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
           \<and> p_i \<noteq> p_i'
+          \<and> valid_argument i
           \<and> valid_eval (p_i,w)
           \<and> valid_eval (p_i', w')
           \<and> verify_eval vk c i (p_i, w) 
@@ -564,6 +557,7 @@ proof -
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
           \<and> p_i \<noteq> p_i'
+          \<and> valid_argument i
           \<and> valid_eval (p_i,w)
           \<and> valid_eval (p_i', w')
           \<and> verify_eval vk c i (p_i, w) 
@@ -583,6 +577,7 @@ proof -
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf ( 
            p_i \<noteq> p_i'
+          \<and> valid_argument i
           \<and> valid_eval (p_i,w)
           \<and> valid_eval (p_i', w')
           \<and> verify_eval vk c i (p_i, w) 
@@ -602,6 +597,7 @@ proof -
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf ( 
            p_i \<noteq> p_i'
+          \<and> valid_argument i
           \<and> valid_eval (p_i,w)
           \<and> valid_eval (p_i', w')
           \<and> verify_eval vk c i (p_i, w) 
@@ -624,6 +620,7 @@ proof -
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf ( 
            p_i \<noteq> p_i'
+          \<and> valid_argument i
           \<and> valid_eval (p_i,w)
           \<and> valid_eval (p_i', w')
           \<and> verify_eval vk c i (p_i, w) 
@@ -643,6 +640,7 @@ proof -
       _ :: unit \<leftarrow> assert_spmf ( 
           valid_eval (p_i,w)
           \<and> p_i \<noteq> p_i'
+          \<and> valid_argument i
           \<and> valid_eval (p_i,w)
           \<and> valid_eval (p_i', w')
           \<and> verify_eval vk c i (p_i, w) 
@@ -655,7 +653,7 @@ proof -
      apply(rule rel_spmf_bindI[of "(=)"] | force)+
       apply(rule assert_cong)
       apply force+
-    done  
+    done 
   also have "\<dots> = 
     TRY do {
       (ck,vk) \<leftarrow> key_gen;
@@ -668,6 +666,7 @@ proof -
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf ( 
           p_i \<noteq> p_i'
+          \<and> valid_argument i
           \<and> valid_eval (p_i,w)
           \<and> valid_eval (p_i', w'));
       _ :: unit \<leftarrow> assert_spmf(
@@ -682,6 +681,7 @@ proof -
       (c, i, v, w, v', w') \<leftarrow> knowledge_soundness_reduction_ext E \<A>1 \<A>2 ck;
       _ :: unit \<leftarrow> assert_spmf ( 
           v \<noteq> v'
+          \<and> valid_argument i
           \<and> valid_eval (v,w)
           \<and> valid_eval (v', w'));
       _ :: unit \<leftarrow> assert_spmf(
@@ -698,6 +698,7 @@ proof -
         TRY do {
           _ :: unit \<leftarrow> assert_spmf ( 
               v \<noteq> v'
+              \<and> valid_argument i
               \<and> valid_eval (v,w)
               \<and> valid_eval (v', w'));
           TRY do {
@@ -719,6 +720,7 @@ proof -
         TRY do {
           _ :: unit \<leftarrow> assert_spmf ( 
               v \<noteq> v'
+              \<and> valid_argument i
               \<and> valid_eval (v,w)
               \<and> valid_eval (v', w'));
           TRY do {
@@ -734,6 +736,7 @@ proof -
       (c, i, v, w, v', w') \<leftarrow> knowledge_soundness_reduction_ext E \<A>1 \<A>2 ck;
       _ :: unit \<leftarrow> assert_spmf ( 
           v \<noteq> v'
+          \<and> valid_argument i
           \<and> valid_eval (v,w)
           \<and> valid_eval (v', w'));
       return_spmf( verify_eval vk c i (v, w) \<and> verify_eval vk c i (v', w'))
@@ -765,7 +768,7 @@ proof -
       (i, v, w, wvec) \<leftarrow> \<A>2_AGM ck \<sigma>;
       _ :: unit \<leftarrow> assert_spmf (valid_eval (v, w));
       let (v',w') = Eval ck td p i;     
-      _ :: unit \<leftarrow> assert_spmf (v \<noteq> v' \<and> valid_eval (v, w) \<and> valid_eval (v', w'));                     
+      _ :: unit \<leftarrow> assert_spmf (v \<noteq> v' \<and> valid_argument i \<and> valid_eval (v, w) \<and> valid_eval (v', w'));                     
       let b = verify_eval vk c i (v,w);
       let b' = verify_eval vk c i (v',w');
       return_spmf (b \<and> b')} ELSE return_spmf False"
@@ -783,7 +786,7 @@ proof -
       (p,td) \<leftarrow> E (c,cvec);
       (i, v, w, wvec) \<leftarrow> \<A>2_AGM ck \<sigma>;
       let (v',w') = Eval ck td p i;     
-      _ :: unit \<leftarrow> assert_spmf (v \<noteq> v' \<and> valid_eval (v, w) \<and> valid_eval (v', w'));                     
+      _ :: unit \<leftarrow> assert_spmf (v \<noteq> v' \<and> valid_argument i \<and> valid_eval (v, w) \<and> valid_eval (v', w'));                     
       let b = verify_eval vk c i (v,w);
       let b' = verify_eval vk c i (v',w');
       return_spmf (b \<and> b')} ELSE return_spmf False"

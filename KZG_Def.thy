@@ -639,11 +639,15 @@ definition verify_eval :: "'a vk \<Rightarrow> 'a commit \<Rightarrow> 'e mod_ri
 definition valid_poly::"'e mod_ring poly \<Rightarrow> bool"
   where "valid_poly \<phi> = (degree \<phi> \<le> max_deg)"
 
+definition valid_argument :: "'e argument \<Rightarrow> bool"
+  where "valid_argument _ = True"
+
 definition valid_eval::"('e mod_ring \<times> 'a witness) \<Rightarrow> bool"
   where "valid_eval val = (let (_,w) = val in w \<in> carrier G\<^sub>p)"
 
 text \<open>the KZG is a polynomial commitment scheme\<close>
-sublocale abstract_polynomial_commitment_scheme key_gen commit verify_poly Eval verify_eval valid_poly valid_eval.
+sublocale abstract_polynomial_commitment_scheme key_gen commit verify_poly Eval verify_eval 
+  valid_poly valid_argument valid_eval .
 
 end
 

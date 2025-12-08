@@ -25,8 +25,36 @@ Finally, we provide the ML function 'lift_to_agm' that takes any game in the sta
 automatically derives it's definition in the AGM.
 \<close>
 
+(*consts notgrp :: "'x spmf \<Rightarrow> 'y spmf"
+
+(* Variant for product types: remove the second component *)
+fun notgrp_pair :: "('x * 'y) spmf \<Rightarrow> 'x spmf" where
+  "notgrp_pair m = do { (x,y) \<leftarrow> m; return_spmf x }"
+
+(* Variant for all types (identity) *)
+fun notgrp_base :: "nat spmf \<Rightarrow> nat spmf" where
+  "notgrp_base m = m"
+
+(* Overload the constant notgrp with the two variants *)
+adhoc_overloading notgrp \<rightleftharpoons> notgrp_pair
+adhoc_overloading notgrp \<rightleftharpoons> notgrp_base
+
+value "notgrp (return_spmf (1::nat,2::nat))"*)
+
+
+
 context cyclic_group
-begin 
+begin
+
+(*
+fun constraingrp :: "'a spmf \<Rightarrow> 'a spmf" where
+  "constraingrp m = m"
+
+adhoc_overloading notgrp \<rightleftharpoons> constraingrp
+
+lemma "notgrp (return_spmf \<^bold>g) = return_spmf \<^bold>g"
+  by simp*)
+ 
 
 text \<open>check the rules of an algebraic algorithm i.e. given the elements g, a group element, 
 and the vector vec=[c_0,...c_n] from the algorithm ensure that g=s_0 [^] c_0 \<otimes> ... \<otimes>
