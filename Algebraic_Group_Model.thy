@@ -1,10 +1,10 @@
 theory Algebraic_Group_Model 
-  imports CryptHOL.CryptHOL
+  imports CryptHOL.CryptHOL Restrictive_Comp
   keywords
   "lift_to_algebraicT" :: thy_decl
 and  "AGMLifting" :: thy_decl
 and "lift_to_algebraic" :: thy_decl
-and "lift_to_AGM" :: thy_decl 
+and "lift_to_AGM" :: thy_decl
 begin
 
 text \<open>This theory extends CryptHOL for the Algebraic Group Model according to 
@@ -25,36 +25,220 @@ Finally, we provide the ML function 'lift_to_agm' that takes any game in the sta
 automatically derives it's definition in the AGM.
 \<close>
 
-(*consts notgrp :: "'x spmf \<Rightarrow> 'y spmf"
+(* General methodology: 
+select - filters the relevant group elements from the inputs in a generic way so ML can use the 
+things
+constrain::'b list \<Rightarrow> 'c \<Rightarrow> bool - enforces constrains on a single element 
 
-(* Variant for product types: remove the second component *)
-fun notgrp_pair :: "('x * 'y) spmf \<Rightarrow> 'x spmf" where
-  "notgrp_pair m = do { (x,y) \<leftarrow> m; return_spmf x }"
+Built relevant lemmas about lists and prods around this
+Built one manual AGM encapsulating do {assert and return} block in Isabelle/HOL
+The ML task is to assemble all these from a big game in one call *)
+(* TODO implement ML part to infer the part within the control arrows for select and constrain 
+e.g. prodC (listC gC) gC from ([g,g^2,g^3], g)*)
 
-(* Variant for all types (identity) *)
-fun notgrp_base :: "nat spmf \<Rightarrow> nat spmf" where
-  "notgrp_base m = m"
+locale algebraic_algorithm = cyclic_group 
+begin
 
-(* Overload the constant notgrp with the two variants *)
-adhoc_overloading notgrp \<rightleftharpoons> notgrp_pair
-adhoc_overloading notgrp \<rightleftharpoons> notgrp_base
+text \<open>group elements are the single important type we want to select.\<close>
+definition groupS :: "('a,'a) restrictive_comp_sel"
+  where "groupS \<equiv> \<lparr>select = (\<lambda>x. [x])\<rparr>"
 
-value "notgrp (return_spmf (1::nat,2::nat))"*)
+text \<open>atomic types don't harbour group elements\<close>
+
+definition boolS :: "(bool,'a) restrictive_comp_sel"
+  where "boolS \<equiv> \<lparr>select = (\<lambda>x. [])\<rparr>"
+
+definition unitS :: "(unit,'a) restrictive_comp_sel"
+  where "unitS \<equiv> \<lparr>select = (\<lambda>x. [])\<rparr>"
+
+definition natS :: "(nat,'a) restrictive_comp_sel"
+  where "natS \<equiv> \<lparr>select = (\<lambda>x. [])\<rparr>"
+
+definition intS :: "(int,'a) restrictive_comp_sel"
+  where "intS \<equiv> \<lparr>select = (\<lambda>x. [])\<rparr>"
+
+definition ratS :: "(rat,'a) restrictive_comp_sel"
+  where "ratS \<equiv> \<lparr>select = (\<lambda>x. [])\<rparr>"
+
+definition realS :: "(real,'a) restrictive_comp_sel"
+  where "realS \<equiv> \<lparr>select = (\<lambda>x. [])\<rparr>"
+
+definition complexS :: "(complex,'a) restrictive_comp_sel"
+  where "complexS \<equiv> \<lparr>select = (\<lambda>x. [])\<rparr>"
+
+definition charS :: "(char,'a) restrictive_comp_sel"
+  where "charS \<equiv> \<lparr>select = (\<lambda>x. [])\<rparr>"
+
+definition stringS :: "(string,'a) restrictive_comp_sel"
+  where "stringS \<equiv> \<lparr>select = (\<lambda>x. [])\<rparr>"
+
+text \<open>The above definitions can be composed with the existing data structure extensions from 
+Restrictive_Comp and should cover a wide range of possible inputs. In case some case is missing, 
+the Restrictive_Comp records can be extended to more data structures (see Restrictive_Comp for 
+examples) and this locale can be extended for more atomic type definitions.\<close>
+
+
+text \<open>check the rules of an algebraic algorithm i.e. given the elements g, a group element, 
+and the vector vec=[c_0,...c_n] from the algorithm ensure that g=s_0 [^] c_0 \<otimes> ... \<otimes>
+s_0 [^] c_0, where [s_0,...,s_n]=seen are the group values the algorithm was supplied with.
+\<close>
+definition constrain_grp :: "'a list \<Rightarrow> ('a \<times> int list) \<Rightarrow> bool" 
+  where "constrain_grp seen_vec res \<equiv> 
+    let (g,c_vec) = res in
+    (length seen_vec = length c_vec 
+    \<and> g = fold (\<lambda> i acc. acc \<otimes> seen_vec!i [^] (c_vec!i)) [0..<length seen_vec] \<one>)"
+
+definition groupC :: "(('a \<times> int list), 'a) restrictive_comp_con"
+  where "groupC \<equiv> \<lparr>constrain = (\<lambda>ip op. constrain_grp ip op)\<rparr>"
+
+text \<open>We don't need to constrain atomic types\<close>
+
+definition constrain_atomic :: "'a list \<Rightarrow> 'b \<Rightarrow> bool" 
+  where "constrain_atomic seen_vec res \<equiv> True"
+
+definition boolC :: "(bool, 'a) restrictive_comp_con"
+  where "boolC \<equiv> \<lparr>constrain = (\<lambda>ip op. True)\<rparr>"
+
+definition unitC :: "(unit,'a) restrictive_comp_con"
+  where "unitC \<equiv> \<lparr>constrain = (\<lambda>ip op. True)\<rparr>"
+
+definition natC :: "(nat, 'a) restrictive_comp_con"
+  where "natC \<equiv> \<lparr>constrain = (\<lambda>ip op. True)\<rparr>"
+
+definition intC :: "(int, 'a) restrictive_comp_con"
+  where "intC \<equiv> \<lparr>constrain = (\<lambda>ip op. True)\<rparr>"
+
+definition ratC :: "(rat, 'a) restrictive_comp_con"
+  where "ratC \<equiv> \<lparr>constrain = (\<lambda>ip op. True)\<rparr>"
+
+definition realC :: "(real, 'a) restrictive_comp_con"
+  where "realC \<equiv> \<lparr>constrain = (\<lambda>ip op. True)\<rparr>"
+
+definition complexC :: "(complex, 'a) restrictive_comp_con"
+  where "complexC \<equiv> \<lparr>constrain = (\<lambda>ip op. True)\<rparr>"
+
+definition charC :: "(char, 'a) restrictive_comp_con"
+  where "charC \<equiv> \<lparr>constrain = (\<lambda>ip op. True)\<rparr>"
+
+definition stringC :: "(string, 'a) restrictive_comp_con"
+  where "stringC \<equiv> \<lparr>constrain = (\<lambda>ip op. True)\<rparr>"
+
+text \<open>group values that follow the rules of an algebraic algorithm are actually in the group\<close>
+lemma constrain_grp_is_in_carrier:
+  assumes "\<forall>g \<in> set seen_vec. g \<in> carrier G"
+  and "constrain_grp seen_vec (g,c_vec)"
+shows "g \<in> carrier G"
+proof -
+  have "g = fold (\<lambda> i acc. acc \<otimes> seen_vec!i [^] (c_vec!i)) [0..<length seen_vec] \<one>"
+    using assms(2) constrain_grp_def by auto
+  also have "length seen_vec = length c_vec"
+    using assms(2) constrain_grp_def by fastforce
+  then have "fold (\<lambda> i acc. acc \<otimes> seen_vec!i [^] (c_vec!i)) [0..<length seen_vec] \<one> \<in> carrier G" 
+    using assms(1)
+  proof (induct seen_vec c_vec rule: rev_induct2)
+    case (4 x xs y ys)
+    then have fold_xs_carrier: "fold (\<lambda>i acc. acc \<otimes> xs ! i [^] ys ! i) [0..<length xs] \<one> \<in> carrier G"
+      by fastforce
+    moreover have "x [^] y \<in> carrier G"
+      by (simp add: 4(3))
+    moreover have "fold (\<lambda>i acc. acc \<otimes> (xs @ [x]) ! i [^] (ys @ [y]) ! i) [0..<length (xs @ [x])] \<one> 
+      =  (fold (\<lambda>i acc. acc \<otimes> xs ! i [^] ys ! i) [0..<length xs] \<one>) \<otimes> x [^] y"
+    proof -
+      let ?fyys = "\<lambda>xs::'a list. (\<lambda>i acc. acc \<otimes> xs ! i [^] (ys @ [y]) ! i)"
+      have "fold (\<lambda>i acc. acc \<otimes> (xs @ [x]) ! i [^] (ys @ [y]) ! i) [0..<length (xs @ [x])] \<one> 
+        = fold (?fyys (xs@[x])) [0..<length (xs @ [x])] \<one>" by blast
+      moreover have "\<dots> = (fold (?fyys (xs@[x])) [length (xs @ [x]) - 1] \<circ> fold (?fyys (xs@[x])) [0..<length (xs)]) \<one>"
+        by auto
+      moreover have "\<dots> = ((\<lambda>acc. acc \<otimes> x [^] y)  \<circ> fold (?fyys (xs@[x])) [0..<length (xs)]) \<one>"
+        by (smt (verit, del_insts) "4"(2) One_nat_def add_Suc_right append.right_neutral diff_Suc_Suc diff_zero fold.simps(1) fold_Cons id_comp
+            length_append list.size(3,4) nth_append_length o_apply)
+      moreover have "\<dots> = (fold (?fyys (xs@[x])) [0..<length (xs)] \<one>) \<otimes> x [^] y"
+        by force
+      moreover have "\<dots> = (fold (\<lambda>i acc. acc \<otimes> xs ! i [^] ys ! i) [0..<length (xs)] \<one>) \<otimes> x [^] y"
+      proof - 
+        have "fold (?fyys (xs@[x])) [0..<length (xs)] \<one>
+          = fold (\<lambda>i acc. acc \<otimes> xs ! i [^] ys ! i) [0..<length xs] \<one>"
+        proof(rule fold_cong)
+          fix xa
+          assume "xa \<in> set [0..<length xs]"
+          then have xs_le_xs: "xa < length xs" 
+            by force
+          then have "(xs @ [x]) ! xa = xs ! xa"
+            using nth_append_left by blast
+          moreover have "(ys @ [y]) ! xa = ys ! xa"
+            using 4(2) nth_append_left xs_le_xs by auto
+          ultimately show "(\<lambda>acc. acc \<otimes> (xs @ [x]) ! xa [^] (ys @ [y]) ! xa) = (\<lambda>acc. acc \<otimes> xs ! xa [^] ys ! xa)"
+            by presburger
+        qed force+
+        then show ?thesis by presburger
+      qed
+      ultimately show ?thesis by argo
+    qed
+    ultimately show ?case
+      by auto
+  qed force+
+  finally show "g \<in> carrier G" by blast
+qed
+
+end 
+
+locale algebraic_algorithm_examples = algebraic_algorithm
+begin 
+
+text \<open>To obtain an algebraic algorithm one needs to simply instantiate the restrictive_comp locale 
+with the record composition that one needs and apply the non-algebraic algorithm to the obtained 
+restrictive_comp.restrict.\<close>
+
+text\<open>The trivial example of only one group element as in and output.\<close>
+text \<open>For simplicity let the adversary be id\<close>
+
+definition \<A>_id :: "'a \<Rightarrow> ('a \<times> int list) spmf" 
+  where "\<A>_id = (\<lambda>x. return_spmf (x, [1::int]))"
+
+interpretation id: restrictive_comp groupS groupC .
+
+lemma 
+  assumes "g \<in> carrier G"
+  shows "id.restrict \<A>_id g
+    = \<A>_id g"
+  unfolding \<A>_id_def restrictive_comp.restrict_def
+  unfolding groupS_def groupC_def constrain_grp_def
+  by (simp add: assms)
+  
+text \<open>Now the same for a list of input elements and and output elements\<close>
+
+definition \<A>_list_fst :: "'a list \<Rightarrow> ('a \<times> int list) list spmf" 
+  where "\<A>_list_fst = (\<lambda>x. return_spmf (map (\<lambda>_. (x!0, [1::int,0,0])) x))"
+
+interpretation list_id: restrictive_comp "(listS groupS)" "listC groupC" .
+
+lemma 
+  assumes "g1 \<in> carrier G \<and> g2 \<in> carrier G \<and> g3 \<in> carrier G"
+  shows "list_id.restrict \<A>_list_fst [g1,g2,g3]
+    = \<A>_list_fst [g1,g2,g3]"
+  unfolding \<A>_list_fst_def restrictive_comp.restrict_def
+  unfolding groupS_def groupC_def listS_def listC_def constrain_grp_def
+  by (simp add: assms)
+
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 context cyclic_group
 begin
-
-(*
-fun constraingrp :: "'a spmf \<Rightarrow> 'a spmf" where
-  "constraingrp m = m"
-
-adhoc_overloading notgrp \<rightleftharpoons> constraingrp
-
-lemma "notgrp (return_spmf \<^bold>g) = return_spmf \<^bold>g"
-  by simp*)
- 
 
 text \<open>check the rules of an algebraic algorithm i.e. given the elements g, a group element, 
 and the vector vec=[c_0,...c_n] from the algorithm ensure that g=s_0 [^] c_0 \<otimes> ... \<otimes>
