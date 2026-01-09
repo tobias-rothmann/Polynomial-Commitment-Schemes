@@ -1281,42 +1281,40 @@ begin
 section \<open>Definitions for the weak hiding game\<close>
 
 text \<open>The difference between the weak hiding game and the hiding game is that in the weak hiding 
-game the polynomial is uniform random, not chosen by the adversary. Since arbitrary values can be 
-modelled as uninitialized parameters in Isabelle, like the adversary in the hiding game, we can make
-the arbitrary uninitialized adversary weaker by instantiating a part of it.\<close>
+game the polynomial is uniform random, not arbitrary. Since arbitrary values can be 
+modelled as uninitialized parameters in Isabelle, like the polynomial in the hiding game, we can make
+the hiding weaker by instantiating a part of it.\<close>
 
-text \<open>The adversary chooses only the evaluation points, not the polynomial.\<close>
-type_synonym ('r','vk', 'argument','state')  weak_eval_hiding_adversary1 = 
-  "'vk' \<Rightarrow>  ('argument' list \<times> 'state') spmf"
-
+(* TODO delete this and enforce it in the game *)
 text \<open>The polynomial is chosen uniform random. We also enforce two additional properties on the 
 adversary outputs. With this construction we can use the predefined eval hiding game from 
 Polynomial Commitment Scheme.\<close>
-definition weak_eval_hiding_adversary1 :: "('e mod_ring,'a vk, 'e argument,'state) 
-  weak_eval_hiding_adversary1 \<Rightarrow> ('e mod_ring,'a vk, 'e argument,'state) eval_hiding_adversary1"
+definition weak_eval_hiding_adversary1 :: "('a vk, 'e argument,'state) 
+  eval_hiding_adversary1 \<Rightarrow> ('a vk, 'e argument,'state) eval_hiding_adversary1"
   where 
   "weak_eval_hiding_adversary1 \<A> vk = do {
     (I,\<sigma>) \<leftarrow> \<A> vk;
     _ :: unit \<leftarrow> assert_spmf (length I = max_deg \<and> distinct I);
-    p::'e mod_ring poly \<leftarrow> sample_uniform_poly max_deg;
-    return_spmf (p,I,\<sigma>)
+    return_spmf (I,\<sigma>)
     }"
 
 text \<open>eval_hiding_game except the polynomial is chosen at uniform random and not by the adversary.\<close>
-definition weak_eval_hiding_game ::  "('e mod_ring,'a vk, 'e argument, 'state) 
-  weak_eval_hiding_adversary1 \<Rightarrow> 
+definition weak_eval_hiding_game ::  "('a vk, 'e argument, 'state) eval_hiding_adversary1 \<Rightarrow> 
   ('e mod_ring, 'a vk, 'a commit, 'e argument, 'e evaluation, 'a witness, 'state) 
   eval_hiding_adversary2 \<Rightarrow> bool spmf"
-  where "weak_eval_hiding_game \<A>1 \<A>2 = eval_hiding_game (weak_eval_hiding_adversary1 \<A>1) \<A>2"
+  where "weak_eval_hiding_game \<A>1 \<A>2 = 
+  TRY do {
+    p::'e mod_ring poly \<leftarrow> sample_uniform_poly max_deg;
+    eval_hiding_game p (weak_eval_hiding_adversary1 \<A>1) \<A>2 
+  } ELSE return_spmf False"
 
 text \<open>The advantage of the adversary over the weak hiding game is the advantage of eval hiding with
 the weak adversary.\<close>
-definition weak_eval_hiding_advantage :: "('e mod_ring,'a vk, 'e argument, 'state) 
-  weak_eval_hiding_adversary1 \<Rightarrow> 
+definition weak_eval_hiding_advantage :: "('a vk, 'e argument, 'state) eval_hiding_adversary1 \<Rightarrow> 
   ('e mod_ring, 'a vk, 'a commit, 'e argument, 'e evaluation, 'a witness, 'state) 
   eval_hiding_adversary2 \<Rightarrow> real"
   where "weak_eval_hiding_advantage \<A>1 \<A>2 
-    \<equiv> eval_hiding_advantage (weak_eval_hiding_adversary1 \<A>1) \<A>2"
+    \<equiv> spmf (weak_eval_hiding_game \<A>1 \<A>2) True"
 
 subsection \<open>DL game\<close>
 
@@ -1406,8 +1404,7 @@ construct a winning strategy for the DL game (i.e. to win it every time).
 Essentially, it encodes the DL-instance in a polynomial evaluation on group elements and asks the 
 hiding adversary to return the plain polynomial, which contains the solution to the DL-instance.\<close>
 fun reduction
-  :: "('e mod_ring,'a vk, 'e argument, 'state) 
-  weak_eval_hiding_adversary1 \<Rightarrow> 
+  :: "('a vk, 'e argument, 'state) eval_hiding_adversary1 \<Rightarrow> 
   ('e mod_ring, 'a vk, 'a commit, 'e argument, 'e evaluation, 'a witness, 'state) 
   eval_hiding_adversary2 \<Rightarrow> ('a,'e) DL.adversary"                     
 where
@@ -1423,7 +1420,7 @@ where
   return_spmf (poly \<phi>' i)
   }"
 
-fun reduction_tSDH :: "('e mod_ring,'a vk, 'e argument, 'state) weak_eval_hiding_adversary1 
+fun reduction_tSDH :: "('a vk, 'e argument, 'state) eval_hiding_adversary1 
 \<Rightarrow> ('a,'e) t_SDH.adversary"
   where "reduction_tSDH \<A>1 PK = do {
   (I,\<sigma>) \<leftarrow> \<A>1 PK;
@@ -1748,7 +1745,7 @@ For a more intuitive understanding of the steps go to the final theorem at the e
 
 text \<open>The hiding game with interpolate_on instead of Commit and the random sampling of \<phi> split up 
 into sampling random points for interpolate_on.\<close>
-definition game1 :: "('e mod_ring,'a vk, 'e argument, 'state) weak_eval_hiding_adversary1 \<Rightarrow> 
+definition game1 :: "('a vk, 'e argument, 'state) eval_hiding_adversary1 \<Rightarrow> 
   ('e mod_ring, 'a vk, 'a commit, 'e argument, 'e evaluation, 'a witness, 'state) 
   eval_hiding_adversary2 \<Rightarrow> bool spmf" where 
   "game1 \<A>1 \<A>2 = TRY do {
@@ -1765,7 +1762,7 @@ definition game1 :: "('e mod_ring,'a vk, 'e argument, 'state) weak_eval_hiding_a
   return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
 
 text \<open>game1 with the reduction adversaries emulation instead of CreateWitness\<close>
-definition game2 :: "('e mod_ring,'a vk, 'e argument, 'state) weak_eval_hiding_adversary1 \<Rightarrow> 
+definition game2 :: "('a vk, 'e argument, 'state) eval_hiding_adversary1 \<Rightarrow> 
   ('e mod_ring, 'a vk, 'a commit, 'e argument, 'e evaluation, 'a witness, 'state) 
   eval_hiding_adversary2 \<Rightarrow> bool spmf" where 
   "game2 \<A>1 \<A>2 = TRY do {
@@ -1783,7 +1780,7 @@ definition game2 :: "('e mod_ring,'a vk, 'e argument, 'state) weak_eval_hiding_a
 
 text \<open>game 2 with extracted \<phi> = \<phi>'-assert TODO this could be left out and we could just <= the 
 previous to the next one\<close>
-definition game2_w_assert :: "('e mod_ring,'a vk, 'e argument, 'state) weak_eval_hiding_adversary1 \<Rightarrow> 
+definition game2_w_assert :: "('a vk, 'e argument, 'state) eval_hiding_adversary1 \<Rightarrow> 
   ('e mod_ring, 'a vk, 'a commit, 'e argument, 'e evaluation, 'a witness, 'state) 
   eval_hiding_adversary2 \<Rightarrow> bool spmf" where 
   "game2_w_assert \<A>1 \<A>2 = TRY do {
@@ -1800,12 +1797,12 @@ definition game2_w_assert :: "('e mod_ring,'a vk, 'e argument, 'state) weak_eval
   return_spmf (hd evals = poly \<phi>' i)} ELSE return_spmf False"
 
 text \<open>game2_w_asssert without the assert.\<close>
-definition game2_wo_assert :: "('e mod_ring,'a vk, 'e argument, 'state) weak_eval_hiding_adversary1 \<Rightarrow> 
+definition game2_wo_assert :: "('a vk, 'e argument, 'state) eval_hiding_adversary1 \<Rightarrow> 
   ('e mod_ring, 'a vk, 'a commit, 'e argument, 'e evaluation, 'a witness, 'state) 
   eval_hiding_adversary2 \<Rightarrow> bool spmf" where 
   "game2_wo_assert \<A>1 \<A>2 = TRY do {
   (\<alpha>, PK) \<leftarrow> Setup;
-  (I,\<sigma>) \<leftarrow> \<A>1 PK;
+  (I,\<sigma>) \<leftarrow> \<A>1 PK; 
   let i = PickDistinct I;
   evals \<leftarrow> map_spmf (map  (of_int_mod_ring \<circ> int)) (sample_uniform_list (max_deg+1) (order G\<^sub>p));
   let \<phi> = lagrange_interpolation_poly (zip (i#I) evals);
@@ -1832,39 +1829,61 @@ lemma card_eq_ord: "CARD('e) = order G\<^sub>p"
 
 text \<open>Step 1 of the proof.\<close>
 lemma hiding_game_to_game1:
-shows "spmf (weak_eval_hiding_game \<A>1 \<A>2) True \<le> spmf (game1 \<A>1 \<A>2) True"
- (is "?lhs \<le> ?rhs")
+shows "spmf (weak_eval_hiding_game \<A>1 \<A>2) True = spmf (game1 \<A>1 \<A>2) True"
+ (is "?lhs = ?rhs")
 proof -
-  text \<open>sample phi uniform random is sampling evaluation points for some I uniform random\<close>
+  text \<open>We unfold the weak eval hiding game\<close>
   have "?lhs = spmf (TRY do {
+  p::'e mod_ring poly \<leftarrow> sample_uniform_poly max_deg;
   (ck, vk) \<leftarrow> key_gen;
-  (p,I,\<sigma>) \<leftarrow> do {
+  (I,\<sigma>) \<leftarrow> do {
     (I,\<sigma>) \<leftarrow> \<A>1 vk;
-    p::'e mod_ring poly \<leftarrow> do {
-      _ :: unit \<leftarrow> assert_spmf (length I = max_deg \<and> distinct I);
-      evals::'e mod_ring list \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring)) (sample_uniform_list (max_deg+1) (CARD ('e)));
-      let i = PickDistinct I;
-      return_spmf (lagrange_interpolation_poly (zip (i#I) evals))
-      };
-    return_spmf (p,I,\<sigma>)
-  };
-  _ ::unit \<leftarrow> assert_spmf (valid_poly p);
+    _ :: unit \<leftarrow> assert_spmf (length I = max_deg \<and> distinct I);
+    return_spmf (I,\<sigma>)
+    };
   (c,d) \<leftarrow> commit ck p; 
   let W = map (\<lambda>i. Eval ck d p i) I; 
   p' \<leftarrow> \<A>2 vk \<sigma> c I W;
   return_spmf (p = p')} ELSE return_spmf False) True"
     unfolding weak_eval_hiding_game_def eval_hiding_game_def weak_eval_hiding_adversary1_def
+    by (fold try_bind_spmf_lossless2[OF lossless_return_spmf])(simp)
+  also have "\<dots> = spmf (TRY do {
+  p::'e mod_ring poly \<leftarrow> sample_uniform_poly max_deg;
+  (ck, vk) \<leftarrow> key_gen;
+  (I,\<sigma>) \<leftarrow> \<A>1 vk;
+  _ :: unit \<leftarrow> assert_spmf (length I = max_deg \<and> distinct I);
+  (c,d) \<leftarrow> commit ck p; 
+  let W = map (\<lambda>i. Eval ck d p i) I; 
+  p' \<leftarrow> \<A>2 vk \<sigma> c I W;
+  return_spmf (p = p')} ELSE return_spmf False) True"
+    by (simp add: bind_spmf_assoc key_gen_def bind_map_spmf o_def Setup_def split_def Let_def 
+       del: PickDistinct.simps) (*TODO this step should be deleted when hid game is updated with assert*)
+  text \<open>sample phi uniform random is sampling evaluation points for the adversaries I uniform random\<close>
+  also have "\<dots> = spmf (TRY do {
+  (ck, vk) \<leftarrow> key_gen;
+  (I,\<sigma>) \<leftarrow> \<A>1 vk;
+  p::'e mod_ring poly \<leftarrow> do {
+    _ :: unit \<leftarrow> assert_spmf (length I = max_deg \<and> distinct I);
+    evals::'e mod_ring list \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring)) (sample_uniform_list (max_deg+1) (CARD ('e)));
+    let i = PickDistinct I;
+    return_spmf (lagrange_interpolation_poly (zip (i#I) evals))
+    };
+  (c,d) \<leftarrow> commit ck p; 
+  let W = map (\<lambda>i. Eval ck d p i) I; 
+  p' \<leftarrow> \<A>2 vk \<sigma> c I W;
+  return_spmf (p = p')} ELSE return_spmf False) True"
     apply (rule spmf_eqI')
     apply (rule unpack_try_spmf)
-    apply (rule unpack_bind_spmf')+
-    apply (rule ext; simp split: prod.splits add: split_paired_all del: return_bind_spmf bind_spmf_assoc 
-        PickDistinct.simps)
-    apply (rule unpack_bind_spmf)
-    apply (rule unpack_bind_spmf')
-    apply (rule ext; simp split: prod.splits add: split_paired_all del: PickDistinct.simps)
+    apply (subst bind_commute_spmf; rule unpack_bind_spmf';rule ext; 
+        simp 
+        split: prod.splits 
+        add: split_paired_all 
+        del: return_bind_spmf bind_spmf_assoc PickDistinct.simps)+
+    apply (subst bind_commute_spmf)
+    apply (subst bind_spmf_assoc)
     apply (rule assert_based_eq)
     apply (drule PickDistinct_Prop) 
-    apply (subst sample_uniform_evals_is_sample_poly[of "(PickDistinct a # a)" max_deg])
+    apply (subst sample_uniform_evals_is_sample_poly[of "(PickDistinct aa # aa)" max_deg])
     apply simp+
     done
   text \<open>Now we bring the game in a nicer form and expose the Setup from key_gen\<close>
@@ -1876,32 +1895,12 @@ proof -
   evals::'e mod_ring list \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring)) (sample_uniform_list (max_deg+1) (CARD ('e)));
   let i = PickDistinct I;
   let p = (lagrange_interpolation_poly (zip (i#I) evals));
-    _ ::unit \<leftarrow> assert_spmf (valid_poly p);
   (c,d) \<leftarrow> commit PK p; 
   let W = map (\<lambda>i. Eval PK d p i) I; 
   p' \<leftarrow> \<A>2 PK \<sigma> c I W;
   return_spmf (p = p')} ELSE return_spmf False) True"
    by (simp add: bind_spmf_assoc key_gen_def bind_map_spmf o_def Setup_def split_def Let_def 
        del: PickDistinct.simps)
-  text \<open>We get rid of the unnecessary assert about the polynomial.\<close>
-  also have "\<dots> \<le> spmf(TRY do {
-  \<alpha>::'e mod_ring \<leftarrow>  map_spmf (\<lambda>x. of_int_mod_ring (int x)) (sample_uniform (order G\<^sub>p));
-  let PK = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
-  (I,\<sigma>) \<leftarrow> \<A>1 PK;
-  _ :: unit \<leftarrow> assert_spmf (length I = max_deg \<and> distinct I);
-  evals::'e mod_ring list \<leftarrow> map_spmf (map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring)) (sample_uniform_list (max_deg+1) (CARD ('e)));
-  let i = PickDistinct I;
-  let p = (lagrange_interpolation_poly (zip (i#I) evals));
-  (c,d) \<leftarrow> commit PK p; 
-  let W = map (\<lambda>i. Eval PK d p i) I; 
-  p' \<leftarrow> \<A>2 PK \<sigma> c I W;
-  return_spmf (p = p')} ELSE return_spmf False) True"
-    apply (simp only: Let_def split_def)
-    apply (rule try_spmf_le)
-    apply (rule bind_spmf_le)+
-    apply (simp add: del_assert del: 
-        PickDistinct.simps)
-    done
   text \<open>Now we replace the Commit computed with a valid public key PK by interpolate_on\<close>
   also have "\<dots> = spmf(TRY do {
   \<alpha>::'e mod_ring \<leftarrow>  map_spmf (\<lambda>x. of_int_mod_ring (int x)) (sample_uniform (order G\<^sub>p));
@@ -1955,7 +1954,7 @@ proof -
    and [simp] = map_lift_spmf gpv.map_id lossless_weight_spmfD map_spmf_bind_spmf bind_spmf_const
    and [if_distribs] = if_distrib[where f="\<lambda>x. try_spmf x _"] if_distrib[where f="weight_spmf"] if_distrib[where f="\<lambda>r. scale_spmf r _"]
 
-  define game1b :: "('e mod_ring,'a vk, 'e argument, 'f) weak_eval_hiding_adversary1 \<Rightarrow> 
+  define game1b :: "('a vk, 'e argument, 'f) eval_hiding_adversary1 \<Rightarrow> 
   ('e mod_ring, 'a vk, 'a commit, 'e argument, 'e evaluation, 'a witness, 'f)
   eval_hiding_adversary2 \<Rightarrow> (bool\<times>bool) spmf"
     where "game1b \<A>1 \<A>2 = TRY do {
@@ -2003,7 +2002,7 @@ proof -
     finally show ?thesis .
   qed
 
-   define game2b :: "('e mod_ring,'a vk, 'e argument, 'f) weak_eval_hiding_adversary1 \<Rightarrow> 
+   define game2b :: "('a vk, 'e argument, 'f) eval_hiding_adversary1 \<Rightarrow> 
   ('e mod_ring, 'a vk, 'a commit, 'e argument, 'e evaluation, 'a witness, 'f)
   eval_hiding_adversary2 \<Rightarrow> (bool\<times>bool) spmf"
     where "game2b \<A>1 \<A>2 = TRY do {
@@ -2052,7 +2051,7 @@ proof -
   qed
 
   text \<open>We capture the failure event (i.e. \<alpha> \<in> I) in the collision game.\<close>
-  define collision_game :: "('e mod_ring,'a vk, 'e argument, 'f) weak_eval_hiding_adversary1 \<Rightarrow> bool spmf" where 
+  define collision_game :: "('a vk, 'e argument, 'f) eval_hiding_adversary1 \<Rightarrow> bool spmf" where 
   "collision_game \<A>1 = TRY do {
      \<alpha>::'e mod_ring \<leftarrow> map_spmf (of_int_mod_ring \<circ> int) (sample_uniform (order G\<^sub>p));
      let PK =  map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
@@ -2542,7 +2541,7 @@ theorem weak_hiding:
   shows "weak_eval_hiding_advantage \<A>1 \<A>2  
   \<le> DL_G\<^sub>p.advantage (reduction \<A>1 \<A>2) + t_SDH_G\<^sub>p.advantage (reduction_tSDH \<A>1)"
 proof -
-  have "weak_eval_hiding_advantage \<A>1 \<A>2 \<le> spmf (game1 \<A>1 \<A>2) True"
+  have "weak_eval_hiding_advantage \<A>1 \<A>2 = spmf (game1 \<A>1 \<A>2) True"
     using hiding_game_to_game1
     unfolding weak_eval_hiding_advantage_def eval_hiding_advantage_def 
       weak_eval_hiding_adversary1_def weak_eval_hiding_game_def .

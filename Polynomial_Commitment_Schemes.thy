@@ -1,5 +1,6 @@
 theory Polynomial_Commitment_Schemes 
-  imports CryptHOL.CryptHOL "HOL-Computational_Algebra.Polynomial" Sigma_Commit_Crypto.Commitment_Schemes
+  imports CryptHOL.CryptHOL "HOL-Computational_Algebra.Polynomial" 
+    Sigma_Commit_Crypto.Commitment_Schemes
 begin
 
 text \<open>This theory captures the notion of Polynomial Commitment Schemes, introduced in 
@@ -26,7 +27,7 @@ schemes as well, which were already introduced by Kate, Zaverucha, and Goldberg.
 
 locale abstract_polynomial_commitment_scheme =
   fixes key_gen :: "('ck \<times> 'vk) spmf" \<comment> \<open>outputs the keys received by the two parties\<close>
-    and commit :: "'ck \<Rightarrow> 'r::zero poly  \<Rightarrow> ('commit \<times> 'trapdoor) spmf" 
+    and commit :: "'ck \<Rightarrow> 'r::comm_monoid_add poly  \<Rightarrow> ('commit \<times> 'trapdoor) spmf" 
       \<comment> \<open>outputs the commitment as well as the secret, which might be used to derive witnesses, 
          and the opening values sent by the committer in the reveal phase\<close>    
     and verify_poly :: "'vk \<Rightarrow> 'r poly \<Rightarrow> 'commit \<Rightarrow> 'trapdoor \<Rightarrow> bool"       
@@ -98,8 +99,8 @@ be negligible for evaluation binding to hold.\<close>
 definition eval_bind_advantage :: "('ck, 'commit, 'argument, 'evaluation, 'witness) eval_bind_adversary \<Rightarrow> real"
   where "eval_bind_advantage \<A> \<equiv> spmf (eval_bind_game \<A>) True"
 
-type_synonym ('r','vk', 'argument','state')  eval_hiding_adversary1 = 
-  "'vk' \<Rightarrow>  ('r' poly \<times> 'argument' list \<times> 'state') spmf"
+type_synonym ('vk', 'argument','state')  eval_hiding_adversary1 = 
+  "'vk' \<Rightarrow>  ('argument' list \<times> 'state') spmf"
 
 type_synonym ('r', 'vk', 'commit', 'argument', 'evaluation', 'witness', 'state')  eval_hiding_adversary2 = 
   "('vk' \<Rightarrow> 'state' \<Rightarrow> 'commit' \<Rightarrow> 'argument' list \<Rightarrow> ('evaluation' \<times> 'witness') list \<Rightarrow> ('r' poly) spmf)"
@@ -107,22 +108,23 @@ type_synonym ('r', 'vk', 'commit', 'argument', 'evaluation', 'witness', 'state')
 text \<open>captures the hiding property of the Commit and Eval functions in combination.
 Note,this property deviates from the typical indistinguishability games for hiding in general.
 Kate, Zaverucha, and Goldberg introduced this notion in their work. \<close>
-definition eval_hiding_game :: "('r,'vk, 'argument,'state) eval_hiding_adversary1 \<Rightarrow> 
+definition eval_hiding_game :: "'r poly \<Rightarrow> ('vk, 'argument,'state) eval_hiding_adversary1 \<Rightarrow> 
   ('r, 'vk, 'commit, 'argument, 'evaluation, 'witness, 'state) eval_hiding_adversary2 \<Rightarrow> bool spmf"
-  where "eval_hiding_game \<A>1 \<A>2 = TRY do {
+  where "eval_hiding_game p \<A>1 \<A>2 = TRY do {
   (ck, vk) \<leftarrow> key_gen;
-  (p,I,\<sigma>) \<leftarrow> \<A>1 vk;
-  _ ::unit \<leftarrow> assert_spmf (valid_poly p);
-  (c,d) \<leftarrow> commit ck p; 
+  (I,\<sigma>) \<leftarrow> \<A>1 vk;
+  (c,d) \<leftarrow> commit ck p;
   let W = map (\<lambda>i. eval ck d p i) I; 
   p' \<leftarrow> \<A>2 vk \<sigma> c I W;
   return_spmf (p = p')} ELSE return_spmf False"
+(* TODO constrain I to length max deg poly -1 and distinct 
+Also: should we put valid_poly in there?*)
 
 text \<open>We capture the advantage of an adversary over wining the hiding game. This has to be 
 negligible for hiding to hold.\<close>
-definition eval_hiding_advantage :: "('r,'vk, 'argument,'state) eval_hiding_adversary1 \<Rightarrow> 
+definition eval_hiding_advantage :: "'r poly \<Rightarrow> ('vk, 'argument,'state) eval_hiding_adversary1 \<Rightarrow> 
   ('r, 'vk, 'commit, 'argument, 'evaluation, 'witness, 'state) eval_hiding_adversary2 \<Rightarrow> real"
-  where "eval_hiding_advantage \<A>1 \<A>2 \<equiv> spmf (eval_hiding_game \<A>1 \<A>2) True"
+  where "eval_hiding_advantage p \<A>1 \<A>2 \<equiv> spmf (eval_hiding_game p \<A>1 \<A>2) True"
 
 type_synonym ('ck', 'commit', 'state') knowledge_soundness_adversary1 = "'ck' \<Rightarrow> ('commit' \<times> 'state') spmf"
 
