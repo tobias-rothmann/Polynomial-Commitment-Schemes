@@ -9,16 +9,19 @@ as defined in the abstract polynomial commitment scheme. The proof is a reductio
 evaluation binding game which has been reduced to the t-strong Diffie-Hellmann problem in the 
 KZG_eval_bind theory.\<close>
 
+hide_const restrict
+
 locale KZG_PCS_knowledge_sound = KZG_PCS_binding
 begin 
 
+(*
 text \<open>lift the knowledge soundness game (standard model) from the abstract polynomial commitment 
 scheme (instantiated with the KZG) into the AGM\<close>
 lift_to_AGM "G\<^sub>p" "knowledge_soundness_game \<A>1 \<A>2 \<E>" 
   | "\<A>1:: 'a list \<Rightarrow> ('a \<times> 'f) spmf","\<A>2:: 'a list \<Rightarrow> 'f \<Rightarrow> ('e mod_ring \<times> 'e mod_ring \<times> 'a) spmf" 
   | "\<E>:: 'a \<Rightarrow> ('e mod_ring poly \<times> unit) spmf" = knowledge_soundness_game_AGM
 
-thm knowledge_soundness_game_AGM_def
+thm knowledge_soundness_game_AGM_def*)
 
 text \<open>the AGM adversary types that are useful in defining reductions (i.e. the reduction to the 
 evaluation binding game)\<close>
@@ -27,6 +30,10 @@ lift_to_algebraicT "('a ck, 'a commit, 'state) knowledge_soundness_adversary1"  
 lift_to_algebraicT "('state, 'a ck, 'e mod_ring, 'e evaluation, 'a witness) knowledge_soundness_adversary2" 
   "G\<^sub>p"  => AGM_knowledge_soundness_adversary2
 
+type_synonym ('e', 'state', 'a') knowledge_soundness_adversary2_AGM 
+  = "('a' ck \<times> 'state') \<Rightarrow> ('e' argument \<times> ('e' evaluation \<times> ('a' witness \<times> int list))) spmf"
+
+(*
 text \<open>Functions that make it easier to deconstruct the game in the proof. They abstract the 
 enforcement of algebraic rules\<close>
 AGMLifting  "('a ck, 'a commit, 'state) knowledge_soundness_adversary1" "G\<^sub>p" => lift_\<A>1
@@ -34,7 +41,7 @@ AGMLifting  "('state, 'a ck, 'e mod_ring, 'e evaluation, 'a witness) knowledge_s
   "G\<^sub>p" => lift_\<A>2
 
 thm lift_\<A>1_def
-thm lift_\<A>2_def
+thm lift_\<A>2_def*)
 
 text \<open>The extractor is an algorithm that plays against the adversary. It is granted access to the 
 adversaries messages and state (which we neglect in this case as we do not need it because the 
@@ -44,6 +51,35 @@ type_synonym ('a', 'e') extractor =
   "('a' commit \<times> int list) \<Rightarrow> 
     ('e' mod_ring poly \<times> unit) spmf"
 
+text \<open>restrict for AGM adversaries 1 & 2\<close>
+
+interpretation AGM1: Algebraic_Algorithm G\<^sub>p "listS G\<^sub>p.groupS" "prodC G\<^sub>p.groupC noConstrain" 
+  by (unfold_locales)
+
+text \<open>"'ck' \<Rightarrow> 'state' \<Rightarrow> ('argument' \<times> ('evaluation' \<times> 'witness')) spmf"\<close>
+interpretation AGM2: Algebraic_Algorithm G\<^sub>p "prodS (listS G\<^sub>p.groupS) noSelect" 
+  "prodC noConstrain (prodC noConstrain G\<^sub>p.groupC)"
+  by (unfold_locales)
+
+(* TODO use adhoc_overloading restrict \<rightleftharpoons> AGM1.restrict ? *)
+
+(* lemma "AGM1.restrict (\<A>::('state, 'a) AGM_knowledge_soundness_adversary1) = \<A>"
+  unfolding AGM1.restrict_def
+  apply (simp add: listS_def G\<^sub>p.groupS_def prodC_def  G\<^sub>p.groupC_def noConstrain_def
+      G\<^sub>p.constrain_grp_def)
+  sorry*)
+
+definition knowledge_soundness_game_AGM :: "('state, 'a) AGM_knowledge_soundness_adversary1  
+  \<Rightarrow> ('e, 'state, 'a) knowledge_soundness_adversary2_AGM \<Rightarrow> ('a, 'e) extractor \<Rightarrow> bool spmf"
+  where "knowledge_soundness_game_AGM \<A>1 \<A>2 \<E> = TRY do {
+      (ck,vk) \<leftarrow> key_gen;
+      ((c,cvec),\<sigma>) \<leftarrow> AGM1.restrict \<A>1 ck;
+      (p,td) \<leftarrow> \<E> (c,cvec);
+      (i, p_i, w, wvec) \<leftarrow> AGM2.restrict \<A>2 (ck,\<sigma>);
+      let (p_i',w') = Eval ck td p i;        
+      return_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_argument i \<and> valid_eval (p_i,w))       
+    } ELSE return_spmf False"
+
 text \<open>reduction to the evaluation bind game
 The main idea is that if the adversary can break knowledge soundness, i.e. give an 
 evaluation (+ proof) that differs from the evaluation of the polynomial provided by the extractor,
@@ -52,15 +88,13 @@ the evaluation of the polynomial provided by the extractor will still yield a va
 evaluation binding.\<close>
 definition knowledge_soundness_reduction
   :: "('a, 'e) extractor \<Rightarrow> ('state, 'a) AGM_knowledge_soundness_adversary1  
-  \<Rightarrow> ('e, 'state, 'a) AGM_knowledge_soundness_adversary2
+  \<Rightarrow> ('e, 'state, 'a) knowledge_soundness_adversary2_AGM
   \<Rightarrow> ('a ck, 'a commit, 'e argument, 'e evaluation, 'a witness)  eval_bind_adversary"                     
 where
   "knowledge_soundness_reduction \<E> \<A>1 \<A>2 ck = do {
-  let \<A>1_AGM = lift_\<A>1 \<A>1;
-  let \<A>2_AGM = lift_\<A>2 \<A>2;
-  ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
+  ((c,cvec),\<sigma>) \<leftarrow> AGM1.restrict \<A>1 ck;
   (p,td) \<leftarrow> \<E> (c,cvec);
-  (i, p_i, w, wvec) \<leftarrow> \<A>2_AGM ck \<sigma>;
+  (i, p_i, w, wvec) \<leftarrow> AGM2.restrict \<A>2 (ck,\<sigma>);
   let (p_i',w') = Eval ck td p i;
   return_spmf (c, i, p_i, w, p_i', w')}"
 
@@ -76,15 +110,13 @@ the evaluation binding game. Later on we can then easily over-estimate the proba
 this extended version to the normal reduction.\<close>
 definition knowledge_soundness_reduction_ext
   :: "('a, 'e) extractor \<Rightarrow> ('state, 'a) AGM_knowledge_soundness_adversary1  
-  \<Rightarrow> ('e, 'state, 'a) AGM_knowledge_soundness_adversary2
+  \<Rightarrow> ('e, 'state, 'a) knowledge_soundness_adversary2_AGM
   \<Rightarrow> ('a ck, 'a commit, 'e argument, 'e evaluation, 'a witness)  eval_bind_adversary"                     
 where
   "knowledge_soundness_reduction_ext \<E> \<A>1 \<A>2 ck = do {
-  let \<A>1_AGM = lift_\<A>1 \<A>1;
-  let \<A>2_AGM = lift_\<A>2 \<A>2;
-  ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
+  ((c,cvec),\<sigma>) \<leftarrow> AGM1.restrict \<A>1 ck;
   (p,td) \<leftarrow> \<E> (c,cvec);
-  (i, p_i, w, wvec) \<leftarrow> \<A>2_AGM ck \<sigma>;
+  (i, p_i, w, wvec) \<leftarrow> AGM2.restrict \<A>2 (ck,\<sigma>);
   _ :: unit \<leftarrow> assert_spmf (valid_eval (p_i, w));
   let (p_i',w') = Eval ck td p i;
   return_spmf (c, i, p_i, w, p_i', w')}"
@@ -371,48 +403,35 @@ proof -
 
   have "knowledge_soundness_game_AGM \<A>1 \<A>2 E = 
     TRY do {
-      let \<A>1_AGM = lift_\<A>1 \<A>1;
-      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
-      ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
+      ((c,cvec),\<sigma>) \<leftarrow> AGM1.restrict \<A>1 ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
-      let (p_i',w') = Eval ck td p i;         
+      (i, p_i, w, wvec) \<leftarrow> AGM2.restrict \<A>2 (ck,\<sigma>);
+      let (p_i',w') = Eval ck td p i;        
       return_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_argument i \<and> valid_eval (p_i,w))       
     } ELSE return_spmf False"
-    by (simp add: knowledge_soundness_game_AGM_def lift_\<A>1_def lift_\<A>2_def del: Let_def split_def)
+    by (simp add: knowledge_soundness_game_AGM_def del: Let_def split_def)
     also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
-      _ :: unit \<leftarrow> assert_spmf (G\<^sub>p.constrain_list (ck @ []) [(c, cvec)]);
-      (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
-      let (p_i',w') = Eval ck td p i;         
-      return_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_argument i \<and> valid_eval (p_i,w))       
-    } ELSE return_spmf False"
-      unfolding lift_\<A>1_def by simp
-    also have "\<dots> = 
-    TRY do {
-      let \<A>2_AGM = lift_\<A>2 \<A>2;
-      (ck,vk) \<leftarrow> key_gen;
-      ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
-      _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
+       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one>);
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> AGM2.restrict \<A>2 (ck,\<sigma>);
       let (p_i',w') = Eval ck td p i;         
       return_spmf (verify_eval vk c i (p_i,w) \<and> p_i \<noteq> p_i' \<and> valid_argument i \<and> valid_eval (p_i,w))       
-    } ELSE return_spmf False" 
+    } ELSE return_spmf False"
+      unfolding AGM1.restrict_def listS_def G\<^sub>p.groupS_def noSelect_def 
+        Restrictive_Comp.restrict_def prodC_def G\<^sub>p.groupC_def G\<^sub>p.constrain_grp_def 
+        noConstrain_def Let_def split_def
       by simp
     also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> AGM2.restrict \<A>2 (ck,\<sigma>);
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one>);
@@ -421,14 +440,13 @@ proof -
       by (rule try_spmf_cong)(simp add: assert_commute)+
     also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       TRY do {
         ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
         TRY do {
           (p,td) \<leftarrow> E (c,cvec);
           TRY do {
-            (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
+            (i, p_i, (w, wvec)) \<leftarrow> AGM2.restrict \<A>2 (ck,\<sigma>);
             TRY do {
               let (p_i',w') = Eval ck td p i;
               _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
@@ -445,14 +463,13 @@ proof -
       by (fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
    also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       TRY do {
         ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
         TRY do {
           (p,td) \<leftarrow> E (c,cvec);
           TRY do {
-            (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
+            (i, p_i, (w, wvec)) \<leftarrow> AGM2.restrict \<A>2 (ck,\<sigma>);
             TRY do {
               let (p_i',w') = Eval ck td p i;
               _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
@@ -467,11 +484,10 @@ proof -
      by(auto simp add: try_bind_assert_spmf try_spmf_return_spmf1 intro!: try_spmf_cong bind_spmf_cong)
   also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> AGM2.restrict \<A>2 (ck,\<sigma>);
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one>);
@@ -482,11 +498,10 @@ proof -
     by (fold try_bind_spmf_lossless2[OF lossless_return_spmf])simp
   also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> AGM2.restrict \<A>2 (ck,\<sigma>);
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
@@ -498,14 +513,13 @@ proof -
     } ELSE return_spmf False" 
     by (simp add: assert_collapse)
   also have "\<dots> = TRY do {
-      let \<A>2_AGM = lift_\<A>2 \<A>2;
       x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
       let (\<alpha>::'e mod_ring) = of_int_mod_ring (int x);
       let ck = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
       let vk = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       let (p,td) = (Poly (map (of_int_mod_ring::int \<Rightarrow>'e mod_ring) cvec),());
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> AGM2.restrict \<A>2 (ck,\<sigma>);
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
@@ -518,14 +532,13 @@ proof -
     unfolding key_gen_def Setup_def by auto
    also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = lift_\<A>2 \<A>2;
       x :: nat \<leftarrow> sample_uniform (order G\<^sub>p);
       let (\<alpha>::'e mod_ring) = of_int_mod_ring (int x);
       let ck = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
       let vk = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1];
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       let (p,td) = (Poly (map (of_int_mod_ring::int \<Rightarrow>'e mod_ring) cvec),());
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> AGM2.restrict \<A>2 (ck,\<sigma>);
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
@@ -548,11 +561,10 @@ proof -
      done
    also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> AGM2.restrict \<A>2 (ck,\<sigma>);
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one> 
@@ -567,11 +579,10 @@ proof -
      unfolding key_gen_def Setup_def by force
   also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> AGM2.restrict \<A>2 (ck,\<sigma>);
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one>);
       let (p_i',w') = Eval ck td p i;
@@ -587,13 +598,12 @@ proof -
     by (simp add: assert_collapse)
   also have "\<dots> = 
     TRY do {
-      let \<A>2_AGM = lift_\<A>2 \<A>2;
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
       _ :: unit \<leftarrow> assert_spmf (length ck = length cvec 
           \<and> c = fold (\<lambda> i acc. acc \<otimes> ck!i [^] (cvec!i)) [0..<length ck] \<one>);
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> AGM2.restrict \<A>2 (ck,\<sigma>);
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf ( 
            p_i \<noteq> p_i'
@@ -612,11 +622,9 @@ proof -
   also have "\<dots> = 
     TRY do {
       (ck,vk) \<leftarrow> key_gen;
-      let \<A>1_AGM = lift_\<A>1 \<A>1;
-      let \<A>2_AGM = lift_\<A>2 \<A>2;
-      ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
+      ((c,cvec),\<sigma>) \<leftarrow> AGM1.restrict \<A>1 ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> AGM2.restrict \<A>2 (ck,\<sigma>);
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf ( 
            p_i \<noteq> p_i'
@@ -627,15 +635,16 @@ proof -
           \<and> verify_eval vk c i (p_i', w'));
       return_spmf True
     } ELSE return_spmf False" 
-    unfolding lift_\<A>1_def by fastforce
+     unfolding AGM1.restrict_def listS_def G\<^sub>p.groupS_def noSelect_def 
+        Restrictive_Comp.restrict_def prodC_def G\<^sub>p.groupC_def G\<^sub>p.constrain_grp_def 
+        noConstrain_def Let_def split_def
+     by fastforce
   also have "\<dots> = 
     TRY do {
       (ck,vk) \<leftarrow> key_gen;
-      let \<A>1_AGM = lift_\<A>1 \<A>1;
-      let \<A>2_AGM = lift_\<A>2 \<A>2;
-      ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
+       ((c,cvec),\<sigma>) \<leftarrow> AGM1.restrict \<A>1 ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> AGM2.restrict \<A>2 (ck,\<sigma>);
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf ( 
           valid_eval (p_i,w)
@@ -657,11 +666,9 @@ proof -
   also have "\<dots> = 
     TRY do {
       (ck,vk) \<leftarrow> key_gen;
-      let \<A>1_AGM = lift_\<A>1 \<A>1;
-      let \<A>2_AGM = lift_\<A>2 \<A>2;
-      ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
+       ((c,cvec),\<sigma>) \<leftarrow> AGM1.restrict \<A>1 ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, p_i, (w, wvec)) \<leftarrow> \<A>2_AGM ck \<sigma>;
+      (i, p_i, (w, wvec)) \<leftarrow> AGM2.restrict \<A>2 (ck,\<sigma>);
       _ :: unit \<leftarrow> assert_spmf ( valid_eval (p_i,w));
       let (p_i',w') = Eval ck td p i;
       _ :: unit \<leftarrow> assert_spmf ( 
@@ -761,11 +768,9 @@ proof -
    have w_assert_ext: "eval_bind_game (knowledge_soundness_reduction_ext E \<A> \<A>') = 
     TRY do {
       (ck, vk) \<leftarrow> key_gen;
-      let \<A>1_AGM = lift_\<A>1 \<A>;
-      let \<A>2_AGM = lift_\<A>2 \<A>';
-      ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
+       ((c,cvec),\<sigma>) \<leftarrow> AGM1.restrict \<A> ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, v, w, wvec) \<leftarrow> \<A>2_AGM ck \<sigma>;
+      (i, v, (w, wvec)) \<leftarrow> AGM2.restrict \<A>' (ck,\<sigma>);
       _ :: unit \<leftarrow> assert_spmf (valid_eval (v, w));
       let (v',w') = Eval ck td p i;     
       _ :: unit \<leftarrow> assert_spmf (v \<noteq> v' \<and> valid_argument i \<and> valid_eval (v, w) \<and> valid_eval (v', w'));                     
@@ -780,11 +785,9 @@ proof -
    have wo_assert_ext: "eval_bind_game (knowledge_soundness_reduction E \<A> \<A>') = 
     TRY do {
       (ck, vk) \<leftarrow> key_gen;
-      let \<A>1_AGM = lift_\<A>1 \<A>;
-      let \<A>2_AGM = lift_\<A>2 \<A>';
-      ((c,cvec),\<sigma>) \<leftarrow> \<A>1_AGM ck;
+       ((c,cvec),\<sigma>) \<leftarrow> AGM1.restrict \<A> ck;
       (p,td) \<leftarrow> E (c,cvec);
-      (i, v, w, wvec) \<leftarrow> \<A>2_AGM ck \<sigma>;
+      (i, v, (w, wvec)) \<leftarrow> AGM2.restrict \<A>' (ck,\<sigma>);
       let (v',w') = Eval ck td p i;     
       _ :: unit \<leftarrow> assert_spmf (v \<noteq> v' \<and> valid_argument i \<and> valid_eval (v, w) \<and> valid_eval (v', w'));                     
       let b = verify_eval vk c i (v,w);
