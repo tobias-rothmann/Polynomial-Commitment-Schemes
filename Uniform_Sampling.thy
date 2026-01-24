@@ -1,15 +1,13 @@
-theory Cyclic_Group_SPMF_ext
+theory Uniform_Sampling
 
 imports CryptHOL.Cyclic_Group_SPMF "HOL-Computational_Algebra.Polynomial" 
-  Berlekamp_Zassenhaus.Finite_Field Polynomial_Interpolation.Lagrange_Interpolation
-  Polynomial_Interpolation.Polynomial_Interpolation
+  Berlekamp_Zassenhaus.Finite_Field Polynomial_Interpolation.Polynomial_Interpolation
 
 begin
 
 hide_const order
 
-text \<open>We extend CryptHOL.Cyclic_Group_SPMF to sets and lists. 
-We provide sampling of uniform random sets and lists. 
+text \<open>We provide sampling of uniform random sets and lists. 
 Additionally, we provide uniform sampling of polynomials over finite fields and show them equivalent 
 to interpolating on a zipped list of coordinates where the evaluations are a uniformly random 
 chosen list.\<close>

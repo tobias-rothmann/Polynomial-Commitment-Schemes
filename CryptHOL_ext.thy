@@ -5,9 +5,10 @@ imports CryptHOL.Cyclic_Group_SPMF "HOL-Computational_Algebra.Polynomial"
 
 begin
 
-(* TODO add cyclic group content in here as well *)
-
-text \<open>Here we collect a handful of lemmas about CryptHOL games, that we use in our proofs.\<close>
+text \<open>Here we collect a handful of lemmas about CryptHOL games, that we use in our proofs.
+These lemmas are particularly useful to resort asserts (assert_spmf) within games and to prove 
+so-called bridging steps i.e. subtle differences in games, as they allow to "peel of layers" 
+of a game.\<close>
 
 lemma ennreal_spmf: "ennreal (spmf game1 True) \<le> ennreal (spmf game2 True) \<Longrightarrow> 
   spmf game1 True \<le> spmf game2 True"
@@ -53,10 +54,6 @@ lemma bind_spmf_le:
      apply (smt (verit, del_insts) ennreal_less_top ennreal_spmf_bind infinity_ennreal_def nn_integral_cong pmf_nonneg real_norm_def)
     apply simp
   done
-(*
-lemma bind_spmf_le': 
-  "(spmf p True \<le> spmf (p') True) \<Longrightarrow> spmf (bind_spmf p f) True \<le> spmf (bind_spmf p' f) True"
-  sorry*)
 
 lemma try_spmf_eq:
   assumes "spmf x True = spmf x' True"
@@ -81,6 +78,11 @@ lemma del_assert: "spmf (bind_spmf (assert_spmf X) (\<lambda>_ . Y)) True \<le> 
   apply (simp add: spmf_try_spmf ennreal_spmf_bind)
   apply (simp add: mult_left_le measure_spmf.emeasure_space_le_1)
   done
+
+lemma assert_imp: "(X \<longrightarrow> X') \<Longrightarrow> 
+  spmf (bind_spmf (assert_spmf X) (\<lambda>_ . Y)) True 
+  \<le> spmf (bind_spmf (assert_spmf X') (\<lambda>_ . Y)) True"
+  using del_assert by fastforce
 
 lemma assert_ret_unit: "bind_spmf (assert_spmf x) (\<lambda>x . y) = bind_spmf (assert_spmf x) (\<lambda>_ . y)"
   by presburger
@@ -107,6 +109,5 @@ lemma assert_cong: " X = Y \<Longrightarrow> rel_spmf (=) (assert_spmf X) (asser
 lemma rel_spmf_bind_assert_reflI: "(Z \<Longrightarrow> rel_spmf P X Y) \<Longrightarrow> 
   rel_spmf P (bind_spmf (assert_spmf Z) (\<lambda>_. X)) (bind_spmf (assert_spmf Z) (\<lambda>_. Y))"
   using rel_spmf_bind_reflI by fastforce
-
 
 end
