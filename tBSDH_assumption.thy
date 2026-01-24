@@ -8,7 +8,7 @@ text\<open>The t-BSDH game and advantage as in the section 2.4 of the original p
 "Constant-Size Commitments to Polynomials and Their Applications".
 You can find the paper here: https://cacr.uwaterloo.ca/techreports/2010/cacr2010-10.pdf\<close>
 
-text \<open>The t-BSDH assumption is a extension of the t-SDH assumption (of sectiomn 2.3. in the paper). 
+text \<open>The t-BSDH assumption is a extension of the t-SDH assumption (of section 2.3. in the paper). 
 Similar to the t-SDH assumption it requires the adversary to put out some c and some group element 
 g' such that a certain group element g exponentiated with 1/(a+c) is equal to g'. While the group 
 element g was simply the generator of G in the t-SDH assumption, it is now the result of the 
@@ -38,7 +38,7 @@ For the t-BSDH assumption to hold this advantage should be negligible.\<close>
 definition advantage :: " ('a,'e,'c) adversary \<Rightarrow> real"
   where "advantage \<A> = spmf (game \<A>) True" 
 
-text \<open>An alternative but equivalent game for the t-BSDH-game. This alternative game capsulates the 
+text \<open>An alternative but equivalent game for the t-BSDH-game. This alternative game encapsulates the 
 event that the Adversary wins in the assert_spmf statement.
 adapted proof from Sigma_Commit_Crypto.Commitment_Schemes bind_game_alt_def\<close>
 lemma game_alt_def:

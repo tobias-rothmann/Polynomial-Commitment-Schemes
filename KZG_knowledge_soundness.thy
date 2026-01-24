@@ -12,16 +12,7 @@ KZG_eval_bind theory.\<close>
 hide_const restrict
 
 locale KZG_PCS_knowledge_sound = KZG_PCS_binding
-begin 
-
-(*
-text \<open>lift the knowledge soundness game (standard model) from the abstract polynomial commitment 
-scheme (instantiated with the KZG) into the AGM\<close>
-lift_to_AGM "G\<^sub>p" "knowledge_soundness_game \<A>1 \<A>2 \<E>" 
-  | "\<A>1:: 'a list \<Rightarrow> ('a \<times> 'f) spmf","\<A>2:: 'a list \<Rightarrow> 'f \<Rightarrow> ('e mod_ring \<times> 'e mod_ring \<times> 'a) spmf" 
-  | "\<E>:: 'a \<Rightarrow> ('e mod_ring poly \<times> unit) spmf" = knowledge_soundness_game_AGM
-
-thm knowledge_soundness_game_AGM_def*)
+begin
 
 text \<open>the AGM adversary types that are useful in defining reductions (i.e. the reduction to the 
 evaluation binding game)\<close>
@@ -33,16 +24,6 @@ lift_to_algebraicT "('state, 'a ck, 'e mod_ring, 'e evaluation, 'a witness) know
 type_synonym ('e', 'state', 'a') knowledge_soundness_adversary2_AGM 
   = "('a' ck \<times> 'state') \<Rightarrow> ('e' argument \<times> ('e' evaluation \<times> ('a' witness \<times> int list))) spmf"
 
-(*
-text \<open>Functions that make it easier to deconstruct the game in the proof. They abstract the 
-enforcement of algebraic rules\<close>
-AGMLifting  "('a ck, 'a commit, 'state) knowledge_soundness_adversary1" "G\<^sub>p" => lift_\<A>1
-AGMLifting  "('state, 'a ck, 'e mod_ring, 'e evaluation, 'a witness) knowledge_soundness_adversary2" 
-  "G\<^sub>p" => lift_\<A>2
-
-thm lift_\<A>1_def
-thm lift_\<A>2_def*)
-
 text \<open>The extractor is an algorithm that plays against the adversary. It is granted access to the 
 adversaries messages and state (which we neglect in this case as we do not need it because the 
 calculation vector is enough to create sensible values) and has to come up with a polynomial such 
@@ -53,21 +34,20 @@ type_synonym ('a', 'e') extractor =
 
 text \<open>restrict for AGM adversaries 1 & 2\<close>
 
+
+text \<open>We can use our introduced ML command to automatically resolve instance generation and 
+interpret AlgebraicAlgorithm with the correct composition of Select and Constrain records\<close>
+agm_interpretation AGM1 : "G\<^sub>p"  "('a ck, 'a commit, 'state) knowledge_soundness_adversary1" ..
+(* 
+text \<open>the above is equivalent to the following interpretation term (uncomment to verify):\<close> 
 interpretation AGM1: Algebraic_Algorithm G\<^sub>p "listS G\<^sub>p.groupS" "prodC G\<^sub>p.groupC noConstrain" 
   by (unfold_locales)
+*)
 
-text \<open>"'ck' \<Rightarrow> 'state' \<Rightarrow> ('argument' \<times> ('evaluation' \<times> 'witness')) spmf"\<close>
+
 interpretation AGM2: Algebraic_Algorithm G\<^sub>p "prodS (listS G\<^sub>p.groupS) noSelect" 
   "prodC noConstrain (prodC noConstrain G\<^sub>p.groupC)"
   by (unfold_locales)
-
-(* TODO use adhoc_overloading restrict \<rightleftharpoons> AGM1.restrict ? *)
-
-(* lemma "AGM1.restrict (\<A>::('state, 'a) AGM_knowledge_soundness_adversary1) = \<A>"
-  unfolding AGM1.restrict_def
-  apply (simp add: listS_def G\<^sub>p.groupS_def prodC_def  G\<^sub>p.groupC_def noConstrain_def
-      G\<^sub>p.constrain_grp_def)
-  sorry*)
 
 definition knowledge_soundness_game_AGM :: "('state, 'a) AGM_knowledge_soundness_adversary1  
   \<Rightarrow> ('e, 'state, 'a) knowledge_soundness_adversary2_AGM \<Rightarrow> ('a, 'e) extractor \<Rightarrow> bool spmf"

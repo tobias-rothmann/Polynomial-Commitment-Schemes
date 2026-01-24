@@ -11,7 +11,7 @@ KZG_eval_bind theory.\<close>
 
 hide_const restrict
 
-locale BatchEvalKZG_PCS_knowledge_sound = BatchEvalKZG_PCS_binding
+locale BatchEvalKZG_PCS_knowledge_sound = BatchEvalKZG_PCS_eval_bind
 begin 
 
 text \<open>the AGM adversary types that are useful in defining reductions (i.e. the reduction to the 
