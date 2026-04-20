@@ -1,4 +1,4 @@
-theory KZG_BatchOpening_Def
+theory BatchKZG_Def
 
 imports KZG_correct
 

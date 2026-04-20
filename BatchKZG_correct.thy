@@ -1,5 +1,5 @@
-theory KZG_BatchOpening_correct
-  imports KZG_BatchOpening_Def
+theory BatchKZG_correct
+  imports BatchKZG_Def
 begin
 
 locale BatchEvalKZG_PCS_correct = BatchEvalKZG + KZG_PCS_correct

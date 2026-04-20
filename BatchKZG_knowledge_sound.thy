@@ -1,6 +1,6 @@
-theory KZG_BatchOpening_knowledge_soundness
+theory BatchKZG_knowledge_sound
 
-imports KZG_BatchOpening_binding Algebraic_Group_Model
+imports BatchKZG_eval_bind Algebraic_Group_Model
 begin
 
 

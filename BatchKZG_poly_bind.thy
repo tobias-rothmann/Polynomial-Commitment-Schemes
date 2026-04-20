@@ -1,6 +1,6 @@
 theory BatchKZG_poly_bind
 
-imports KZG_BatchOpening_correct KZG_poly_bind KZG_BatchOpening_Def
+imports BatchKZG_Def KZG_poly_bind
 
 begin
 

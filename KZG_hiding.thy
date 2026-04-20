@@ -1,6 +1,6 @@
 theory KZG_hiding
 
-imports KZG_correct DL_assumption tDL_assumption Uniform_Sampling CryptHOL_ext
+imports KZG_correct DL_assumption tDL_assumption CryptHOL_ext
 begin
 
 locale KZG_PCS_weak_hiding = KZG_PCS_correct

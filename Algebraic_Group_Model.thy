@@ -2,7 +2,6 @@ theory Algebraic_Group_Model
   imports CryptHOL.CryptHOL Restrictive_Comp
   keywords
   "lift_to_algebraicT" :: thy_decl
-and "agm_interpretation" :: thy_decl
 begin
 
 text \<open>This theory extends CryptHOL for the Algebraic Group Model according to 
@@ -154,17 +153,9 @@ lemma
 
 text \<open>We define some useful ML functions for the AGM.
 
-wellformed is a sanity check that checks, given a group G and a function type, that the function 
-type returns a creation vector (int list) paired with every group value in the output.  
-
 lift_to_algebraicT operates on the type level, lifting standard model function types into their 
 corresponding type as an algebraic algorithm. I.e. extend the outputs that are group elements 
 with a vector.
-
-agm_interpretation automates the instance resolution: given a group and a function type, it 
-automatically lifts the function type via lift_to_algebraicT and interprets AlgebraicAlgorithm
-with a composed Select record, mirroring the functions (decurried) input, and Constrain record, 
-mirroring the functions output.
 \<close>
 
 text \<open>This takes any algorithm/function type and lifts it to the algebraic algorithm equivalent type.
@@ -203,170 +194,13 @@ ML \<open>
   end;
 \<close>
 
-ML \<open>
-  local
-    fun rcodomain_transf f (Type ("fun", [T, U])) = (Type ("fun", [T, rcodomain_transf f U]))
-      | rcodomain_transf f T = f T;
-
-    fun adjoin t vec = fn T => if T = t then Type ("Product_Type.prod", [T, vec]) else T;
-
-    fun decurry (Type ("fun", [T1, Type ("fun", [T2, T3])])) =
-        decurry (Type ("fun", [Type ("Product_Type.prod", [T1, T2]), T3]))
-      | decurry T = T;
-
-    fun lift_to_algebraicT grpT vec =
-      (rcodomain_transf (Term.map_atyps (adjoin grpT vec))) o decurry;
-
-    fun const_exists ctxt name =
-      let
-        val thy = Proof_Context.theory_of ctxt;
-      in
-        can (fn n => Sign.const_type thy (Proof_Context.intern_const ctxt n)) name
-      end;
-
-    fun mk_select ctxt grpT grp_s T =
-      if T = grpT then "cyclic_group.groupS"
-      else
-        (case T of
-          Type ("Product_Type.prod", [A, B]) =>
-            "prodS (" ^ mk_select ctxt grpT grp_s A ^ ") (" ^ mk_select ctxt grpT grp_s B ^ ")"
-        | Type (tycon, args) =>
-            let
-              val ctor = Long_Name.base_name tycon ^ "S";
-            in
-              if const_exists ctxt ctor then
-                fold (fn arg => fn acc => acc ^ " (" ^ mk_select ctxt grpT grp_s arg ^ ")") args ctor
-              else "noSelect"
-            end
-        | _ => "noSelect");
-
-    fun mk_constrain ctxt grpT vecT grp_s T =
-      (case T of
-        Type ("Product_Type.prod", [A, B]) =>
-          if A = grpT andalso B = vecT then "(cyclic_group.groupC " ^ grp_s ^ ")"
-          else "prodC (" ^ mk_constrain ctxt grpT vecT grp_s A ^ ") (" ^ mk_constrain ctxt grpT vecT grp_s B ^ ")"
-      | Type (tycon, args) =>
-          let
-            val ctor = Long_Name.base_name tycon ^ "C";
-          in
-            if const_exists ctxt ctor then
-              fold (fn arg => fn acc => acc ^ " (" ^ mk_constrain ctxt grpT vecT grp_s arg ^ ")") args ctor
-            else "noConstrain"
-          end
-      | _ => "noConstrain");
-
-    fun mk_unfold_locales_method_range () : Method.text_range =
-      let
-        val src = Token.make_src ("unfold_locales", Position.none) [];
-      in
-        (Method.Source src, Position.no_range)
-      end;
-
-    fun strip_markup s =
-      let
-        val X = #"\005";
-        fun go [] _ acc = String.implode (rev acc)
-          | go (c :: cs) in_tag acc =
-              if in_tag then
-                if c = X then go cs false acc else go cs true acc
-              else if c = X then go cs true acc
-              else go cs false (c :: acc);
-      in
-        go (String.explode s) false []
-      end;
-
-    fun safe_term_source ctxt t =
-      strip_markup (Syntax.string_of_term ctxt t);
-
-    fun mk_alg_expr (b: binding) (g: string) (sel: string) (con: string) : Expression.expression =
-      let
-        val prefix = (Binding.name_of b, true);
-        val inst = Expression.Positional [SOME g, SOME sel, SOME con];
-        val expr = [(("Algebraic_Algorithm", Position.none), (prefix, (inst, [])))];
-      in
-        (expr, [])
-      end;
-  in
-    val _ =
-      Outer_Syntax.command \<^command_keyword>\<open>agm_interpretation\<close>
-        "interpret Algebraic_Algorithm and discharge obligations via unfold_locales"
-        (Parse.binding --| \<^keyword>\<open>:\<close> -- Parse.term -- Parse.typ >>
-          (fn ((b, g), alg_ty) =>
-            let
-              val m = mk_unfold_locales_method_range ();
-              fun interp lthy =
-                let
-                  val algT = Syntax.read_typ lthy alg_ty;
-                  val grp_desc = Syntax.read_term lthy g;
-                  val grp_s =
-                    (case try (fn () => safe_term_source lthy grp_desc) () of
-                      SOME s => s
-                    | NONE => strip_markup g);
-                  val grpT = Term.fastype_of grp_desc |> Term.dest_Type_args |> hd;
-                  val vecT = @{typ "int list"};
-                  val agmT = lift_to_algebraicT grpT vecT algT;
-                  val (inps, resT) = Term.strip_type agmT;
-                  val inpT =
-                    (case inps of
-                      [] => error "agm_interpretation: expected function type"
-                    | T :: Ts =>
-                        fold (fn U => fn acc => Type ("Product_Type.prod", [acc, U])) Ts T);
-                  val outT =
-                    let
-                      val thy = Proof_Context.theory_of lthy;
-                      val out_ix = ("out", 0);
-                      val out_tv = (out_ix, @{sort type});
-                      val spmf_pat =
-                        Term.map_atyps (K (TVar out_tv)) @{typ "'a spmf"};
-                    in
-                      (case try (fn () => Sign.typ_match thy (spmf_pat, resT) Vartab.empty) () of
-                        SOME tyenv =>
-                          (case Vartab.lookup tyenv out_ix of
-                            SOME (_, T) => T
-                          | NONE =>
-                              error
-                                ("agm_interpretation: internal error (failed to recover spmf type argument)"))
-                      | NONE =>
-                          error
-                            ("agm_interpretation: expected lifted type with codomain _ spmf, got: " ^
-                             Syntax.string_of_typ lthy resT ^ " in " ^ Syntax.string_of_typ lthy agmT))
-                    end;
-                  val sel_s = mk_select lthy grpT grp_s inpT;
-                  val con_s = mk_constrain lthy grpT vecT grp_s outT;
-                  val expr = mk_alg_expr b grp_s sel_s con_s;
-                in
-                  Interpretation.isar_interpretation_cmd expr lthy
-                end;
-            in
-              Toplevel.local_theory_to_proof NONE NONE interp
-              #> Toplevel.proofs (Proof.apply_end m)
-              #> Toplevel.proof Proof.local_done_proof
-            end))
-  end;
-\<close>
-
-subsection \<open>Examples for the ML functions\<close>
+subsection \<open>Example for the ML function\<close>
 
 text \<open>We define a standard model adversary with group G of type 'a\<close>
 type_synonym ('a')adv = "'a' list \<Rightarrow> 'a' \<Rightarrow> nat \<Rightarrow> ('a' * int * nat) spmf"
 
 text \<open>We lift the type into the AGM (its algebraic algorithm pendant):\<close>
-lift_to_algebraicT "('a) adv"  "G" => algebraic_adv
-
-
-text \<open>We interpret restrict for the created algebraic_adv\<close>
-interpretation manualAGM: Algebraic_Algorithm G "prodS (prodS (listS groupS) groupS) noSelect" 
-  "prodC groupC (prodC noConstrain noConstrain)"
-  by (unfold_locales)
-
-text \<open>We skip the last step and automatically interpret the right version restrict version 
-for adv.\<close>
-agm_interpretation autoAGM : G "('a)adv" ..
-
-lemma "manualAGM.restrict = autoAGM.restrict"
-  unfolding manualAGM.restrict_def autoAGM.restrict_def
-  by simp
-  
+lift_to_algebraicT "('a) adv"  "G" => algebraic_adv  
 
 end
 

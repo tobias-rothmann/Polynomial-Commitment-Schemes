@@ -1,4 +1,4 @@
-theory KZG_knowledge_soundness
+theory KZG_knowledge_sound
 
 imports KZG_eval_bind Algebraic_Group_Model
 
@@ -34,16 +34,9 @@ type_synonym ('a', 'e') extractor =
 
 text \<open>restrict for AGM adversaries 1 & 2\<close>
 
-
-text \<open>We can use our introduced ML command to automatically resolve instance generation and 
-interpret AlgebraicAlgorithm with the correct composition of Select and Constrain records\<close>
-agm_interpretation AGM1 : "G\<^sub>p"  "('a ck, 'a commit, 'state) knowledge_soundness_adversary1" ..
-(* 
 text \<open>the above is equivalent to the following interpretation term (uncomment to verify):\<close> 
 interpretation AGM1: Algebraic_Algorithm G\<^sub>p "listS G\<^sub>p.groupS" "prodC G\<^sub>p.groupC noConstrain" 
   by (unfold_locales)
-*)
-
 
 interpretation AGM2: Algebraic_Algorithm G\<^sub>p "prodS (listS G\<^sub>p.groupS) noSelect" 
   "prodC noConstrain (prodC noConstrain G\<^sub>p.groupC)"

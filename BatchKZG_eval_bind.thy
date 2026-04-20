@@ -1,6 +1,6 @@
-theory KZG_BatchOpening_binding
+theory BatchKZG_eval_bind
 
-imports KZG_BatchOpening_correct tBSDH_assumption CryptHOL_ext
+imports BatchKZG_correct tBSDH_assumption CryptHOL_ext
 begin
 
 locale BatchEvalKZG_PCS_eval_bind = BatchEvalKZG_PCS_correct
