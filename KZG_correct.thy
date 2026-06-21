@@ -455,7 +455,7 @@ proof -
                   \<otimes>\<^bsub>G\<^sub>T\<^esub> e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>T\<^esub> poly \<phi> i 
                       = e (g_pow_PK_Prod (?PK x) \<phi>) \<^bold>g\<^bsub>G\<^sub>p\<^esub>)}" 
         unfolding commit_def Eval_def verify_eval_def key_gen_def Setup_def
-        by (auto simp add: Let_def del: g_pow_PK_Prod.simps)
+        by (auto simp add: Let_def)
       also have "\<dots> = do {
           x::nat \<leftarrow> sample_uniform (order G\<^sub>p);
           return_spmf

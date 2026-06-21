@@ -187,7 +187,7 @@ proof
     apply (rule in_set_impl_find)
     apply simp
     done
-  show " length I = max_deg \<and>
+  show "length I = max_deg \<and>
     distinct I \<and>
     \<alpha> \<in> set (PickDistinct I # I) \<and>
    \<alpha> = (case (find (\<lambda>x. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> x = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]!1) (PickDistinct I#I)) of Some x => x | None => 1)"
@@ -580,7 +580,7 @@ proof -
   let W = map (\<lambda>i. Eval ck d p i) I; 
   p' \<leftarrow> \<A>2 vk \<sigma> c I W;
   return_spmf (p = p')} ELSE return_spmf False) True"
-    by (simp add: bind_spmf_assoc key_gen_def bind_map_spmf o_def Setup_def split_def Let_def 
+    by (simp add: key_gen_def bind_map_spmf o_def Setup_def split_def Let_def 
        del: PickDistinct.simps)
   text \<open>sample phi uniform random is sampling evaluation points for the adversaries I uniform random\<close>
   also have "\<dots> = spmf (TRY do {
@@ -623,7 +623,7 @@ proof -
   let W = map (\<lambda>i. Eval PK d p i) I; 
   p' \<leftarrow> \<A>2 PK \<sigma> c I W;
   return_spmf (p = p')} ELSE return_spmf False) True"
-   by (simp add: bind_spmf_assoc key_gen_def bind_map_spmf o_def Setup_def split_def Let_def 
+   by (simp add: key_gen_def bind_map_spmf o_def Setup_def split_def Let_def 
        del: PickDistinct.simps)
   text \<open>Now we replace the Commit computed with a valid public key PK by interpolate_on\<close>
   also have "\<dots> = spmf(TRY do {
@@ -657,7 +657,6 @@ proof -
       done
   also have "\<dots> = ?rhs" 
     by (simp add: game1_def Setup_def Let_def split_def card_eq_ord bind_map_spmf o_def 
-        return_bind_spmf bind_return_spmf bind_spmf_assoc 
         del: PickDistinct.simps)
   finally show ?thesis .
 qed
@@ -713,7 +712,7 @@ proof -
       let W = map (\<lambda>j. Eval PK () \<phi> j) I;
       \<phi>' \<leftarrow> \<A>2 PK \<sigma> C I W;
     return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
-      by (simp add: bind_map_spmf o_def game1_def Setup_def Let_def)
+      by (simp add: bind_map_spmf game1_def Setup_def)
     also have "\<dots> = map_spmf fst (game1b \<A>1 \<A>2)"
       unfolding game1b_def
       apply (simp add: map_try_spmf try_spmf_bind_spmf_lossless lossless_\<A>1 
@@ -761,7 +760,7 @@ proof -
     let witn_tupel = map (\<lambda>(x,y). (y,(C  \<div>\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> y) ^\<^bsub>G\<^sub>p\<^esub> (1/(\<alpha>-x)))) (zip I (tl evals));
     \<phi>' \<leftarrow> \<A>2 PK \<sigma> C I witn_tupel;
     return_spmf (\<phi> = \<phi>')} ELSE return_spmf False"
-      by (simp add: bind_map_spmf o_def game2_def Setup_def Let_def)
+      by (simp add: bind_map_spmf game2_def Setup_def)
     also have "\<dots> = map_spmf fst (game2b \<A>1 \<A>2)"
       unfolding game2b_def
       apply (simp add: map_try_spmf try_spmf_bind_spmf_lossless lossless_\<A>1 
@@ -830,7 +829,7 @@ proof -
      (I,\<sigma>) \<leftarrow> \<A>1 PK;
      _ :: unit \<leftarrow> assert_spmf (length I = max_deg \<and> distinct I); 
      return_spmf (\<alpha> \<in> set (PickDistinct I#I))} ELSE return_spmf False) True"
-      by (simp add: collision_game_def bind_map_spmf o_def del: PickDistinct.simps)
+      by (simp add: collision_game_def bind_map_spmf del: PickDistinct.simps)
      also have "\<dots> = spmf (TRY do {
      x \<leftarrow> sample_uniform (order G\<^sub>p);
      TRY do {
@@ -936,7 +935,7 @@ proof -
         unfolding Let_def split_def by force
       also have "\<dots> = t_DL_G\<^sub>p.advantage (reduction_tDL \<A>1)"
         unfolding t_DL_G\<^sub>p.advantage_def t_DL_G\<^sub>p.game_def reduction_tDL.simps Let_def split_def
-        by (simp add: return_bind_spmf bind_spmf_assoc del: PickDistinct.simps One_nat_def Let_def)
+        by (simp del: PickDistinct.simps One_nat_def Let_def)
       finally show ?thesis .
     qed
   
@@ -953,13 +952,16 @@ proof -
      apply (rule rel_spmf_bind_assert_reflI)
      apply (rule rel_spmf_bind_reflI)
      apply (rename_tac \<alpha> I \<sigma> evals)
-     apply (case_tac "\<alpha> \<in> set I")
-      apply (simp add: rel_spmf_bindI1 rel_spmf_bindI2 lossless_\<A>2 
-              del: PickDistinct.simps One_nat_def bind_spmf_assoc bind_spmf_const)
-     apply (rule rel_spmf_bindI[of "(=)"])
-      apply (simp only: spmf_rel_eq)
-      apply (simp add: witness_calc_helper interpolate_on_\<alpha>_is_\<phi>_of_\<alpha>_helper
-              del: PickDistinct.simps One_nat_def bind_spmf_assoc bind_spmf_const)
+     subgoal for \<alpha> I \<sigma> evals
+       apply (cases "\<alpha> \<in> set I")
+        apply (simp add: rel_spmf_bindI1 rel_spmf_bindI2 lossless_\<A>2
+                del: PickDistinct.simps One_nat_def bind_spmf_assoc bind_spmf_const)
+       apply (rule rel_spmf_bindI[of "(=)"])
+        apply (simp only: spmf_rel_eq)
+        apply (simp add: witness_calc_helper interpolate_on_\<alpha>_is_\<phi>_of_\<alpha>_helper
+                del: PickDistinct.simps One_nat_def bind_spmf_assoc bind_spmf_const)
+       apply (simp del: PickDistinct.simps One_nat_def bind_spmf_assoc bind_spmf_const)+
+       done
      apply (simp del: PickDistinct.simps One_nat_def bind_spmf_assoc bind_spmf_const)+
     done
   text \<open>We use the fundamental lemma to conclude that the difference in winnig one or the other game 

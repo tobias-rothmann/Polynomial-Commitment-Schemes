@@ -109,8 +109,9 @@ proof
     by (metis cong_int_iff int_nat_eq)
   then have "[to_int_mod_ring x = to_int_mod_ring y] (mod p)" 
     using CARD_G\<^sub>p by fast
-  then have "to_int_mod_ring x = to_int_mod_ring y" using range_to_int_mod_ring CARD_q
-    by (metis Rep_mod_ring_mod to_int_mod_ring.rep_eq unique_euclidean_semiring_class.cong_def)
+  then have "to_int_mod_ring x = to_int_mod_ring y"
+    by (metis Rep_mod_ring_mod to_int_mod_ring.rep_eq unique_euclidean_semiring_class.cong_def 
+        CARD_q)
   then show "x = y" by force
 next 
   assume "x = y"
@@ -134,7 +135,7 @@ proof
   assume c: "c \<noteq> 0"
   assume x: " x \<in> carrier G\<^sub>p"
   assume y: " y \<in> carrier G\<^sub>p"
-  assume asm: " x ^ c = y ^ c"
+  assume asm: "x ^ c = y ^ c"
   obtain x_pow where x_pow: "\<^bold>g ^\<^bsub>G\<^sub>p\<^esub> x_pow = x"
     using x 
     by (metis G\<^sub>p.generatorE g_pow_to_int_mod_ring_of_int_mod_ring int_pow_int)
@@ -257,9 +258,6 @@ proof
   then show "False" using e_non_degeneracy by blast
 qed
 
-lemma e_g_g_in_carrier_GT[simp]: "e \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<^bold>g\<^bsub>G\<^sub>p\<^esub> \<in> carrier G\<^sub>T"
-  using e_symmetric by fast
-
 lemma pow_on_eq_card_GT[simp]: "(\<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> x = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> y) = (x=y)"
 proof
   assume assm: "\<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> x = \<^bold>g\<^bsub>G\<^sub>T\<^esub> ^\<^bsub>G\<^sub>T\<^esub> y"
@@ -274,9 +272,9 @@ proof
     by (metis cong_int_iff int_nat_eq)
   then have "[to_int_mod_ring x = to_int_mod_ring y] (mod p)" 
     using CARD_G\<^sub>T by fast
-  then have "to_int_mod_ring x = to_int_mod_ring y" using range_to_int_mod_ring CARD_q
+  then have "to_int_mod_ring x = to_int_mod_ring y"
     by (metis arith_simps(49) to_int_mod_ring_add to_int_mod_ring_hom.hom_0_iff
-        unique_euclidean_semiring_class.cong_def)
+        unique_euclidean_semiring_class.cong_def CARD_q)
   then show "x = y" by force
 next 
   assume "x = y"

@@ -479,7 +479,7 @@ lemma t_DL_advantage_stronger_red_le_red:
     apply (rule try_spmf_le)
     apply (simp only: bind_spmf_assoc)
     apply (rule bind_spmf_le)+
-    apply (auto split: prod.splits simp del: find_\<alpha>.simps g_pow_PK_Prod.simps indicator_simps pmf_return)
+    apply (simp only: split_def Let_def bind_spmf_assoc bind_return_spmf)
     apply (rule del_assert)
     done
 

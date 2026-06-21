@@ -751,7 +751,7 @@ proof -
       let b' = verify_eval vk c i (v',w');
       return_spmf (b \<and> b')} ELSE return_spmf False"
      unfolding eval_bind_game_def knowledge_soundness_reduction_ext_def 
-     by (simp add: split_def Let_def)
+     by simp
 
    text \<open>We extend the evaluation binding game with the normal reduction adversary to a complete 
    game.\<close>
@@ -767,7 +767,7 @@ proof -
       let b' = verify_eval vk c i (v',w');
       return_spmf (b \<and> b')} ELSE return_spmf False"
      unfolding eval_bind_game_def knowledge_soundness_reduction_def 
-     by (simp add: split_def Let_def)
+     by simp
 
   text \<open>We show the thesis in ennreal, which implies the plain thesis\<close>
   have "ennreal (spmf (eval_bind_game (knowledge_soundness_reduction_ext E \<A> \<A>')) True) 

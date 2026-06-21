@@ -89,7 +89,7 @@ lemma reduction_map_imp: "
         \<and> verify_eval vk c i (p_i, w_i)
         \<and> verify_eval_batch vk c I (r_x,w)"
 proof -
-    define ck where ck_def: "ck = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]"
+  define ck where ck_def: "ck = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]"
   define vk where vk_def: "vk = map (\<lambda>t. \<^bold>g\<^bsub>G\<^sub>p\<^esub> ^\<^bsub>G\<^sub>p\<^esub> (\<alpha>^t)) [0..<max_deg+1]"
   define p_i  where p_i_def: "p_i = fst (Eval ck td (Poly (map (of_int_mod_ring::int \<Rightarrow>'e mod_ring) cvec)) i )" 
   define w_i  where w_i_def: "w_i = snd (Eval ck td (Poly (map (of_int_mod_ring::int \<Rightarrow>'e mod_ring) cvec)) i )" 
@@ -148,7 +148,7 @@ proof -
           by (metis coeffs_Poly length_strip_while_le)
         ultimately have deg_poly_calc_vec_le_max_deg: "degree (Poly ?cvec) \<le> max_deg"
           using degree_eq_length_coeffs[of "Poly ?cvec"]
-          by (metis coeffs_Poly le_diff_conv length_strip_while_le)
+          by (metis le_diff_conv)
         
         have 1: "(g_pow_PK_Prod (map (\<lambda>t. \<^bold>g ^\<^bsub>G\<^sub>p\<^esub> \<alpha> ^ t) [0..<max_deg + 1])
           (\<psi>_of (Poly ?cvec) i))
@@ -398,7 +398,7 @@ proof -
         } ELSE return_spmf False
       } ELSE return_spmf False
     } ELSE return_spmf False) True" 
-      by (rule spmf_eqI')(auto simp add:  try_bind_assert_spmf try_spmf_return_spmf1 del: Let_def split_def intro!: try_spmf_cong bind_spmf_cong)
+      by (rule spmf_eqI')(auto simp add: try_bind_assert_spmf try_spmf_return_spmf1 intro!: try_spmf_cong bind_spmf_cong)
       also have "\<dots>= spmf (TRY do {
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;
@@ -554,7 +554,7 @@ proof -
           } ELSE return_spmf False
         } ELSE return_spmf False
       } ELSE return_spmf False) True"
-      by (rule spmf_eqI')(auto simp add:  try_bind_assert_spmf try_spmf_return_spmf1 del: Let_def split_def intro!: try_spmf_cong bind_spmf_cong)
+      by (rule spmf_eqI')(auto simp add: try_bind_assert_spmf try_spmf_return_spmf1 intro!: try_spmf_cong bind_spmf_cong)
     also have "\<dots>= spmf (TRY do {
       (ck,vk) \<leftarrow> key_gen;
       ((c,cvec),\<sigma>) \<leftarrow> \<A>1 ck;

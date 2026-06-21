@@ -12,7 +12,7 @@ of a game.\<close>
 
 lemma ennreal_spmf: "ennreal (spmf game1 True) \<le> ennreal (spmf game2 True) \<Longrightarrow> 
   spmf game1 True \<le> spmf game2 True"
-  by (simp add: ennreal_le_iff)
+  by simp
 
 lemma unpack_bind_spmf: "X = X' \<Longrightarrow> bind_spmf X Y = bind_spmf X' Y"
   by simp
@@ -126,7 +126,8 @@ lemma spmf_sample_uniform_set: "spmf (sample_uniform_set k n) x
   by (simp add: n_subsets sample_uniform_set_def spmf_of_set)
 
 lemma weight_sample_uniform_set: "weight_spmf (sample_uniform_set k n) = of_bool (k\<le>n)"
-  apply (auto simp add: sample_uniform_set_def weight_spmf_of_set split: if_splits)
+  apply (simp add: sample_uniform_set_def weight_spmf_of_set split: if_splits)
+  apply (rule conjI)
    apply (metis card_lessThan card_mono finite_lessThan)
   using card_lessThan by blast
 
@@ -200,9 +201,23 @@ proof -
     unfolding sample_uniform_list_def
     by (simp add: finite_lists_length_eq)
   also have "\<dots> = {xs. set (tl xs) \<subseteq> {..<p} \<and> length xs = k+1 \<and> hd xs = x}"
-    (* TODO cleanup in case*)
-    apply auto
-    by (smt (verit) Suc_length_conv image_Collect list.sel(1) list.sel(3) mem_Collect_eq)
+  proof (rule equalityI; rule subsetI)
+    fix ys assume "ys \<in> (#) x ` {xs. set xs \<subseteq> {..<p} \<and> length xs = k}"
+    then obtain zs where "zs \<in> {xs. set xs \<subseteq> {..<p} \<and> length xs = k}" and "ys = x # zs"
+      by blast
+    then show "ys \<in> {xs. set (tl xs) \<subseteq> {..<p} \<and> length xs = k+1 \<and> hd xs = x}"
+      by simp
+  next
+    fix ys assume ys: "ys \<in> {xs. set (tl xs) \<subseteq> {..<p} \<and> length xs = k+1 \<and> hd xs = x}"
+    then have facts: "set (tl ys) \<subseteq> {..<p}" "length ys = k+1" "hd ys = x" by simp_all
+    then obtain a zs where azs: "ys = a # zs" and len_zs: "length zs = k"
+      by (metis Suc_eq_plus1 Suc_length_conv)
+    have "ys = x # zs" using azs facts by simp
+    moreover have "zs \<in> {xs. set xs \<subseteq> {..<p} \<and> length xs = k}"
+      using azs facts len_zs by simp
+    ultimately show "ys \<in> (#) x ` {xs. set xs \<subseteq> {..<p} \<and> length xs = k}"
+      by (metis image_eqI)
+  qed
   finally show "set_spmf (map_spmf ((#) x) (sample_uniform_list k p)) 
       = {xs. set (tl xs) \<subseteq> {..<p} \<and> length xs = k + 1 \<and> hd xs = x}"
     .
@@ -429,10 +444,11 @@ proof -
         qed
         have "x_nat \<in> {x::nat list. set x \<subseteq> {..<CARD('e)} \<and> length x = t + (1::nat)}"
           unfolding x_nat x_int
-          apply auto 
-           apply (metis range_to_int_mod_ring UNIV_I atLeastLessThan_iff image_iff nat_less_iff)
-          using asm apply force
-          done
+          apply (rule CollectI, rule conjI)
+           apply (simp only: set_map)
+           apply (rule subsetI)
+           apply (metis range_to_int_mod_ring UNIV_I atLeastLessThan_iff image_iff nat_less_iff lessThan_iff)
+          using asm by simp
         moreover have "x = map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) x_nat"
           by (simp add: x_eq_map_x_int x_int_x_nat)
         ultimately show "x \<in> map (of_int_mod_ring \<circ> int:: nat \<Rightarrow> 'e mod_ring) 
